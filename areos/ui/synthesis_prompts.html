@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+ <meta charset="UTF-8" />
+ <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+ <title>Citeable | Synthesis Prompts</title>
+ <link rel="preconnect" href="https://fonts.googleapis.com" />
+ <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+ <link rel="stylesheet" href="index.css" />
+ <link rel="icon" type="image/svg+xml" href="favicon.svg">
+
+ <script src="context.js"></script>
+ <script src="identity.js"></script>
+ <script src="api.js"></script>
+ <script src="dom.js"></script>
+ <script src="nav.js"></script>
+</head>
+<body>
+ <div class="app-container">
+ <aside class="sidebar">
+ <div class="logo">
+ <div class="logo-icon"><img src="favicon.svg" alt="Citeable Logo" width="24" height="24"></div>
+ <h1>Citeable</h1>
+ </div>
+ <nav id="main-nav"></nav>
+ </aside>
+
+ <main class="main-content">
+ <header class="topbar">
+ <h2>Synthesis Prompts</h2>
+ </header>
+
+ <!-- Added per UX audit: this panel edits GLOBAL state — every future
+      audit run, for every user, not just the person editing it — so it
+      no longer lives on the customer-facing Studio report screen. This
+      warning has no equivalent anywhere else in the app; it needs to be
+      unmissable here specifically. -->
+ <div class="action-required-banner" style="margin: 1.2rem 0 1.6rem;">
+ <div>
+ <strong>⚠ These prompts control every future audit's AI report — for every user</strong>
+ <p>Saving a change here immediately changes what the Synthesizer, Red Teamer, and Grounder write for every audit run from this point forward, not just yours. Test changes carefully before saving.</p>
+ </div>
+ </div>
+
+ <!-- Shown only when no admin token is present; the prompt cards below
+      are hidden in that case rather than rendering blank/broken. -->
+ <div id="prompts-auth-gate" class="glass-card" style="display:none; text-align:center; padding: 2.4rem 2rem;">
+ <h3 style="color:#fff; margin-bottom:0.6rem;">Admin access required</h3>
+ <p style="color:#94a3b8; margin-bottom:1.4rem; max-width:480px; margin-left:auto; margin-right:auto;">
+ Editing synthesis prompts requires an admin token. Authenticate to continue, or press
+ <kbd style="background:rgba(255,255,255,0.08); padding:2px 6px; border-radius:4px; font-family:'JetBrains Mono',monospace;">Ctrl/Cmd+Shift+A</kbd>
+ anywhere in the app.
+ </p>
+ <button class="btn-primary" style="padding:10px 22px;" onclick="document.getElementById('admin-auth-modal').style.display='flex'; document.getElementById('admin-auth-input').focus();">
+ Enter Admin Token
+ </button>
+ </div>
+
+ <!-- Shown only when a saved token turned out to be invalid/expired —
+      distinct from "no token at all" so the person knows to re-auth,
+      not that the feature is broken. -->
+ <div id="prompts-auth-invalid" class="action-required-banner" style="display:none; margin-bottom:1.6rem;">
+ <div>
+ <strong>⚠ Your admin token was rejected</strong>
+ <p>It may have expired or been entered incorrectly. Re-authenticate to continue.</p>
+ </div>
+ <button onclick="document.getElementById('admin-auth-modal').style.display='flex'; document.getElementById('admin-auth-input').focus();">Re-authenticate →</button>
+ </div>
+
+ <div id="prompt-editor-area" style="display:none; flex-direction:column; gap:1.5rem;">
+ <!-- Synthesizer -->
+ <div class="glass-card" id="prompt-card-synthesizer">
+ <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.8rem;">
+ <div>
+ <strong style="color:#6ee7b7; font-family:'JetBrains Mono',monospace; font-size:0.9rem;">STEP 1 — SYNTHESIZER</strong>
+ <p style="margin:0.2rem 0 0; color:#64748b; font-size:0.82rem;">Primary waterfall · Writes draft remediation narrative from deterministic findings</p>
+ </div>
+ <div style="display:flex; gap:0.6rem;">
+ <button class="btn-primary" style="padding:9px 16px; font-size:0.83rem;" onclick="savePrompt('synthesizer')">Save</button>
+ <button class="btn-export" style="padding:9px 16px; font-size:0.83rem;" onclick="resetPrompt('synthesizer')">Reset Default</button>
+ </div>
+ </div>
+ <textarea id="prompt-synthesizer" rows="8" style="width:100%; background:rgba(15,23,42,0.8); color:#e2e8f0; border:1px solid rgba(255,255,255,0.1); border-radius:10px; padding:1rem; font-family:'JetBrains Mono',monospace; font-size:0.85rem; resize:vertical; box-sizing:border-box;"></textarea>
+ </div>
+
+ <!-- Red Teamer -->
+ <div class="glass-card" id="prompt-card-red_teamer">
+ <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.8rem;">
+ <div>
+ <strong style="color:#f87171; font-family:'JetBrains Mono',monospace; font-size:0.9rem;">STEP 2 — RED TEAMER</strong>
+ <p style="margin:0.2rem 0 0; color:#64748b; font-size:0.82rem;">Reverse waterfall (different model) · Flags HALLUCINATED_CLAIM, FABRICATED_STAT, VAGUE</p>
+ </div>
+ <div style="display:flex; gap:0.6rem;">
+ <button class="btn-primary" style="padding:9px 16px; font-size:0.83rem;" onclick="savePrompt('red_teamer')">Save</button>
+ <button class="btn-export" style="padding:9px 16px; font-size:0.83rem;" onclick="resetPrompt('red_teamer')">Reset Default</button>
+ </div>
+ </div>
+ <textarea id="prompt-red_teamer" rows="8" style="width:100%; background:rgba(15,23,42,0.8); color:#e2e8f0; border:1px solid rgba(255,255,255,0.1); border-radius:10px; padding:1rem; font-family:'JetBrains Mono',monospace; font-size:0.85rem; resize:vertical; box-sizing:border-box;"></textarea>
+ </div>
+
+ <!-- Grounder -->
+ <div class="glass-card" id="prompt-card-grounder">
+ <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.8rem;">
+ <div>
+ <strong style="color:#38bdf8; font-family:'JetBrains Mono',monospace; font-size:0.9rem;">STEP 3 — GROUNDER</strong>
+ <p style="margin:0.2rem 0 0; color:#64748b; font-size:0.82rem;">Primary waterfall · Resolves flags, applies evidence tier labels, produces final output</p>
+ </div>
+ <div style="display:flex; gap:0.6rem;">
+ <button class="btn-primary" style="padding:9px 16px; font-size:0.83rem;" onclick="savePrompt('grounder')">Save</button>
+ <button class="btn-export" style="padding:9px 16px; font-size:0.83rem;" onclick="resetPrompt('grounder')">Reset Default</button>
+ </div>
+ </div>
+ <textarea id="prompt-grounder" rows="8" style="width:100%; background:rgba(15,23,42,0.8); color:#e2e8f0; border:1px solid rgba(255,255,255,0.1); border-radius:10px; padding:1rem; font-family:'JetBrains Mono',monospace; font-size:0.85rem; resize:vertical; box-sizing:border-box;"></textarea>
+ </div>
+ </div>
+
+ </main>
+ </div>
+
+ <div class="toast" id="toast"></div>
+ <script src="auth.js"></script>
+ <script src="dom.js"></script>
+ <script src="synthesis_prompts.js"></script>
+ <script>document.addEventListener('DOMContentLoaded', () => { window.AreosNav.renderNav('synthesis_prompts'); });</script>
+</body>
+</html>

@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Citeable | AI Key Vault (BYOK)</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="index.css?v=2">
+  <link rel="icon" type="image/svg+xml" href="favicon.svg">
+  <meta name="description" content="Citeable BYOK AI Vault — securely register your own AI provider API keys for use in the synthesis pipeline.">
+
+  <script src="context.js"></script>
+  <script src="auth.js"></script>
+  <script src="identity.js"></script>
+  <script src="api.js"></script>
+  <script src="dom.js"></script>
+  <script src="nav.js"></script>
+</head>
+<body>
+  <div class="app-container">
+    <!-- Sidebar Navigation -->
+    <aside class="sidebar">
+      <div class="logo">
+        <div class="logo-icon"><img src="favicon.svg" alt="Citeable Logo" width="24" height="24"></div>
+        <div class="logo-text">Citeable</div>
+      </div>
+      <nav id="main-nav"></nav>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="main-content">
+      <div style="padding: 2rem 2.5rem; max-width: 860px;">
+        <div class="section-header" style="margin-bottom: 2rem;">
+          <h1 style="font-size: 1.8rem; font-weight: 800; color: var(--text); margin: 0 0 0.5rem 0;">
+            AI Key Vault <span style="color: var(--neon-green); font-size: 1rem; font-weight: 600; margin-left: 0.5rem;">BYOK</span>
+          </h1>
+          <p style="color: var(--text-secondary); margin: 0; font-size: 0.95rem;">
+            Register your own AI provider API keys. Keys are stored in your browser only — never sent to Citeable servers except as request headers during synthesis.
+          </p>
+        </div>
+
+        <!-- BYOK panel rendered by byok.js -->
+        <div id="byok-vault-container"></div>
+
+        <div style="margin-top: 2rem; padding: 1.2rem 1.5rem; background: rgba(99,102,241,0.08); border: 1px solid rgba(99,102,241,0.25); border-radius: 10px;">
+          <p style="color: var(--text-secondary); font-size: 0.85rem; margin: 0; line-height: 1.6;">
+            <strong style="color: var(--text);">How it works:</strong> After verifying a key, it is stored in your browser's localStorage under <code style="background:rgba(0,0,0,0.3); padding: 0.1rem 0.4rem; border-radius: 4px; font-size: 0.8rem;">areos_byok_vault</code>.
+            When you run an audit, the key is sent as an <code style="background:rgba(0,0,0,0.3); padding: 0.1rem 0.4rem; border-radius: 4px; font-size: 0.8rem;">X-API-Key-&lt;provider&gt;</code> header.
+            Keys are never logged or persisted on the server.
+          </p>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <script src="byok.js"></script>
+  <script>
+    // Initialise sidebar nav
+    document.addEventListener('DOMContentLoaded', () => {
+      if (window.AreosNav) AreosNav.renderNav('byok');
+      // If BYOKVault is loaded, open it into the container
+      if (window.BYOKVault && typeof BYOKVault.renderInline === 'function') {
+        BYOKVault.renderInline(document.getElementById('byok-vault-container'));
+      } else {
+        // Fallback: trigger the modal open button
+        document.getElementById('byok-vault-container').innerHTML = `
+          <div style="text-align:center; padding: 3rem;">
+            <button onclick="if(window.BYOKVault) BYOKVault.open();" class="btn-primary" style="padding: 0.8rem 2rem; font-size: 1rem;">
+              Open AI Key Vault
+            </button>
+            <p style="color:var(--text-secondary); margin-top: 1rem; font-size: 0.85rem;">
+              Or use the <strong>BYOK AI Vault</strong> button in the sidebar navigation on any page.
+            </p>
+          </div>`;
+      }
+    });
+  </script>
+</body>
+</html>

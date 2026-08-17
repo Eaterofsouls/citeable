@@ -1,0 +1,14 @@
+# requirements.txt — exact pins (SEC-6)
+# To update: pip install -U <pkg> then re-pin with pip freeze.
+# Run pip-audit (SEC-12/A8) after any pin change.
+fastapi==0.141.1
+uvicorn==0.52.0
+pydantic==2.12.5
+beautifulsoup4==4.15.0
+PyYAML==6.0.3
+requests==2.33.0
+httpx==0.28.1
+# NOTE (Readiness Audit): openai==2.30.0 was pinned here but never imported —
+# areos/llm/providers/__init__.py calls every provider (including OpenAI) via
+# raw requests.post() by design ("Zero-dependency architecture", per that
+# file's header comment). Removed as dead weight on every install/build.

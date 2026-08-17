@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+ <meta charset="UTF-8" />
+ <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+ <title>Citeable | Prompts</title>
+ <link rel="preconnect" href="https://fonts.googleapis.com" />
+ <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+ <link rel="stylesheet" href="index.css" />
+ <!-- Inline styles stripped for unified design system -->
+ <link rel="icon" type="image/svg+xml" href="favicon.svg">
+
+ <script src="context.js"></script>
+ <script src="identity.js"></script>
+ <script src="api.js"></script>
+ <script src="dom.js"></script>
+ <script src="nav.js"></script>
+</head>
+<body>
+ <div class="app-container">
+ <aside class="sidebar">
+ <div class="logo">
+ <div class="logo-icon"><img src="favicon.svg" alt="Citeable Logo" width="24" height="24"></div>
+ <h1>Citeable</h1>
+ </div>
+ <nav id="main-nav"></nav>
+ </aside>
+
+ <main class="main-content">
+ <header class="topbar">
+ <h2>Governed Prompt Sets (AI Citation Tracking)</h2>
+ </header>
+
+ <div style="display:grid; grid-template-columns:1.2fr 1.5fr; gap:24px; margin-top:10px;">
+ 
+ <!-- Form Section -->
+ <div class="glass-panel" style="padding:24px;">
+ <h3 style="margin-bottom:6px; color:#fff; font-size:18px;">Create Prompt Query</h3>
+ <p style="color:#64748b; font-size:13px; margin-bottom:20px;">Design governed test prompts for AI engine citation sampling (Perplexity & Gemini grounded search).</p>
+ 
+ <form id="prompt-form" onsubmit="submitPrompt(event)">
+ <div class="form-grid">
+ 
+ <div class="form-group full-width">
+ <label>Prompt Label <span>*</span></label>
+ <input type="text" id="p-label" required placeholder="e.g. Primary Brand Query - Feature Comparison" />
+ </div>
+
+ <div class="form-group full-width">
+ <label>Prompt Query Text <span>*</span></label>
+ <textarea id="p-text" required placeholder="What are the leading tools for AI engine AEO/GEO tracking, and how does [Brand] compare against alternatives?"></textarea>
+ <div class="hint">Must be human-authored per governance policy C072. Avoid biased leading terms.</div>
+ </div>
+
+ <div class="form-group">
+ <label>Target Domain</label>
+ <input type="text" id="p-domain" placeholder="e.g. areos.io (optional)" />
+ </div>
+
+ <div class="form-group">
+ <label>Funnel Stage</label>
+ <select id="p-stage">
+ <option value="awareness">Awareness / Discovery</option>
+ <option value="consideration">Consideration / Evaluation</option>
+ <option value="comparison">Direct Comparison</option>
+ <option value="decision">Decision / Conversion</option>
+ </select>
+ </div>
+
+ </div>
+ <button type="submit" class="submit-btn" id="btn-submit">Save Governed Prompt Set</button>
+ </form>
+ </div>
+
+ <!-- List Section -->
+ <div class="glass-panel" style="padding:24px;">
+ <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+ <h3 style="color:#fff; font-size:18px; margin:0;">Active Prompt Library</h3>
+ <button class="btn-secondary" style="padding:6px 12px; font-size:12px;" onclick="loadPrompts()">Refresh</button>
+ </div>
+ <div class="prompts-list" id="prompts-list">
+ <div style="color:#64748b; font-size:13px;">Loading prompt sets...</div>
+ </div>
+ </div>
+
+ </div>
+ </main>
+ </div>
+
+ <div class="toast" id="toast"></div>
+ <script src="auth.js"></script>
+ <script src="dom.js"></script>
+ <script src="prompts.js"></script>
+ <script>document.addEventListener('DOMContentLoaded', () => { window.AreosNav.renderNav('prompts'); });</script>
+</body>
+</html>

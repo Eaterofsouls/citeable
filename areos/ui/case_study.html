@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+ <meta charset="UTF-8">
+ <meta name="viewport" content="width=device-width, initial-scale=1.0">
+ <title>Citeable | Engineering Case Study</title>
+ <link rel="preconnect" href="https://fonts.googleapis.com">
+ <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+ <link rel="stylesheet" href="index.css">
+ <link rel="icon" type="image/svg+xml" href="favicon.svg">
+
+ <script src="context.js"></script>
+ <script src="identity.js"></script>
+ <script src="api.js"></script>
+ <script src="dom.js"></script>
+ <script src="nav.js"></script>
+ <style>
+ .case-content { max-width: 800px; margin: 0 auto; padding: var(--space-8) var(--space-4); color: var(--text-secondary); line-height: 1.7; font-size: 1.1rem; }
+ .case-content h1 { color: var(--text-primary); font-size: 2.5rem; margin-bottom: var(--space-2); letter-spacing: -0.02em; }
+ .case-content h2 { color: var(--text-primary); font-size: 1.5rem; margin-top: var(--space-8); margin-bottom: var(--space-4); border-bottom: 1px solid var(--border-subtle); padding-bottom: var(--space-2); }
+ .case-content h3 { color: var(--text-primary); font-size: 1.25rem; margin-top: var(--space-6); margin-bottom: var(--space-3); }
+ .case-content p { margin-bottom: var(--space-4); }
+ .case-content strong { color: var(--text-primary); font-weight: 600; }
+ .callout { background: var(--surface-panel); border-left: 4px solid var(--brand-500); padding: var(--space-4); border-radius: 0 var(--radius-md) var(--radius-md) 0; margin: var(--space-6) 0; }
+ .diagram-box { background: var(--surface-panel); border: 1px solid var(--border-default); padding: var(--space-6); border-radius: var(--radius-lg); margin: var(--space-6) 0; text-align: center; }
+ </style>
+</head>
+<body>
+ <aside class="sidebar">
+ <div class="logo">
+ <div class="logo-icon"><img src="favicon.svg" alt="Citeable Logo" width="24" height="24"></div>
+ <h1>Citeable</h1>
+ </div>
+ <nav id="main-nav"></nav>
+ </aside>
+
+ <main class="main-content">
+ <div class="case-content">
+ <h1>Citeable: Closing the Generative Engine Loop</h1>
+ <p style="font-size: 1.25rem; color: var(--text-primary);">
+ AI answer engines routinely misrepresent brands, and there was no tool that closed the loop between <em>"the AI said something wrong"</em> and <em>"here's the exact line of code that caused it."</em>
+ </p>
+
+ <h2>The Architecture</h2>
+ <p>Citeable isn't just a dashboard; it's a closed-loop system enforcing citation integrity across 7 LLM pipeline stages.</p>
+ 
+ <div class="diagram-box">
+ <div style="font-family: var(--font-mono); font-size: 0.9rem; display: flex; flex-direction: column; gap: var(--space-3); align-items: center;">
+ <div style="background: var(--surface-raised); padding: var(--space-3) var(--space-6); border-radius: var(--radius-md); border: 1px solid var(--border-default);">Crawl & Extract</div>
+ <div style="color: var(--brand-500);">↓</div>
+ <div style="background: var(--surface-raised); padding: var(--space-3) var(--space-6); border-radius: var(--radius-md); border: 1px solid var(--border-default);">Automated Checks & Manual Review</div>
+ <div style="color: var(--brand-500);">↓</div>
+ <div style="background: var(--surface-raised); padding: var(--space-3) var(--space-6); border-radius: var(--radius-md); border: 1px solid var(--border-default);">Synthesis Engine (QA Gated)</div>
+ <div style="color: var(--brand-500);">↓</div>
+ <div style="background: var(--surface-raised); padding: var(--space-3) var(--space-6); border-radius: var(--radius-md); border: 1px solid var(--border-default);">Remediation Plan (Markdown Export)</div>
+ <div style="color: var(--brand-500);">↓</div>
+ <div style="background: var(--surface-raised); padding: var(--space-3) var(--space-6); border-radius: var(--radius-md); border: 1px solid var(--border-default);">Outcome Logger (Closes the Loop)</div>
+ </div>
+ </div>
+
+ <h2>Engineering War Story: The Citation Leak</h2>
+ <p>During a system audit, I discovered a subtle but critical citation integrity bug: the synthesis engine was occasionally citing internal reference material (e.g., generic explanations of how AI crawling works) instead of client-specific evidence in its final remediation recommendations.</p>
+ 
+ <div class="callout">
+ <p><strong>The Root Cause:</strong> The underlying SQL query in <code>findings_to_claims.py::_lookup_claim</code> fetched <code>status</code> and <code>confidence</code>, but never fetched <code>claim_scope</code>. The engine had a hard invariant: <em>"no recommendation without a citing claim"</em>. That invariant was holding, but the claim it picked was legally correct and substantively wrong.</p>
+ </div>
+
+ <p><strong>The Fix:</strong> I didn't just add a UI filter. I added a canonical <code>is_client_evidence</code> boolean directly into the SQLite schema via a <code>GENERATED ALWAYS AS VIRTUAL</code> column, indexed it, and updated the wiring layer to strictly refuse non-client evidence. Now, the bug is impossible by design, not just hidden by CSS.</p>
+
+ <h2>Tech Stack & Scale</h2>
+ <ul style="padding-left: var(--space-6); margin-bottom: var(--space-8);">
+ <li><strong>Data Layer:</strong> SQLite with strictly enforced <code>CHECK</code> constraints and triggers (e.g., <code>RAISE(ABORT, 'Hard delete forbidden')</code> — claims are only ever superseded, never destroyed).</li>
+ <li><strong>Backend:</strong> Python, FastAPI, and a custom Synthesis Engine.</li>
+ <li><strong>Frontend:</strong> Vanilla JS + HTML/CSS, implementing a custom unified design token system (<code>areos-design-tokens.css</code>) bridging dark-mode, responsive layouts, and robust micro-interactions without heavyweight frameworks.</li>
+ <li><strong>Scale:</strong> Managing hundreds of interconnected knowledge claims across 7 pipeline stages, translating raw findings into prioritized, page-grouped remediation plans.</li>
+ </ul>
+ </div>
+ </main>
+
+ <script>document.addEventListener('DOMContentLoaded', () => { window.AreosNav.renderNav('case_study'); });</script>
+</body>
+</html>

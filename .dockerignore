@@ -1,0 +1,38 @@
+__pycache__/
+*.py[cod]
+*$py.class
+.env
+.venv
+venv/
+env/
+.git/
+.gitignore
+scratch/
+tests/
+.pytest_cache/
+*.log
+.DS_Store
+desktop.ini
+.user_uploaded/
+.gemini/
+# FIX (Readiness Audit): dev/test SQLite databases were getting COPY'd into
+# the image — wasted layer size, and a footgun if RENDER isn't set at runtime
+# (the app would then serve this stale local data instead of /data/areos.db).
+
+# Internal scratch dirs — not part of the shipped app.
+AREOS_Review_Extracted/
+New folder/
+07_Build_Outputs_and_Compiled_Cards/
+areos_bundle/
+candidates/
+01_System_States_and_Roadmaps/
+02_Site_Audits_and_Crawl_Data/
+03_Python_Pipelines_and_Scripts/
+04_Architecture_and_Step2_Specs/
+05_Research_Corpora_and_SEO_Handbooks/
+06_Data_Registries_and_Knowledge_Base/
+# One-off dev/fix/refactor scripts used to build this repo — not runtime code
+fix_*.py
+refactor_*.py
+update_*.py
+test_*.py

@@ -1,0 +1,69 @@
+# Render Cloud Deployment Blueprint (SEC-6)
+# See docs/architecture/migrations.md for deployment notes.
+services:
+  - type: web
+    name: areos-studio
+    env: docker
+    region: oregon
+    # FIX (Readiness Audit, Blocker 2): Render does not support attaching a
+    # persistent disk to a free web service — the `disk:` block below requires
+    # at least the `starter` plan, or the SQLite database will not survive a
+    # restart/redeploy/spin-down. Bump this before deploying for real use;
+    # leave as `free` only if you're OK with data being wiped on every restart
+    # (e.g. a throwaway demo).
+    plan: free
+    branch: main
+    healthCheckPath: /api/health
+    envVars:
+      - key: PYTHONUNBUFFERED
+        value: "1"
+      - key: PYTHONDONTWRITEBYTECODE
+        value: "1"
+      # Required — SEC-3's fail-closed startup check crash-loops without this
+      - key: AREOS_API_TOKEN
+        sync: false
+      # Required for authority metrics (SEC-2) — set to empty string to disable
+      - key: OPEN_PAGERANK_API_KEY
+        sync: false
+      # AI Provider API Keys (Fill values in Render Dashboard)
+      - key: PERPLEXITY_API_KEY
+        sync: false
+      # FIX (Readiness Audit, Blocker 3): the app reads AREOS_GEMINI_KEY_1 /
+      # AREOS_GEMINI_KEY_2 (areos/llm/providers/__init__.py), never GEMINI_API_KEY.
+      # The old key name here was silently ignored — Gemini would never activate.
+      - key: AREOS_GEMINI_KEY_1
+        sync: false
+      # Optional second Gemini key for rotation — leave unset if you only have one.
+      - key: AREOS_GEMINI_KEY_2
+        sync: false
+      # Optional: overrides the default Gemini model string (areos/llm/providers)
+      - key: AREOS_GEMINI_MODEL_1
+        sync: false
+      - key: OPENAI_API_KEY
+        sync: false
+      # Provider 5-9 of the waterfall (areos/llm/providers/__init__.py) —
+      # all optional, leave unset to skip that provider entirely
+      - key: AREOS_GROQ_KEY
+        sync: false
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: XAI_API_KEY
+        sync: false
+      - key: MISTRAL_API_KEY
+        sync: false
+      - key: DEEPSEEK_API_KEY
+        sync: false
+      # Provider 10: Azure OpenAI — both required together or neither is used
+      - key: AZURE_OPENAI_KEY
+        sync: false
+      - key: AZURE_OPENAI_BASE
+        sync: false
+      # Provider 11: local/custom (e.g. Ollama) — base URL only, key optional
+      - key: CUSTOM_LLM_BASE
+        sync: false
+      # Jina AI Reader for clean web-fetching in research_service.py (optional)
+      - key: AREOS_JINA_KEY
+        sync: false
+      # Set by Render automatically — do not override
+      - key: RENDER
+        value: "true"
