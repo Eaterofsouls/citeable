@@ -1,0 +1,99 @@
+# .github/workflows/ci.yml
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+env:
+  # Fail-fast token check in areos/api/dependencies.py requires this to
+  # even import the app — never a real credential, CI-only.
+  AREOS_API_TOKEN: ci-test-token-not-for-production
+  PYTHONUNBUFFERED: "1"
+
+jobs:
+  lint:
+    name: Lint & Static Analysis
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+      - name: Install lint tools
+        run: pip install black==24.10.0 flake8==7.1.1 mypy==1.13.0
+      # NOTE: black/flake8/mypy have never been run against this codebase
+      # (104/122 files fail black --check; ~770 flake8 findings as of the
+      # Sep 2026 readiness audit — see REPORT_3 §3.2). Kept advisory
+      # (continue-on-error) until a deliberate one-time "black ."
+      # normalization commit lands; flip to blocking immediately after.
+      - name: black --check
+        run: black --check --diff areos scripts tests
+        continue-on-error: true
+      - name: flake8
+        run: flake8 --max-line-length=120 --extend-ignore=E203 areos scripts tests
+        continue-on-error: true
+      - name: mypy (advisory — no type-checking baseline exists yet)
+        run: mypy --ignore-missing-imports --no-error-summary areos || true
+        continue-on-error: true
+
+  test:
+    name: Test Suite
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+      - name: Install dependencies
+        run: |
+          pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pytest pip-audit
+      - name: Dependency vulnerability scan
+        run: pip-audit -r requirements.txt
+        continue-on-error: true  # advisory — triage findings manually, see REPORT_3 §4
+      - name: Run test suite (isolated, disposable DB)
+        env:
+          # Forces every get_db_path() caller onto a throwaway file for
+          # this run, regardless of whether the individual test file
+          # remembers to set this itself (most don't — see REPORT_3 §3.2).
+          AREOS_TEST_DB: ${{ runner.temp }}/areos_ci_test.db
+        run: pytest -v
+      - name: "Semantic parity gate (77 check codes: KB ↔ scoring ↔ orchestrator)"
+        run: python scripts/verify_kb_semantic_parity.py
+
+  docker:
+    name: Build & Scan Container
+    runs-on: ubuntu-latest
+    needs: [test]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - name: Build image
+        run: docker build -t areos-studio:${{ github.sha }} .
+      - name: Trivy vulnerability scan (fail on CRITICAL/HIGH)
+        uses: aquasecurity/trivy-action@0.24.0
+        with:
+          image-ref: areos-studio:${{ github.sha }}
+          severity: CRITICAL,HIGH
+          exit-code: "1"
+          ignore-unfixed: true
+      - name: Smoke test — container boots and /api/health passes
+        run: |
+          docker run -d --name areos-smoke -p 8000:8000 \
+            -e PORT=8000 \
+            -e AREOS_API_TOKEN=ci-smoke-token \
+            areos-studio:${{ github.sha }}
+          ok=""
+          for i in $(seq 1 15); do
+            if curl -sf http://localhost:8000/api/health > /dev/null; then ok=1; break; fi
+            sleep 2
+          done
+          docker logs areos-smoke
+          docker rm -f areos-smoke
+          test -n "$ok" || (echo "::error::container never became healthy" && exit 1)

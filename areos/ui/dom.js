@@ -62,16 +62,16 @@ function setText(elementId, text) {
  * Returns the URL if safe, or '#' if potentially malicious.
  */
 function safeUrl(url) {
- if (!url) return '#';
- try {
- const parsed = new URL(url, window.location.origin);
- if (parsed.protocol === 'javascript:' || parsed.protocol === 'data:') {
- return '#';
- }
- return url;
- } catch {
- return url; // relative URLs are OK
- }
+  if (!url) return '#';
+  try {
+    const parsed = new URL(url, window.location.origin);
+    if (parsed.protocol === 'javascript:' || parsed.protocol === 'data:') {
+      return '#';
+    }
+    return escapeHtml(url);
+  } catch {
+    return escapeHtml(url); // relative URLs are OK
+  }
 }
 
 /* ==========================================================================
@@ -99,48 +99,58 @@ function safeUrl(url) {
  dialog.close(); // call when you hide the modal (or just call onClose's own hide logic)
  ========================================================================== */
 function makeDialogAccessible(container, opts) {
- opts = opts || {};
- container.setAttribute('role', opts.role || 'dialog');
- container.setAttribute('aria-modal', 'true');
- if (opts.titleId) container.setAttribute('aria-labelledby', opts.titleId);
- else if (opts.label) container.setAttribute('aria-label', opts.label);
+	opts = opts || {};
+	container.setAttribute('role', opts.role || 'dialog');
+	container.setAttribute('aria-modal', 'true');
+	if (opts.titleId) container.setAttribute('aria-labelledby', opts.titleId);
+	else if (opts.label) container.setAttribute('aria-label', opts.label);
 
- const FOCUSABLE = 'a[href], button:not([disabled]), textarea, input, select, [tabindex]:not([tabindex="-1"])';
- let lastFocused = null;
+	const FOCUSABLE = 'a[href], button:not([disabled]), textarea, input, select, [tabindex]:not([tabindex="-1"])';
+	let lastFocused = null;
 
- function trap(e) {
- if (e.key === 'Escape') {
- e.preventDefault();
- if (opts.onClose) opts.onClose();
- return;
- }
- if (e.key !== 'Tab') return;
- const focusable = Array.from(container.querySelectorAll(FOCUSABLE)).filter(
- (elx) => elx.offsetParent !== null
- );
- if (focusable.length === 0) return;
- const first = focusable[0];
- const last = focusable[focusable.length - 1];
- if (e.shiftKey && document.activeElement === first) {
- e.preventDefault();
- last.focus();
- } else if (!e.shiftKey && document.activeElement === last) {
- e.preventDefault();
- first.focus();
- }
- }
+	function trap(e) {
+		if (e.key === 'Escape') {
+			e.preventDefault();
+			if (opts.onClose) opts.onClose();
+			return;
+		}
+		if (e.key !== 'Tab') return;
 
- return {
- open() {
- lastFocused = document.activeElement;
- container.addEventListener('keydown', trap);
- const focusable = container.querySelector(FOCUSABLE);
- if (focusable) focusable.focus();
- },
- close() {
- container.removeEventListener('keydown', trap);
- if (lastFocused && typeof lastFocused.focus === 'function') lastFocused.focus();
- lastFocused = null;
- },
- };
+		// DEC-03: Skip modal focus-trapping when position is static or on mobile viewports (< 768px)
+		const isStatic = typeof window !== 'undefined' && window.getComputedStyle ? window.getComputedStyle(container).position === 'static' : false;
+		const isMobile = typeof window !== 'undefined' && window.innerWidth < 768;
+		if (isStatic || isMobile) return;
+
+		const focusable = Array.from(container.querySelectorAll(FOCUSABLE)).filter(
+			(elx) => elx.offsetParent !== null || (elx.getClientRects && elx.getClientRects().length > 0)
+		);
+		if (focusable.length === 0) return;
+		const first = focusable[0];
+		const last = focusable[focusable.length - 1];
+		if (e.shiftKey && document.activeElement === first) {
+			e.preventDefault();
+			last.focus();
+		} else if (!e.shiftKey && document.activeElement === last) {
+			e.preventDefault();
+			first.focus();
+		}
+	}
+
+	return {
+		open() {
+			lastFocused = document.activeElement;
+			container.addEventListener('keydown', trap);
+			const isStatic = typeof window !== 'undefined' && window.getComputedStyle ? window.getComputedStyle(container).position === 'static' : false;
+			const isMobile = typeof window !== 'undefined' && window.innerWidth < 768;
+			if (!isStatic && !isMobile) {
+				const focusable = container.querySelector(FOCUSABLE);
+				if (focusable) focusable.focus({ preventScroll: true });
+			}
+		},
+		close() {
+			container.removeEventListener('keydown', trap);
+			if (lastFocused && typeof lastFocused.focus === 'function') lastFocused.focus({ preventScroll: true });
+			lastFocused = null;
+		},
+	};
 }

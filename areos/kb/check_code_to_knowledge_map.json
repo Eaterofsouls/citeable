@@ -1,0 +1,473 @@
+{
+  "AUDIT_PHASE_CRASHED": {
+    "guidance_record": "KT-124",
+    "backing_records": [
+      "KT-033"
+    ]
+  },
+  "CRAWLER_FULLY_BLOCKED": {
+    "guidance_record": "KT-124",
+    "backing_records": [
+      "KT-033"
+    ]
+  },
+  "JSON_PARSE_FAILURE": {
+    "guidance_record": "KT-125",
+    "backing_records": [
+      "KT-179"
+    ]
+  },
+  "MISSING_TYPE": {
+    "guidance_record": "KT-126",
+    "backing_records": [
+      "KT-179"
+    ]
+  },
+  "MISSING_REQUIRED_FIELD": {
+    "guidance_record": "KT-127",
+    "backing_records": [
+      "KT-179"
+    ]
+  },
+  "EXTRACTABILITY_NONE": {
+    "guidance_record": "KT-128",
+    "backing_records": [
+      "KT-010"
+    ]
+  },
+  "EXTRACTABILITY_LOW": {
+    "guidance_record": "KT-129",
+    "backing_records": [
+      "KT-068",
+      "KT-070"
+    ]
+  },
+  "LLMS_TXT_MISSING": {
+    "guidance_record": "KT-130",
+    "backing_records": [
+      "KT-181",
+      "KT-183"
+    ]
+  },
+  "LLMS_TXT_MISSING_H1": {
+    "guidance_record": "KT-131",
+    "backing_records": [
+      "KT-181",
+      "KT-183"
+    ]
+  },
+  "LLMS_TXT_MISSING_SECTION": {
+    "guidance_record": "KT-132",
+    "backing_records": [
+      "KT-181",
+      "KT-183"
+    ]
+  },
+  "LLMS_TXT_NO_LINKS": {
+    "guidance_record": "KT-133",
+    "backing_records": [
+      "KT-181",
+      "KT-183"
+    ]
+  },
+  "LLMS_TXT_EMPTY_CONTENT": {
+    "guidance_record": "KT-134",
+    "backing_records": [
+      "KT-181",
+      "KT-183"
+    ]
+  },
+  "GOOGLE_EXTENDED_MISSING": {
+    "guidance_record": "KT-135",
+    "backing_records": [
+      "KT-001"
+    ]
+  },
+  "GPTBOT_MISSING": {
+    "guidance_record": "KT-136",
+    "backing_records": [
+      "KT-002"
+    ]
+  },
+  "CITATION_NOT_OBSERVED": {
+    "guidance_record": "KT-137",
+    "backing_records": [
+      "KT-012"
+    ]
+  },
+  "CITATION_OBSERVED": {
+    "guidance_record": "KT-138",
+    "backing_records": [
+      "KT-014"
+    ]
+  },
+  "CITATION_WHY_UNKNOWN": {
+    "guidance_record": "KT-139",
+    "backing_records": [
+      "KT-014"
+    ]
+  },
+  "MISSING_RECOMMENDED_FIELD": {
+    "guidance_record": "KT-140",
+    "backing_records": [
+      "KT-025"
+    ]
+  },
+  "UNKNOWN_FIELD": {
+    "guidance_record": "KT-141",
+    "backing_records": [
+      "KT-179"
+    ]
+  },
+  "UNKNOWN_SCHEMA_TYPE": {
+    "guidance_record": "KT-142",
+    "backing_records": [
+      "KT-179"
+    ]
+  },
+  "CRAWLER_PARTIAL": {
+    "guidance_record": "KT-143",
+    "backing_records": [
+      "KT-033"
+    ]
+  },
+  "CRAWLER_ALLOWED": {
+    "guidance_record": "KT-144",
+    "backing_records": [
+      "KT-033"
+    ]
+  },
+  "NO_DIRECTIVE": {
+    "guidance_record": "KT-145",
+    "backing_records": [
+      "KT-003"
+    ]
+  },
+  "INVALID_CRAWL_DELAY": {
+    "guidance_record": "KT-146",
+    "backing_records": [
+      "KT-003"
+    ]
+  },
+  "EXTRACTABILITY_MEDIUM": {
+    "guidance_record": "KT-147",
+    "backing_records": [
+      "KT-068",
+      "KT-070"
+    ]
+  },
+  "EXTRACTABILITY_HIGH": {
+    "guidance_record": "KT-148",
+    "backing_records": [
+      "KT-068",
+      "KT-070"
+    ]
+  },
+  "NOSNIPPET_BLOCKING_AI": {
+    "guidance_record": "KT-149",
+    "backing_records": [
+      "KT-013"
+    ]
+  },
+  "ANSWER_NOT_NEAR_TOP": {
+    "guidance_record": "KT-150",
+    "backing_records": [
+      "KT-191"
+    ]
+  },
+  "ANSWER_NOT_SELF_CONTAINED": {
+    "guidance_record": "KT-151",
+    "backing_records": [
+      "KT-070"
+    ]
+  },
+  "ANSWER_NOT_FACTUALLY_SPECIFIC": {
+    "guidance_record": "KT-152",
+    "backing_records": [
+      "KT-070"
+    ]
+  },
+  "NO_LIST_OR_TABLE": {
+    "guidance_record": "KT-153",
+    "backing_records": [
+      "KT-068"
+    ]
+  },
+  "ANSWER_FORMAT_GOOD": {
+    "guidance_record": "KT-154",
+    "backing_records": [
+      "KT-068",
+      "KT-070"
+    ]
+  },
+  "AUTHORITY_DR_LOW": {
+    "guidance_record": "KT-155",
+    "backing_records": [
+      "KT-039"
+    ]
+  },
+  "REFERRING_DOMAINS_CRITICAL": {
+    "guidance_record": "KT-156",
+    "backing_records": [
+      "KT-037"
+    ]
+  },
+  "WIKIPEDIA_ENTITY_MISSING": {
+    "guidance_record": "KT-157",
+    "backing_records": [
+      "KT-113"
+    ]
+  },
+  "BRAND_MENTIONS_STAGNANT": {
+    "guidance_record": "KT-158",
+    "backing_records": [
+      "KT-037"
+    ]
+  },
+  "AUTHORITY_PROFILE_GOOD": {
+    "guidance_record": "KT-159",
+    "backing_records": [
+      "KT-037"
+    ]
+  },
+  "SCHEMA_MISSING": {
+    "guidance_record": "KG-003",
+    "backing_records": [
+      "KT-006"
+    ]
+  },
+  "SCHEMA_UNVERIFIABLE": {
+    "guidance_record": "KG-003",
+    "backing_records": [
+      "KT-006"
+    ]
+  },
+  "ROBOTS_UNVERIFIABLE": {
+    "guidance_record": "KG-001",
+    "backing_records": [
+      "KT-033"
+    ]
+  },
+  "LLMS_UNVERIFIABLE": {
+    "guidance_record": "KG-014",
+    "backing_records": [
+      "KT-181"
+    ]
+  },
+  "CONTENT_STALE": {
+    "guidance_record": "KG-007",
+    "backing_records": [
+      "KT-010"
+    ]
+  },
+  "CONTENT_AGING": {
+    "guidance_record": "KG-007",
+    "backing_records": [
+      "KT-010"
+    ]
+  },
+  "DATE_MISSING": {
+    "guidance_record": "KG-007",
+    "backing_records": [
+      "KT-010"
+    ]
+  },
+  "REDIRECT_CHAIN_LONG": {
+    "guidance_record": "KG-008",
+    "backing_records": [
+      "KT-033"
+    ]
+  },
+  "REDIRECT_CHAIN_EXCESSIVE": {
+    "guidance_record": "KG-008",
+    "backing_records": [
+      "KT-033"
+    ]
+  },
+  "REDIRECT_DOMAIN_CHANGE": {
+    "guidance_record": "KG-008",
+    "backing_records": [
+      "KT-033"
+    ]
+  },
+  "META_NOINDEX": {
+    "guidance_record": "KG-001",
+    "backing_records": [
+      "KT-013"
+    ]
+  },
+  "CANONICAL_MISMATCH": {
+    "guidance_record": "KG-008",
+    "backing_records": [
+      "KT-010"
+    ]
+  },
+  "CANONICAL_MISSING": {
+    "guidance_record": "KG-008",
+    "backing_records": [
+      "KT-010"
+    ]
+  },
+  "CLOAKING_DETECTED": {
+    "guidance_record": "KG-001",
+    "backing_records": [
+      "KT-033"
+    ]
+  },
+  "CLOAKING_SUSPECTED": {
+    "guidance_record": "KG-001",
+    "backing_records": [
+      "KT-033"
+    ]
+  },
+  "AI_BOT_BLOCKED_HTTP": {
+    "guidance_record": "KG-001",
+    "backing_records": [
+      "KT-033"
+    ]
+  },
+  "ENTITY_NAME_MISSING": {
+    "guidance_record": "KG-003",
+    "backing_records": [
+      "KT-006"
+    ]
+  },
+  "SAMEAS_MISSING": {
+    "guidance_record": "KG-003",
+    "backing_records": [
+      "KT-006"
+    ]
+  },
+  "SAMEAS_INCOMPLETE": {
+    "guidance_record": "KG-003",
+    "backing_records": [
+      "KT-006"
+    ]
+  },
+  "WIKIDATA_MISSING": {
+    "guidance_record": "KG-004",
+    "backing_records": [
+      "KT-006"
+    ]
+  },
+  "IFRAME_HEAVY": {
+    "guidance_record": "KG-010",
+    "backing_records": [
+      "KT-010"
+    ]
+  },
+  "IMAGES_MISSING_ALT": {
+    "guidance_record": "KG-010",
+    "backing_records": [
+      "KT-010"
+    ]
+  },
+  "ALL_CONTENT_IN_MEDIA": {
+    "guidance_record": "KG-010",
+    "backing_records": [
+      "KT-010"
+    ]
+  },
+  "VIDEO_NO_TRANSCRIPT": {
+    "guidance_record": "KG-010",
+    "backing_records": [
+      "KT-010"
+    ]
+  },
+  "SITEMAP_MISSING": {
+    "guidance_record": "KG-011",
+    "backing_records": [
+      "KT-033"
+    ]
+  },
+  "SITEMAP_EMPTY": {
+    "guidance_record": "KG-011",
+    "backing_records": [
+      "KT-033"
+    ]
+  },
+  "SITEMAP_NO_LASTMOD": {
+    "guidance_record": "KG-011",
+    "backing_records": [
+      "KT-010"
+    ]
+  },
+  "SITEMAP_NOT_IN_ROBOTS": {
+    "guidance_record": "KG-011",
+    "backing_records": [
+      "KT-033"
+    ]
+  },
+  "SITEMAP_PAGES_UNREACHABLE": {
+    "guidance_record": "KG-011",
+    "backing_records": [
+      "KT-033"
+    ]
+  },
+  "CITATION_RATE_LOW": {
+    "guidance_record": "KG-013",
+    "backing_records": [
+      "KT-010"
+    ]
+  },
+  "SHARE_OF_VOICE_LOW": {
+    "guidance_record": "KG-013",
+    "backing_records": [
+      "KT-010"
+    ]
+  },
+  "PAGE_FETCH_FAILED": {
+    "guidance_record": "KG-001",
+    "backing_records": [
+      "KT-033"
+    ]
+  },
+  "SAMEAS_DEAD_LINK": {
+    "guidance_record": "KG-003",
+    "backing_records": [
+      "KT-010"
+    ]
+  },
+  "MULTI_PAGE_SCHEMA_GAPS": {
+    "guidance_record": "KG-003",
+    "backing_records": [
+      "KT-006"
+    ]
+  },
+  "MULTI_PAGE_THIN_CONTENT": {
+    "guidance_record": "KG-002",
+    "backing_records": [
+      "KT-010"
+    ]
+  },
+  "NEAR_DUPLICATE_PAGES": {
+    "guidance_record": "KG-008",
+    "backing_records": [
+      "KT-010"
+    ]
+  },
+  "COMPETITOR_SCHEMA_ADVANTAGE": {
+    "guidance_record": "KG-003",
+    "backing_records": [
+      "KT-025"
+    ]
+  },
+  "COMPETITOR_CONTENT_ADVANTAGE": {
+    "guidance_record": "KG-002",
+    "backing_records": [
+      "KT-014"
+    ]
+  },
+  "JS_CRITICAL_CONTENT_GATED": {
+    "guidance_record": "KG-001",
+    "backing_records": [
+      "KT-010"
+    ]
+  },
+  "CLOAKING_FETCH_FAILED": {
+    "guidance_record": "KG-001",
+    "backing_records": [
+      "KT-033"
+    ]
+  }
+}

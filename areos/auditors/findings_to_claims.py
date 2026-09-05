@@ -33,16 +33,25 @@ def _default_db_path() -> Path:
 
 
 def get_check_code_mappings() -> dict[str, list[str]]:
+    """Load check_code → claim_id (kid) mappings from the knowledge base.
+
+    Uses the V2 kb_check_code_map table (legacy check_code_mappings removed).
+    """
     db_path = _default_db_path()
     res: dict[str, list[str]] = {}
     if db_path.exists():
         try:
             conn = get_connection(db_path)
-            rows = conn.execute("SELECT check_code, claim_id FROM check_code_mappings").fetchall()
+            # V2: kb_check_code_map (kid column, maps through claims VIEW)
+            rows = conn.execute(
+                "SELECT check_code, kid FROM kb_check_code_map"
+            ).fetchall()
             for r in rows:
-                res.setdefault(r["check_code"] if isinstance(r, sqlite3.Row) else r[0], []).append(r["claim_id"] if isinstance(r, sqlite3.Row) else r[1])  # noqa: E501
-        except Exception:
-            pass
+                cc = r["check_code"] if isinstance(r, sqlite3.Row) else r[0]
+                kid = r["kid"] if isinstance(r, sqlite3.Row) else r[1]
+                res.setdefault(cc, []).append(kid)
+        except Exception as e:
+            logger.warning("Failed to load check_code mappings from DB: %s", e)
     return res
 
 CHECK_CODE_TO_CLAIM_IDS = get_check_code_mappings()
@@ -90,6 +99,7 @@ def wire_finding(
     page_url: str = "",
     db_path: Path | None = None,
     conn: sqlite3.Connection | None = None,
+    client_keys: dict | None = None,
 ) -> WiredFinding:
     if db_path is None:
         db_path = _default_db_path()
@@ -103,10 +113,40 @@ def wire_finding(
     )
 
     c = conn if conn else get_connection(db_path)
-    rows = c.execute("SELECT claim_id FROM check_code_mappings WHERE check_code = ?", (check_code,)).fetchall()  # noqa: E501
-    candidate_ids = [r[0] for r in rows]
+
+    # V2: use kb_check_code_map (kid column) with legacy fallback
+    try:
+        rows = c.execute(
+            "SELECT kid FROM kb_check_code_map WHERE check_code = ?",
+            (check_code,),
+        ).fetchall()
+        candidate_ids = [r[0] for r in rows]
+    except sqlite3.OperationalError as e:
+        logger.warning("kb_check_code_map lookup failed for %s: %s", check_code, e)
+        candidate_ids = []
 
     if not candidate_ids:
+        # V2 RAG fallback: try semantic search for unmapped check codes
+        try:
+            from areos.kb.router import resolve as kb_resolve
+            resolution = kb_resolve(
+                check_code, message,
+                client_keys=client_keys,
+                db_path=str(db_path),
+            )
+            if resolution.path == "SEMANTIC" and resolution.primary_kid:
+                claim = _lookup_claim(resolution.primary_kid, db_path, c)
+                if claim:
+                    finding.claim_id = claim["claim_id"]
+                    finding.claim_status = claim["status"]
+                    finding.claim_confidence = claim["confidence"]
+                    finding.claim_statement = claim["statement"]
+                    finding.claim_scope = claim.get("claim_scope")
+                    finding.wiring_status = "WIRED"
+                    return finding
+        except Exception as e:
+            logger.debug("RAG fallback failed for %s: %s", check_code, e)
+
         finding.wiring_status = "UNMAPPED"
         return finding
 

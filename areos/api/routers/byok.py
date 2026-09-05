@@ -21,15 +21,22 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/v1/byok", tags=["BYOK Vault Diagnostics"])
 
+import threading
+from functools import lru_cache
+
 _byok_ip_buckets = defaultdict(list)
+_byok_lock = threading.Lock()
+
+
 
 def check_byok_rate_limit(request: Request):
     ip = request.client.host if request.client else "unknown"
     now = time.time()
-    _byok_ip_buckets[ip] = [t for t in _byok_ip_buckets[ip] if now - t < 60]
-    if len(_byok_ip_buckets[ip]) >= 15:
-        raise HTTPException(status_code=429, detail="Rate limit exceeded for BYOK verifications")
-    _byok_ip_buckets[ip].append(now)
+    with _byok_lock:
+        _byok_ip_buckets[ip] = [t for t in _byok_ip_buckets[ip] if now - t < 60]
+        if len(_byok_ip_buckets[ip]) >= 15:
+            raise HTTPException(status_code=429, detail="Rate limit exceeded for BYOK verifications")
+        _byok_ip_buckets[ip].append(now)
 
 class ByokVerifyRequest(BaseModel):
     provider: str = Field(..., description="Provider code (e.g., google, openai, groq, anthropic)")
@@ -44,7 +51,9 @@ def verify_api_key(req: ByokVerifyRequest) -> dict:
     """
     provider = req.provider.lower().strip()
     key = req.api_key.strip()
-    
+    return _verify_api_key_cached(provider, key, req.api_base)
+
+def _verify_api_key_cached(provider: str, key: str, api_base: Optional[str] = None) -> dict:
     if not key or len(key) < 4:
         return {"status": "offline", "provider": provider, "latency_ms": 0, "message": "Key appears empty or malformed"}
         

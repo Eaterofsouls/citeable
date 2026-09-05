@@ -4,7 +4,7 @@ import time
 import uuid
 from collections import defaultdict
 from pathlib import Path
-from typing import Annotated, Any, Optional
+from typing import Annotated, Any, Literal, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import JSONResponse
@@ -27,12 +27,12 @@ CARDS_DIR = Path(__file__).resolve().parents[3] / "areos" / "instruction_cards"
 
 # --- Models ---
 class AuditRunPayload(BaseModel):
-    target_domain: str
-    audited_stages: list
-    automated_findings: list
+    target_domain: str = Field(..., pattern=r"^(?:[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?\.)+[a-zA-Z]{2,}$")
+    audited_stages: list = Field(default_factory=list)
+    automated_findings: list = Field(default_factory=list)
 
 class OrchestratedAuditPayload(BaseModel):
-    target_domain: str
+    target_domain: str = Field(..., pattern=r"^(?:[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?\.)+[a-zA-Z]{2,}$", max_length=253)
     sample_content: str = Field("", max_length=50000)
     api_provider: str = "auto"
 
@@ -85,6 +85,15 @@ class AuthorityAuditResponse(BaseModel):
     provider_used: str | None
     issues: list[dict[str, Any]]
     findings: list[dict[str, Any]]
+
+# ── T-B02: Observation Payload ─────────────────────────────────────────────────
+class ObservationPayload(BaseModel):
+    """Structured observation from the 11-question manual review system."""
+    question_id: str
+    maps_to_claims: list[str] = []
+    structured_data: dict[str, Any] = {}
+    severity: Literal["error", "warning", "info"]
+    diagnosis_text: str = ""
 
 # --- Routes ---
 @router.post("/audit/runs")
@@ -169,9 +178,9 @@ def get_audit_run(run_id: str, conn=Depends(get_db)):
     # Use MF-4 extracted service
     verdicts_by_card = get_verdicts_by_card(conn, run_id)
 
-    # Build a lookup: card_id -> list of claim_ids via check_code_mappings
+    # Build a lookup: card_id -> list of claim_ids via kb_check_code_map (V2)
     def _claim_ids_for_card(card_obj) -> list[str]:
-        """Look up claim IDs from check_code_mappings for codes that trigger this card."""
+        """Look up claim IDs from kb_check_code_map for codes that trigger this card."""
         from areos.cli.report import INSTRUCTION_CARDS
         card_def = next((cd for cd in INSTRUCTION_CARDS if cd["card_id"] == card_obj.card_id), None)
         if not card_def or not card_def.get("trigger_on_codes"):
@@ -179,7 +188,7 @@ def get_audit_run(run_id: str, conn=Depends(get_db)):
         claim_ids = []
         for code in card_def["trigger_on_codes"]:
             rows = conn.execute(
-                "SELECT claim_id FROM check_code_mappings WHERE check_code = ?", (code,)
+                "SELECT kid FROM kb_check_code_map WHERE check_code = ?", (code,)
             ).fetchall()
             for row in rows:
                 cid = row[0]
@@ -254,16 +263,10 @@ def get_full_run_report(run_id: str, conn=Depends(get_db)):
     for step_idx, f in enumerate(findings, 1):
         check_code = f.get("code") or f.get("check_code", "UNKNOWN")
         claim_row = conn.execute(
-            "SELECT claim_id, statement, confidence, source_tier_value, claim_scope "
-            "FROM claims WHERE claim_id = (SELECT claim_id FROM check_code_mappings WHERE check_code = ? LIMIT 1)",  # noqa: E501
+            "SELECT c.claim_id, c.statement, c.confidence, c.source_tier_value, c.claim_scope "
+            "FROM claims c JOIN kb_check_code_map m ON c.claim_id = m.kid WHERE m.check_code = ? LIMIT 1",  # noqa: E501
             (check_code,),
         ).fetchone()
-        if not claim_row:
-            claim_row = conn.execute(
-                "SELECT claim_id, statement, confidence, source_tier_value, claim_scope "
-                "FROM claims WHERE claim_id IN (SELECT claim_id FROM check_code_mappings WHERE check_code = ?) LIMIT 1",  # noqa: E501
-                (check_code,),
-            ).fetchone()
 
         claim_id = claim_row[0] if claim_row else "C000"
         stmt = claim_row[1] if claim_row else "Search engineering best practice."
@@ -313,19 +316,35 @@ def get_full_run_report(run_id: str, conn=Depends(get_db)):
 # the connecting peer to (honoring --forwarded-allow-ips for a *trusted*
 # proxy, per the Dockerfile's uvicorn invocation), so it isn't something an
 # arbitrary client can simply overwrite with its own header.
+import threading
+
 _ip_buckets = defaultdict(list)
+_rate_limit_lock = threading.Lock()
 
 
 def _rate_limit(request: Request, bucket_prefix: str, limit: int = 10, window_seconds: int = 60) -> None:
     ip = request.client.host if request.client else "unknown"
     key = f"{bucket_prefix}:{ip}"
     now = time.time()
-    recent = [t for t in _ip_buckets[key] if now - t < window_seconds]
-    if len(recent) >= limit:
+
+    with _rate_limit_lock:
+        recent = [t for t in _ip_buckets[key] if now - t < window_seconds]
+
+        # QA-M10 / D-QA2-011: Bound memory and evict expired keys under high concurrency
+        if len(_ip_buckets) > 50:
+            stale_keys = [k for k, timestamps in list(_ip_buckets.items()) if not timestamps or (now - timestamps[-1] >= window_seconds)]
+            for k in stale_keys:
+                _ip_buckets.pop(k, None)
+            if len(_ip_buckets) > 10000:
+                sorted_keys = sorted(_ip_buckets.keys(), key=lambda k: _ip_buckets[k][-1] if _ip_buckets[k] else 0)
+                for k in sorted_keys[:2000]:
+                    _ip_buckets.pop(k, None)
+
+        if len(recent) >= limit:
+            _ip_buckets[key] = recent
+            raise HTTPException(status_code=429, detail="Too many requests")
+        recent.append(now)
         _ip_buckets[key] = recent
-        raise HTTPException(status_code=429, detail="Too many requests")
-    recent.append(now)
-    _ip_buckets[key] = recent
 
 
 def check_rate_limit(request: Request):
@@ -376,6 +395,167 @@ def execute_orchestrated_audit(
     )
 
 
+# ── T-B03: POST /observations ──────────────────────────────────────────────────
+
+@router.post("/audit/runs/{run_id}/observations")
+def submit_observation(
+    run_id: str,
+    observation: ObservationPayload,
+    conn=Depends(get_db),
+):
+    """
+    POST /api/v1/audit/runs/{run_id}/observations
+
+    UPSERT a structured observation from the manual review wizard.
+    Uses (run_id, question_id) as the unique key — re-submitting the same
+    question overwrites the previous answer (handles concurrent tabs).
+    """
+    import json as _json
+
+    # Validate severity
+    if observation.severity not in ("error", "warning", "info"):
+        raise HTTPException(status_code=400, detail=f"Invalid severity: {observation.severity}. Must be error/warning/info.")
+
+    # Ensure run exists
+    cur = conn.execute("SELECT run_id FROM audit_runs WHERE run_id = ?", (run_id,))
+    if not cur.fetchone():
+        raise HTTPException(status_code=404, detail=f"Run {run_id} not found.")
+
+    structured_json = _json.dumps(observation.structured_data)
+
+    # Check for conditional question handling
+    conditional_prefixes = ("B3", "C3", "C4", "C5", "D1")
+    if observation.question_id.startswith(conditional_prefixes):
+        sd = observation.structured_data.copy()
+        sd["unexpected_conditional"] = False  # Backend trusts frontend visibility logic
+        structured_json = _json.dumps(sd)
+
+    # Atomic UPSERT via ON CONFLICT (D-QA-012 / TQ-016)
+    conn.execute(
+        """INSERT INTO manual_observations
+           (run_id, question_id, structured_data, severity, diagnosis_text)
+           VALUES (?, ?, ?, ?, ?)
+           ON CONFLICT(run_id, question_id) DO UPDATE SET
+               structured_data = excluded.structured_data,
+               severity = excluded.severity,
+               diagnosis_text = excluded.diagnosis_text,
+               submitted_at = datetime('now')""",
+        (run_id, observation.question_id, structured_json,
+         observation.severity, observation.diagnosis_text),
+    )
+    conn.commit()
+
+    return {"status": "ok", "run_id": run_id, "question_id": observation.question_id}
+
+
+# ── T-B04: GET /full-report ────────────────────────────────────────────────────
+
+@router.get("/audit/runs/{run_id}/full-report")
+def get_unified_report(
+    run_id: str,
+    conn=Depends(get_db),
+):
+    """
+    GET /api/v1/audit/runs/{run_id}/full-report
+
+    Returns a 6-section unified report merging automated findings with
+    human observations. Falls back to legacy manual_verdicts if no
+    observations exist.
+    """
+    import json as _json
+
+    # Ensure run exists
+    cur = conn.execute("SELECT * FROM audit_runs WHERE run_id = ?", (run_id,))
+    run_row = cur.fetchone()
+    if not run_row:
+        raise HTTPException(status_code=404, detail=f"Run {run_id} not found.")
+
+    # Fetch automated findings from the JSON column in audit_runs
+    automated_findings = []
+    af_raw = run_row["automated_findings"] if "automated_findings" in run_row.keys() else None
+    if af_raw:
+        try:
+            automated_findings = _json.loads(af_raw) if isinstance(af_raw, str) else af_raw
+        except (_json.JSONDecodeError, ValueError):
+            automated_findings = []
+
+    # Fetch manual observations (new system)
+    observations = []
+    try:
+        obs_cur = conn.execute(
+            "SELECT * FROM manual_observations WHERE run_id = ? ORDER BY submitted_at",
+            (run_id,),
+        )
+        for row in obs_cur.fetchall():
+            d = dict(row) if hasattr(row, "keys") else {}
+            if "structured_data" in d and isinstance(d["structured_data"], str):
+                try:
+                    d["structured_data"] = _json.loads(d["structured_data"])
+                except (_json.JSONDecodeError, ValueError):
+                    pass
+            observations.append(d)
+    except Exception:
+        observations = []
+
+    # Fallback to legacy manual_verdicts if no observations
+    legacy_verdicts = []
+    if not observations:
+        try:
+            v_cur = conn.execute(
+                "SELECT * FROM manual_verdicts WHERE run_id = ? ORDER BY submitted_at",
+                (run_id,),
+            )
+            legacy_verdicts = [dict(r) if hasattr(r, "keys") else {} for r in v_cur.fetchall()]
+        except Exception:
+            legacy_verdicts = []
+
+    # Build human review source tag
+    review_source = "observations" if observations else ("legacy_verdicts" if legacy_verdicts else "none")
+
+    # Classify automated findings by layer
+    access_findings = [f for f in automated_findings if f.get("code", "").startswith(("CRAWLER", "LLMS", "ROBOTS", "REDIRECT", "CLOAKING", "META_NO", "SITEMAP", "AI_BOT"))]
+    content_schema_findings = [f for f in automated_findings if f.get("code", "").startswith(("SCHEMA", "MISSING", "JSON_PARSE", "UNKNOWN", "EXTRACT", "ANSWER_", "NO_LIST", "CONTENT_", "DATE_", "IFRAME", "IMAGES", "VIDEO", "ALL_CONTENT", "CANONICAL", "ENTITY"))]
+    authority_citation_findings = [f for f in automated_findings if f.get("code", "").startswith(("CITATION", "AUTHORITY", "REFERRING", "WIKIPEDIA", "BRAND_", "SAMEAS", "WIKIDATA", "SHARE_OF"))]
+
+    # Extract D2 diagnosis text if available
+    d2_obs = [o for o in observations if o.get("question_id", "").startswith("D2")]
+    executive_text = d2_obs[0].get("diagnosis_text", "") if d2_obs else ""
+
+    # Build confidence caveat
+    confidence_notes = []
+    if not observations and not legacy_verdicts:
+        confidence_notes.append("Confidence: Low. No manual qualitative verification performed.")
+
+    report = {
+        "run_id": run_id,
+        "review_source": review_source,
+        "executive_diagnosis": {
+            "human_diagnosis_text": executive_text,
+            "confidence_notes": confidence_notes,
+        },
+        "layer_1_access": {
+            "automated_findings": access_findings,
+            "observations": [o for o in observations if o.get("question_id", "").startswith(("A1", "B3", "D1"))],
+        },
+        "layer_2_content_schema": {
+            "automated_findings": content_schema_findings,
+            "observations": [o for o in observations if o.get("question_id", "").startswith(("B1", "B2"))],
+        },
+        "layer_3_authority_citations": {
+            "automated_findings": authority_citation_findings,
+            "observations": [o for o in observations if o.get("question_id", "").startswith(("C1", "C2", "C3", "C4", "C5"))],
+        },
+        "fix_sequence": [],  # Populated by synthesis pipeline
+        "audit_metadata": {
+            "review_source": review_source,
+            "questions_answered": len(observations),
+            "legacy_verdicts_count": len(legacy_verdicts),
+            "confidence_notes": confidence_notes,
+        },
+    }
+    return report
+
+
 @router.post("/audit/runs/{run_id}/synthesize", dependencies=[Depends(check_rate_limit)])
 def synthesize_audit_run(
     run_id: str,
@@ -419,34 +599,85 @@ def synthesize_audit_run(
 
     raw_findings = json.loads(run["automated_findings"])
 
-    # Wire findings → claims to rebuild enriched_recs
+    # Wire findings → claims to rebuild enriched_recs using V2 Knowledge Router
     _conn = _get_conn(db_path)
     enriched_recs = []
+    
+    # Try to import V2 router
+    try:
+        from areos.kb.router import resolve as kb_resolve
+        has_router = True
+    except ImportError:
+        has_router = False
+
     for step_idx, f in enumerate(raw_findings, 1):
         check_code = f.get("code") or f.get("check_code", "UNKNOWN")
-        # Look up a governing claim for this check_code
-        claim_row = _conn.execute(
-            "SELECT claim_id, statement, confidence, source_tier_value, claim_scope "
-            "FROM claims WHERE claim_id = (SELECT claim_id FROM check_code_mappings WHERE check_code = ? LIMIT 1)",
-            (check_code,),
-        ).fetchone()
-        if not claim_row:
-            # Fallback: find any claim mentioning this code
+        msg = f.get("message", "")
+        
+        claim_id = "C000"
+        stmt = "Search engineering best practice."
+        conf = "high"
+        tier = "tier-1"
+        scope = "general-knowledge"
+        
+        resolution_path = None
+        evidence_chain = []
+        source_citations = []
+        backing_facts = []
+        is_contested = False
+        is_stale = False
+        rag_enrichment = []
+
+        if has_router:
+            try:
+                res = kb_resolve(
+                    check_code, msg,
+                    client_keys=client_keys,
+                    db_path=str(db_path)
+                )
+                if res.primary_kid and res.primary_record:
+                    claim_id = res.primary_kid
+                    stmt = res.primary_record.statement
+                    conf = res.primary_record.confidence
+                    scope = res.primary_record.scope or "general-knowledge"
+                    
+                resolution_path = res.path
+                evidence_chain = [
+                    {"eid": e.eid, "sid": e.sid, "relationship": e.relationship, "weight": e.weight}
+                    for e in res.evidence_chain
+                ]
+                source_citations = [
+                    {"sid": s.sid, "url": s.url, "title": s.title, "authority": s.authority}
+                    for s in res.source_citations
+                ]
+                backing_facts = [
+                    {"kid": fact.kid, "statement": fact.statement}
+                    for fact in res.backing_facts
+                ]
+                is_contested = res.is_contested
+                is_stale = res.is_stale
+                rag_enrichment = res.enrichment
+                
+            except Exception as e:
+                logger.debug("KB router failed in audit for %s: %s", check_code, e)
+        else:
+            # V2 lookup via kb_check_code_map
             claim_row = _conn.execute(
-                "SELECT claim_id, statement, confidence, source_tier_value, claim_scope "
-                "FROM claims WHERE claim_id IN (SELECT claim_id FROM check_code_mappings WHERE check_code = ?) LIMIT 1",
+                "SELECT c.claim_id, c.statement, c.confidence, c.source_tier_value, c.claim_scope "
+                "FROM claims c JOIN kb_check_code_map m ON c.claim_id = m.kid WHERE m.check_code = ? LIMIT 1",
                 (check_code,),
             ).fetchone()
+            if claim_row:
+                claim_id = claim_row[0]
+                stmt = claim_row[1]
+                conf = claim_row[2]
+                tier = claim_row[3]
+                scope = claim_row[4]
 
-        claim_id = claim_row[0] if claim_row else "C000"
-        stmt = claim_row[1] if claim_row else "Search engineering best practice."
-        conf = claim_row[2] if claim_row else "high"
-        tier = claim_row[3] if claim_row else "tier-1"
-        scope = claim_row[4] if claim_row else "general-knowledge"
         evidence_label = "Knowledge Base Principle" if scope == "general-knowledge" else "Site-Specific Evidence"
         snippet = ACTION_SNIPPETS.get(check_code, "/* Consult AREOS implementation guidelines */")
 
-        enriched_recs.append({
+        rec = {
             "step_number": step_idx,
             "priority_score": f.get("priority", step_idx * 3),
             "title": sanitize_text(f.get("message", check_code)) or check_code,
@@ -460,45 +691,77 @@ def synthesize_audit_run(
             "claim_scope": scope or "general-knowledge",
             "evidence_label": evidence_label,
             "action_snippet": snippet,
-        })
-
-    # 3. Load manual verdicts and append them as human context signals
-    verdict_rows = conn.execute(
-        "SELECT card_id, page_url, verdict, severity, notes, submitted_at "
-        "FROM manual_verdicts WHERE run_id = ? ORDER BY submitted_at",
-        (run_id,),
-    ).fetchall()
-
-    manual_verdicts_context = [
-        {
-            "card_id": v["card_id"],
-            "page_url": v["page_url"],
-            "verdict": v["verdict"],
-            "severity": v["severity"],
-            "notes": v["notes"],
-            "submitted_at": v["submitted_at"],
         }
-        for v in verdict_rows
-    ]
+        
+        # Inject V2 fields
+        if resolution_path: rec["resolution_path"] = resolution_path
+        if evidence_chain: rec["evidence_chain"] = evidence_chain
+        if source_citations: rec["source_citations"] = source_citations
+        if backing_facts: rec["backing_facts"] = backing_facts
+        if is_contested: rec["is_contested"] = True
+        if is_stale: rec["is_stale"] = True
+        if rag_enrichment: rec["rag_enrichment"] = rag_enrichment
+        
+        enriched_recs.append(rec)
 
-    # Inject manual verdict notes into enriched_recs where card_id ↔ check_code matches
-    # This enriches the LLM input with human observations
-    verdict_notes_by_card = {}
-    for v in manual_verdicts_context:
-        cid = v["card_id"]
-        if cid not in verdict_notes_by_card:
-            verdict_notes_by_card[cid] = []
-        if v["notes"]:
-            verdict_notes_by_card[cid].append(f"[Human review — {v['verdict'].upper()}] {v['notes']}")
+    # 3. Load human review data — prefer manual_observations, fall back to manual_verdicts
+    import json as _json
 
-    for rec in enriched_recs:
-        code = rec["check_code"]
-        if code in verdict_notes_by_card:
-            rec["human_review_notes"] = " | ".join(verdict_notes_by_card[code])
-        # Also check card_id pattern (manual cards use M- prefix)
-        for card_id, notes in verdict_notes_by_card.items():
-            if code.lower() in card_id.lower():
-                rec.setdefault("human_review_notes", " | ".join(notes))
+    observation_rows = []
+    try:
+        observation_rows = conn.execute(
+            "SELECT question_id, structured_data, severity, diagnosis_text, submitted_at "
+            "FROM manual_observations WHERE run_id = ? ORDER BY submitted_at",
+            (run_id,),
+        ).fetchall()
+    except Exception:
+        observation_rows = []
+
+    if observation_rows:
+        merged_human_count = len(observation_rows)
+        # T-B05: Format structured observations for LLM synthesis
+        for obs in observation_rows:
+            qid = obs["question_id"]
+            sev = obs["severity"]
+            diag = obs["diagnosis_text"] or ""
+            try:
+                sd = _json.loads(obs["structured_data"]) if isinstance(obs["structured_data"], str) else obs["structured_data"]
+            except (_json.JSONDecodeError, ValueError):
+                sd = {}
+            note = f"[HUMAN CONFIRMED] Question: {qid} | Severity: {sev} | Diagnosis: {diag} | Data: {_json.dumps(sd)}"
+            # Inject into matching enriched_recs or attach globally
+            for rec in enriched_recs:
+                claims = sd.get("maps_to_claims", [])
+                if rec["check_code"] in claims or qid.startswith(("D2", "A1")):
+                    rec.setdefault("human_review_notes", "")
+                    if rec["human_review_notes"]:
+                        rec["human_review_notes"] += " | " + note
+                    else:
+                        rec["human_review_notes"] = note
+    else:
+        # Legacy fallback: manual_verdicts (flat verdict strings)
+        verdict_rows = conn.execute(
+            "SELECT card_id, page_url, verdict, severity, notes, submitted_at "
+            "FROM manual_verdicts WHERE run_id = ? ORDER BY submitted_at",
+            (run_id,),
+        ).fetchall()
+        merged_human_count = len(verdict_rows)
+
+        verdict_notes_by_card = {}
+        for v in verdict_rows:
+            cid = v["card_id"]
+            if cid not in verdict_notes_by_card:
+                verdict_notes_by_card[cid] = []
+            if v["notes"]:
+                verdict_notes_by_card[cid].append(f"[Human review — {v['verdict'].upper()}] {v['notes']}")
+
+        for rec in enriched_recs:
+            code = rec["check_code"]
+            if code in verdict_notes_by_card:
+                rec["human_review_notes"] = " | ".join(verdict_notes_by_card[code])
+            for card_id, notes in verdict_notes_by_card.items():
+                if code.lower() in card_id.lower():
+                    rec.setdefault("human_review_notes", " | ".join(notes))
 
     # 4. Run the three-step LLM synthesis with full context
     from areos.llm.providers import check_any_provider_configured
@@ -507,7 +770,12 @@ def synthesize_audit_run(
     if not check_any_provider_configured(client_keys):
         return {
             "llm_synthesis_used": False,
-            "reason": "No LLM provider configured — supply an API key via BYOK headers",
+            "byok_prompt": True,
+            "reason": (
+                "No AI key found. Add a free key in the BYOK AI Vault (sidebar) to generate "
+                "your final report. Google Gemini (free at aistudio.google.com) or "
+                "Groq (free at console.groq.com) both work."
+            ),
         }
 
     try:
@@ -519,9 +787,9 @@ def synthesize_audit_run(
         )
         logger.info(
             "Post-manual-review synthesis complete for run %s — %d manual verdicts merged",
-            run_id, len(manual_verdicts_context),
+            run_id, merged_human_count,
         )
-        result["manual_verdicts_merged"] = len(manual_verdicts_context)
+        result["manual_verdicts_merged"] = merged_human_count
 
         # UX audit §5.3: persist the result. Previously this only existed in
         # the HTTP response — a page reload silently lost the "final report"

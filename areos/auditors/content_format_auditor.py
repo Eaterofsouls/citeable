@@ -31,6 +31,7 @@ class FormatAuditResult:
     passed: bool
     issues: list[FormatIssue] = field(default_factory=list)
     signals_analyzed: dict = field(default_factory=dict)
+    extracted_lead_text: str = ""
 
     @property
     def error_count(self) -> int:
@@ -61,21 +62,22 @@ def extract_text_blocks(html: str) -> list[str]:
         return []
     # Cap string length at 1MB to prevent regex CPU exhaustion on massive DOM payloads
     html = html[:1000000]
-    # Strip scripts and styles
-    cleaned = re.sub(r"<(script|style)[^>]*>.*?</\1>", "", html, flags=re.IGNORECASE | re.DOTALL)
-    # Find paragraph or header blocks
-    blocks = re.findall(r"<(p|div|section|article|li)[^>]*>(.*?)</\1>", cleaned, flags=re.IGNORECASE | re.DOTALL)
+    from bs4 import BeautifulSoup
+    soup = BeautifulSoup(html, "html.parser")
+    for tag in soup(["script", "style"]):
+        tag.decompose()
+    blocks = [(tag.name, tag.decode_contents()) for tag in soup.find_all(["p", "div", "section", "article", "li"])]
     text_blocks = []
     for t_tag, t_content in blocks:
         # strip tags inside block
-        txt = re.sub(r"<[^>]+>", " ", t_content).strip()
-        txt = re.sub(r"\s+", " ", txt)
+        from areos.util.html_cleaner import clean_html_text
+        txt = clean_html_text(t_content)
         if len(txt.split()) >= 2: # keep non-trivial text chunks
             text_blocks.append(txt)
     if not text_blocks and html:
         # fall back to stripping all tags from string if no semantic tags found
-        txt = re.sub(r"<[^>]+>", " ", html).strip()
-        txt = re.sub(r"\s+", " ", txt)
+        from areos.util.html_cleaner import clean_html_text
+        txt = clean_html_text(html)
         if txt:
             text_blocks = [txt]
     return text_blocks
@@ -112,28 +114,33 @@ def audit_page_format(url: str, html: str = "", signals: Optional[dict[str, Any]
     if not text_blocks:
         text_blocks = extract_text_blocks(html)
         
-    list_item_count = signals.get("list_item_count", 0)
-    if not list_item_count and html:
+    list_item_count = signals.get("list_item_count")
+    if list_item_count is None and html:
         list_item_count = len(re.findall(r"<li[^>]*>", html_lower, flags=re.IGNORECASE))
+    elif list_item_count is None:
+        list_item_count = 0
         
-    table_count = signals.get("table_count", 0)
-    if not table_count and html:
+    table_count = signals.get("table_count")
+    if table_count is None and html:
         table_count = len(re.findall(r"<table[^>]*>", html_lower, flags=re.IGNORECASE))
+    elif table_count is None:
+        table_count = 0
 
-    # 2. Answer position check (Zyppy score 9.2)
-    # Is there a substantive descriptive block (>= 35 words) in the first 3 text blocks?
+    # 2. Answer position check (Zyppy score 9.2) — T-401
+    # Is there a substantive descriptive block (>= 30 words) in the first 30% of blocks?
     substantive_early = False
-    for i, block in enumerate(text_blocks[:3]):
+    top_30_pct = max(1, int(len(text_blocks) * 0.30))
+    for i, block in enumerate(text_blocks[:top_30_pct]):
         words = block.split()
         if len(words) >= 30:
             substantive_early = True
             break
-            
+
     if len(text_blocks) >= 2 and not substantive_early:
         issues.append(FormatIssue(
             severity="error",
             code="ANSWER_NOT_NEAR_TOP",
-            message="No complete answer or substantive definition found near the top (first 3 paragraphs). AI engines favor answers located within the first 30% of page content."
+            message="No complete answer or substantive definition found in the first 30% of page content. AI engines favor answers located near the top of the page."
         ))
 
     # 3. Self-contained phrasing check (Zyppy score 8.8)

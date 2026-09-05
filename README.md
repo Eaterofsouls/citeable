@@ -120,3 +120,9 @@ This loads Citeable's 119-record claims corpus (`active_claims.json`) into `clai
 ## Further documentation
 
 Architecture notes, migration strategy, and other reference docs live under `docs/` (served at `/docs/` when the app is running) and are out of scope for this README.
+
+---
+
+## License
+
+Copyright 2024-2026 Daksh Chauhan. Licensed under the Apache License, Version 2.0 — see [LICENSE](LICENSE) for the full text.

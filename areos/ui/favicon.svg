@@ -1,4 +1,26 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-  <circle cx="11" cy="11" r="8"></circle>
-  <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none">
+  <defs>
+    <linearGradient id="citeable-brand-grad" x1="0" y1="0" x2="64" y2="64" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#0A66C2"/>
+      <stop offset="100%" stop-color="#064E8C"/>
+    </linearGradient>
+    <linearGradient id="citeable-sheen" x1="0" y1="0" x2="0" y2="64" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#FFFFFF" stop-opacity="0.25"/>
+      <stop offset="40%" stop-color="#FFFFFF" stop-opacity="0.05"/>
+      <stop offset="100%" stop-color="#000000" stop-opacity="0.15"/>
+    </linearGradient>
+  </defs>
+  <!-- Background Plate -->
+  <rect x="2" y="2" width="60" height="60" rx="14" fill="url(#citeable-brand-grad)"/>
+  <rect x="2" y="2" width="60" height="60" rx="14" fill="url(#citeable-sheen)"/>
+  <rect x="2" y="2" width="60" height="60" rx="14" stroke="rgba(255, 255, 255, 0.25)" stroke-width="1.2"/>
+  
+  <!-- Left Quotation Mark -->
+  <path d="M19 39V29C19 22.8 23.5 18.5 29.5 18V23.2C26.5 23.6 24.5 25.8 24.5 29H29.5V39H19Z" fill="#FFFFFF"/>
+  
+  <!-- Right Quotation Mark -->
+  <path d="M34.5 39V29C34.5 22.8 39 18.5 45 18V23.2C42 23.6 40 25.8 40 29H45V39H34.5Z" fill="#FFFFFF"/>
+  
+  <!-- Precision Citation Dot -->
+  <circle cx="50" cy="16.5" r="2.8" fill="#38BDF8"/>
 </svg>

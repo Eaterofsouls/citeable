@@ -56,7 +56,18 @@ _DEFAULT_SYNTHESIZER_PROMPT: str = (
     "tag, or API endpoint to change.\n"
     "6. If human_review_notes are provided for a finding, you MUST explicitly integrate "
     "those observations into the narrative as a qualitative insight from human auditors.\n"
-    "7. Use plain prose, no markdown headers. Be concise and direct."
+    "7. Use the provided evidence_chain, source_citations, and backing_facts to enrich your "
+    "recommendations with direct quotes or references to authoritative sources.\n"
+    "8. Use plain prose, no markdown headers. Be concise and direct.\n"
+    "9. If a human_diagnosis_text is provided, use it as the opening framing of your "
+    "narrative. Do not contradict or replace it — expand on it with supporting evidence "
+    "from the findings.\n"
+    "10. The structured remediation actions have already been determined. Your job is to "
+    "explain WHY each action matters, not to invent new actions.\n"
+    "11. If a finding is based on a claim where `is_stale=True`, you MUST explicitly caveat "
+    "that the guidance may be outdated.\n"
+    "12. If a finding is based on a claim where `is_contested=True`, you MUST explicitly "
+    "warn the user that industry consensus on this action is actively debated.\n"
 )
 
 _DEFAULT_RED_TEAMER_PROMPT: str = (
@@ -128,27 +139,44 @@ def _load_prompts(db_path: Path | None = None) -> dict[str, str]:
 # ---------------------------------------------------------------------------
 
 def _build_synthesizer_input(enriched_recs: list[dict], target_domain: str) -> str:
-    findings_json = json.dumps(
-        [
-            {
-                "check_code":       r.get("check_code"),
-                "severity":         r.get("severity"),
-                "title":            r.get("title"),
-                "description":      r.get("description"),
-                "claim_id":         r.get("governing_claim_id"),
-                "claim_statement":  r.get("governing_claim_statement"),
-                "claim_scope":      r.get("claim_scope", "general-knowledge"),
-                "evidence_label":   r.get("evidence_label"),
-                "human_review_notes": r.get("human_review_notes"),
-            }
-            for r in enriched_recs
-        ],
-        indent=2,
-        ensure_ascii=False,
-    )
+    # Build findings including V2 evidence chains for grounded citations
+    findings = []
+    for r in enriched_recs:
+        item = {
+            "check_code":       r.get("check_code"),
+            "severity":         r.get("severity"),
+            "title":            r.get("title"),
+            "description":      r.get("description"),
+            "claim_id":         r.get("claim_id") or r.get("governing_claim_id"),
+            "claim_statement":  r.get("claim_statement") or r.get("governing_claim_statement"),
+            "claim_scope":      r.get("claim_scope", "general-knowledge"),
+            "evidence_label":   r.get("evidence_label"),
+            "human_review_notes": r.get("human_review_notes"),
+        }
+        # Add V2 Evidence fields if present
+        if "resolution_path" in r:
+            item["resolution_path"] = r["resolution_path"]
+        if "evidence_chain" in r:
+            item["evidence_chain"] = r["evidence_chain"]
+        if "source_citations" in r:
+            item["source_citations"] = r["source_citations"]
+        if "backing_facts" in r:
+            item["backing_facts"] = r["backing_facts"]
+        if r.get("is_contested"):
+            item["is_contested"] = True
+            item["contested_reason"] = r.get("contested_reason")
+        if r.get("is_stale"):
+            item["is_stale"] = True
+            item["stale_since"] = r.get("stale_since")
+            
+        findings.append(item)
+
+    findings_json = json.dumps(findings, indent=2, ensure_ascii=False)
+    safe_target_domain = target_domain.replace("</untrusted_crawled_data>", "")
+    safe_findings = findings_json.replace("</untrusted_crawled_data>", "")
     return (
-        f"Domain under audit: {target_domain}\n\n"
-        f"Wired findings (deterministic, claim-cited):\n{findings_json}\n\n"
+        f"Domain under audit: <untrusted_crawled_data>{safe_target_domain}</untrusted_crawled_data>\n\n"
+        f"Wired findings (deterministic, claim-cited):\n<untrusted_crawled_data>{safe_findings}</untrusted_crawled_data>\n\n"
         "Write a remediation narrative for this domain based solely on the findings above."
     )
 
@@ -163,6 +191,16 @@ def _parse_flags(raw: str) -> list[dict]:
         cleaned = re.sub(r"^```(?:json)?\s*", "", raw.strip(), flags=re.IGNORECASE)
         cleaned = re.sub(r"\s*```$", "", cleaned).strip()
         parsed = json.loads(cleaned)
+        if isinstance(parsed, dict):
+            if "flags" in parsed and isinstance(parsed["flags"], list):
+                return parsed["flags"]
+            if "issues" in parsed and isinstance(parsed["issues"], list):
+                return parsed["issues"]
+            if "verdicts" in parsed and isinstance(parsed["verdicts"], list):
+                return parsed["verdicts"]
+            if "flag" in parsed:
+                return [parsed]
+            return []
         if not isinstance(parsed, list):
             logger.warning("synthesis_pipeline: Red Teamer returned %s, expected list", type(parsed))
             return []
@@ -248,7 +286,7 @@ def run_llm_synthesis(
         grounder_input = (
             f"Domain: {target_domain}\n\n"
             f"Findings context (claim_ids and scopes):\n"
-            f"{json.dumps([{'claim_id': r.get('governing_claim_id'), 'claim_scope': r.get('claim_scope', 'general-knowledge'), 'evidence_label': r.get('evidence_label')} for r in enriched_recs], indent=2, ensure_ascii=False)}\n\n"  # noqa: E501
+            f"{json.dumps([{'claim_id': r.get('governing_claim_id'), 'claim_scope': r.get('claim_scope', 'general-knowledge'), 'evidence_label': r.get('evidence_label'), 'is_stale': r.get('is_stale'), 'is_contested': r.get('is_contested')} for r in enriched_recs], indent=2, ensure_ascii=False)}\n\n"  # noqa: E501
             f"Draft narrative:\n{draft}\n\n"
             f"Adversarial flags to resolve:\n{json.dumps(flags, indent=2, ensure_ascii=False)}"
         )

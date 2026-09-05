@@ -53,10 +53,29 @@ document.addEventListener("DOMContentLoaded", () => {
   }
  })();
 
- // Allow enter key in search input to trigger audit
- domainInput.addEventListener("keydown", (e) => {
- if (e.key === "Enter") btnRun.click();
- });
+  function normalizeDomainInput(val) {
+    if (!val) return '';
+    let cleaned = val.trim();
+    cleaned = cleaned.replace(/^https?:\/\//i, '');
+    cleaned = cleaned.replace(/\/.*$/, '');
+    cleaned = cleaned.replace(/:\d+$/, '');
+    return cleaned;
+  }
+
+  domainInput.addEventListener("paste", () => {
+    setTimeout(() => {
+      domainInput.value = normalizeDomainInput(domainInput.value);
+    }, 0);
+  });
+
+  domainInput.addEventListener("blur", () => {
+    domainInput.value = normalizeDomainInput(domainInput.value);
+  });
+
+  // Allow enter key in search input to trigger audit
+  domainInput.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") btnRun.click();
+  });
 
  // Report export button (Item 1)
  document.getElementById("btn-export-report").addEventListener("click", exportExecutiveReport);
@@ -80,14 +99,16 @@ document.addEventListener("DOMContentLoaded", () => {
   .catch(console.error);
 
  btnRun.addEventListener("click", async () => {
- const domain = domainInput.value.trim() || "madmarketers.in";
- const funnelValue = funnelSelect.value;
- const funnelText = funnelSelect.options[funnelSelect.selectedIndex].text;
+  const domain = domainInput.value.trim();
+  if (!domain) {
+    AreosAPI.notify('Please enter a domain to audit (e.g. yoursite.com)', 'warning');
+    return;
+  }
 
- // UI reset & start execution animation
- btnRun.disabled = true;
- btnRun.innerHTML = `<span>⏳ Running Diagnostic Pipeline...</span>`;
- monitor.style.display = "block";
+  // UI reset & start execution animation
+  btnRun.disabled = true;
+  btnRun.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="animation:spin 1s linear infinite; display:inline-block; vertical-align:middle; margin-right:8px;"><circle cx="12" cy="12" r="10" stroke-opacity="0.25"/><path d="M12 2a10 10 0 0 1 10 10" stroke-opacity="0.85"/></svg><span>Running Diagnostic Pipeline...</span>`;
+  monitor.style.display = "block";
  resultsArea.style.display = "none";
  resetMonitorStages();
  animatePipelineStages();
@@ -98,27 +119,42 @@ document.addEventListener("DOMContentLoaded", () => {
  headers: getAuthHeaders({ "Content-Type": "application/json" }),
  body: JSON.stringify({
  target_domain: domain,
- sample_content: `Mad Marketers (${domain}) delivers high-performance digital marketing, executive branding, and performance search engineering solutions across targeted user funnels.`,
+ sample_content: "",
  api_provider: "auto"
  })
  });
 
- if (!res.ok) throw new Error(`HTTP error! Status: ${res.status}`);
- const data = await res.json();
+ 		if (!res.ok) {
+			let errorDetail = `HTTP error ${res.status}`;
+			try {
+				const errJson = await res.json();
+				if (errJson && errJson.detail) {
+					errorDetail = typeof errJson.detail === 'string' ? errJson.detail : JSON.stringify(errJson.detail);
+				}
+			} catch (_) {
+				try {
+					const text = await res.text();
+					if (text) errorDetail = text.slice(0, 200);
+				} catch (__) {}
+			}
+			throw new Error(errorDetail);
+		}
+		const data = await res.json();
  currentAuditData = data;
+ window.AreosContext = window.AreosContext || {};
+ window.AreosContext.auditResult = data;
  
  setTimeout(() => {
  completeAllStages();
  setTimeout(() => {
- try {
- monitor.style.display = "none";
- displayStudioResults(data, domain, funnelText);
- fetchHistoricalDelta(domain, data.executive_scorecard.overall_score).catch(e => console.error(e));
- renderCitationDistribution(domain, data.sample_res);
- renderSynthesisTab(data);
- resultsArea.style.display = "block";
- btnRun.disabled = false;
- btnRun.innerHTML = `<span>RUN FULL SPECTRUM AUDIT</span>`;
+ try {        monitor.style.display = "none";
+        displayStudioResults(data, domain);
+        fetchHistoricalDelta(domain, data.executive_scorecard.overall_score).catch(e => console.error(e));
+        renderCitationDistribution(domain, data.sample_res);
+        renderSynthesisTab(data);
+        resultsArea.style.display = "block";
+        btnRun.disabled = false;
+        btnRun.innerHTML = `<span>Run Full Spectrum Audit</span>`;
  // Auto-switch to the Results tab so the panel is visible regardless
  // of which tab was active before the run (fixes UX + automation).
  document.querySelectorAll('.tab-content').forEach(el => el.style.display = 'none');
@@ -135,7 +171,7 @@ document.addEventListener("DOMContentLoaded", () => {
  btnRun.innerHTML = `<span>UI ERROR (Check Console)</span>`;
  resultsArea.innerHTML = `<div style="padding:2rem;color:#ef4444;background:#1e1b4b;border:1px solid #dc2626;border-radius:12px;margin:2rem;">
  <h3>UI Rendering Failed</h3>
- <pre style="white-space:pre-wrap;color:#f87171;">${err.stack}</pre>
+ <pre style="white-space:pre-wrap;color:#f87171;">${typeof escapeHtml === 'function' ? escapeHtml(err.stack || String(err)) : String(err.stack || err)}</pre>
  </div>`;
  resultsArea.style.display = "block";
  monitor.style.display = "none";
@@ -146,7 +182,7 @@ document.addEventListener("DOMContentLoaded", () => {
  console.error("Error executing studio audit:", error);
  AreosAPI.notify("Error executing full spectrum audit: " + error.message);
  btnRun.disabled = false;
- btnRun.innerHTML = `<span>RUN FULL SPECTRUM AUDIT</span>`;
+ btnRun.innerHTML = `<span>Run Full Spectrum Audit</span>`;
  monitor.style.display = "none";
  }
  });
@@ -154,21 +190,22 @@ document.addEventListener("DOMContentLoaded", () => {
 
 // Item 11: Populate Prompt Funnel Selector
 async function loadPromptsIntoSelector() {
- try {
- const res = await AreosAPI.fetch("/api/v1/prompts");
- if (res.ok) {
- const data = await res.json();
- const select = document.getElementById("funnel-stage-select");
- data.prompts.forEach(p => {
- const opt = document.createElement("option");
- opt.value = p.prompt_id;
- opt.textContent = ` [Saved] ${p.label || p.prompt_id}`;
- select.appendChild(opt);
- });
- }
- } catch (e) {
- console.warn("Could not load saved prompt sets:", e);
- }
+  try {
+    const select = document.getElementById("funnel-stage-select");
+    if (!select) return;
+    const res = await AreosAPI.fetch("/api/v1/prompts");
+    if (res.ok) {
+      const data = await res.json();
+      data.prompts.forEach(p => {
+        const opt = document.createElement("option");
+        opt.value = p.prompt_id;
+        opt.textContent = ` [Saved] ${p.label || p.prompt_id}`;
+        select.appendChild(opt);
+      });
+    }
+  } catch (e) {
+    console.warn("Could not load saved prompt sets:", e);
+  }
 }
 
 // Item 3: Historical Audit Delta Comparison
@@ -181,63 +218,66 @@ async function fetchHistoricalDelta(domain, currentScore) {
  
  const domainRuns = data.runs.filter(r => r.target_domain.toLowerCase() === domain.toLowerCase());
  
- if (domainRuns.length <= 1) {
- container.innerHTML = `
- <div class="delta-box">
- <span style="font-size: 2rem;"></span>
- <div>
- <strong style="color: #ffffff;">Initial Baseline Evaluation</strong>
- <p style="margin: 0.2rem 0 0; color: #94a3b8; font-size: 0.88rem;">This is the first comprehensive audit recorded for ${domain}. Future runs will plot your exact score progression and technical resolution delta here.</p>
- </div>
- </div>`;
- } else {
- const lastRun = domainRuns[1];
- const prevScore = lastRun.overall_score || 0;
- const diff = currentScore - prevScore;
- const sign = diff >= 0 ? "+" : "";
- const color = diff >= 0 ? "#10b981" : "#ef4444";
+  if (domainRuns.length <= 1) {
+    container.innerHTML = `
+    <div class="delta-box" style="display:flex; align-items:flex-start; gap:14px; background:var(--surface-sunken); border:1px solid var(--border-default); border-radius:var(--radius-sm); padding:16px;">
+      <div style="width:36px; height:36px; border-radius:8px; background:var(--brand-50); border:1px solid var(--brand-100); display:flex; align-items:center; justify-content:center; flex-shrink:0; color:var(--brand-500);">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 14 14"/></svg>
+      </div>
+      <div>
+        <strong style="color: var(--text-primary); font-size: 0.98rem; display:block; margin-bottom:4px;">Initial Baseline Audit</strong>
+        <p style="margin: 0; color: var(--text-secondary); font-size: 0.86rem; line-height:1.5;">This is the first diagnostic audit recorded for ${typeof escapeHtml === 'function' ? escapeHtml(domain) : String(domain)}. Subsequent audits will automatically calculate score progression velocity and technical resolution deltas.</p>
+      </div>
+    </div>`;
+  } else {
+    const lastRun = domainRuns[1];
+    const prevScore = lastRun.overall_score || 0;
+    const diff = currentScore - prevScore;
+    const sign = diff >= 0 ? "+" : "";
+    const color = diff >= 0 ? "var(--status-success)" : "var(--status-danger)";
 
- container.innerHTML = `
- <div class="delta-box">
-  <span style="font-size: 2rem; opacity:0.8;">📈</span>
- <div>
- <strong style="color: #ffffff; font-size: 1.05rem;">Score Delta: <span style="color: ${color}; font-weight: 800;">${sign}${diff} points</span> vs. previous run (${lastRun.run_date.split('T')[0]})</strong>
- <p style="margin: 0.3rem 0 0; color: #cbd5e1; font-size: 0.88rem;">AI Crawler parsing obstacles resolved • Brand citation velocity exhibits steady upward trend across answer engines.</p>
- </div>
- </div>`;
- }
- } catch (e) {
- container.innerHTML = `<p style="color: #64748b;">Historical comparison requires at least two completed audit runs for this domain.</p>`;
- }
+    container.innerHTML = `
+    <div class="delta-box" style="display:flex; align-items:center; gap:14px; background:var(--surface-sunken); border:1px solid var(--border-default); border-radius:var(--radius-sm); padding:16px;">
+      <div style="width:40px; height:40px; border-radius:8px; background:var(--brand-50); border:1px solid var(--brand-100); display:flex; align-items:center; justify-content:center; flex-shrink:0;">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="${color}" stroke-width="2.5"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>
+      </div>
+      <div>
+        <strong style="color: var(--text-primary); font-size: 1.02rem;">Score Delta: <span style="color: ${color}; font-weight: 800;">${sign}${diff} points</span> vs. previous run (${lastRun.run_date.split('T')[0]})</strong>
+        <p style="margin: 0.3rem 0 0; color: var(--text-secondary); font-size: 0.86rem; line-height:1.5;">AI crawler parsing obstacles resolved • Brand citation velocity exhibits steady upward trend across generative answer engines.</p>
+      </div>
+    </div>`;
+  }
+  } catch (e) {
+    container.innerHTML = `<p style="color: var(--text-tertiary); font-size:0.88rem;">Historical comparison requires at least two completed audit runs for this domain.</p>`;
+  }
 }
 
 // Item 5: Interactive Citation Source Domain Distribution
 function renderCitationDistribution(domain, sampleRes) {
- const list = document.getElementById("citation-distribution-list");
- list.innerHTML = "";
- 
- 
- let sources = [];
- if (sampleRes && sampleRes.observations) {
- const counts = {};
- let total = 0;
- sampleRes.observations.forEach(obs => {
- (obs.cited_urls || []).forEach(url => {
- try {
- const d = new URL(url).hostname;
- counts[d] = (counts[d] || 0) + 1;
- total++;
- } catch(e) {}
- });
- });
- const colors = ["var(--neon-cyan)", "var(--neon-purple)", "#3b82f6", "#64748b", "#10b981", "#f59e0b"];
- let cIdx = 0;
- for (const [name, count] of Object.entries(counts)) {
- sources.push({ name: name, pct: Math.round((count/total)*100), color: colors[cIdx % colors.length] });
- cIdx++;
- }
- sources.sort((a,b) => b.pct - a.pct);
- }
+  const list = document.getElementById("citation-distribution-list");
+  list.innerHTML = "";
+  
+  let sources = [];
+  if (sampleRes && sampleRes.observations) {
+    const counts = {};
+    let total = 0;
+    sampleRes.observations.forEach(obs => {
+      (obs.cited_urls || []).forEach(url => {
+        try {
+          const d = new URL(url).hostname;
+          counts[d] = (counts[d] || 0) + 1;
+          total++;
+        } catch(e) {}
+      });
+    });
+    const colors = ["#0A66C2", "#4F46E5", "#059669", "#D97706", "#8B5CF6", "#06B6D4"];
+    let cIdx = 0;
+    for (const [name, count] of Object.entries(counts)) {
+      sources.push({ name: name, pct: Math.round((count/total)*100), color: colors[cIdx % colors.length] });
+      cIdx++;
+    }
+    sources.sort((a,b) => b.pct - a.pct);
+  }
  
  if (sources.length === 0) {
  list.innerHTML = `<div class="no-results">No citations observed in real-time sampling.</div>`;
@@ -251,7 +291,7 @@ function renderCitationDistribution(domain, sampleRes) {
  item.innerHTML = `
  <div class="bar-label">
  <span> ${src.name}</span>
- <strong style="color: #ffffff;">${src.pct}%</strong>
+ <strong style="color: var(--text-primary);">${src.pct}%</strong>
  </div>
  <div class="bar-track">
  <div class="bar-fill" style="width: 0%; background: ${src.color};"></div>
@@ -265,61 +305,33 @@ function renderCitationDistribution(domain, sampleRes) {
 }
 
 
-// Helper to enrich fallback qualitative guidance when automated reasons are generic
-function enrichWizardCard(wiz, domain) {
- let title = wiz.title || wiz.check_name || `Diagnostic Check: ${wiz.card_id}`;
- if (title === "Expert Human Inspection Required" || !title) {
- if (wiz.card_id === "C082") title = "Validate Brand Authority vs. Competitor Consensus";
- else if (wiz.card_id === "C058" || (wiz.reason && wiz.reason.includes("EXTRACTABILITY"))) title = "Verify RAG Text Density & Javascript Render Dependency";
- if (wiz.card_id === "C061") title = "Check for Buried Answers & Visual Banner Obstructions";
- }
 
- let what = wiz.what_to_look_for || "";
- let how = wiz.how_to_fill || "";
 
- if (what.includes("Perform expert qualitative verification") || !what) {
- if (wiz.card_id === "C082") {
- what = `Examine ${domain} across top AI answer summaries (Perplexity, Gemini, ChatGPT). Determine if third-party directories or competitors are capturing brand queries due to stronger domain rating or unlinked mention frequency.`;
- how = `Document specific competitor URLs appearing above ${domain}. Select 'Warn' if competitors dominate summaries, or 'Pass' if brand entity is properly recognized.`;
- } else if (wiz.card_id === "C058") {
- what = `Inspect ${domain} HTML source code. Confirm whether essential business facts, pricing, and contact capabilities are directly visible in plain text rather than hidden behind interactive client-side JavaScript, iframes, or canvas graphics.`;
- how = `If key promotional claims disappear when JS is disabled, record the affected component in notes and select 'Fail' or 'Warn' so targeted schema remediation is prioritized.`;
- } else if (wiz.card_id === "C061") {
- what = `Verify whether definitive core value propositions appear above the fold within the first 2-3 paragraphs on ${domain}, without being buried below excessive hero banners or vague promotional introductions.`;
- how = `Verify paragraph structure against Zyppy extraction guidelines. If answers are concise and self-contained, select 'Pass'. Otherwise describe the visual layout blocking in notes.`;
- } else {
- what = `Review ${domain} page architecture against qualitative AEO criteria for check [${wiz.card_id}]. Ensure facts and statistics are unambiguous, verifiable, and scannable by automated crawlers.`;
- how = `Enter clear observational evidence in the notes box below describing what was found on the domain, then select Pass, Warn, or Fail to commit your verdict to the SQLite registry.`;
- }
- }
-
- return { title, what_to_look_for: what, how_to_fill: how };
-}
-
-function displayStudioResults(data, domain, funnelText) {
- document.getElementById("res-target-header").textContent = `Audit Report: ${domain}`;
- document.getElementById("res-funnel-label").textContent = `Funnel Profile: ${funnelText}`;
+function displayStudioResults(data, domain) {
+  document.getElementById("res-target-header").textContent = `Audit Report: ${domain}`;
+  const funnelLabel = document.getElementById("res-funnel-label");
+  if (funnelLabel) funnelLabel.textContent = `Full Spectrum Diagnostic Audit`;
 
  // 1. Executive Scorecard
  const score = data.executive_scorecard.overall_score;
  const sc    = data.executive_scorecard;
 
- // Score display with ℹ️ link to methodology docs
+ // Score display with How link to methodology docs
  const scoreEl = document.getElementById("res-score");
- scoreEl.innerHTML = `${score}<span style="font-size:0.45em;vertical-align:super;color:#64748b;">/100</span>
+ scoreEl.innerHTML = `${score}<span style="font-size:0.45em;vertical-align:super;color:var(--text-tertiary);">/100</span>
           <a href="docs.html#5-deterministic-scoring-model" target="_blank" title="How is this score calculated?"
-      style="font-size:0.28em;vertical-align:super;margin-left:0.4em;color:#6366f1;text-decoration:none;
-             background:rgba(99,102,241,0.12);padding:2px 6px;border-radius:4px;font-weight:600;
-             border:1px solid rgba(99,102,241,0.3);">ℹ︎ How?</a>`;
+      style="font-size:0.28em;vertical-align:super;margin-left:0.4em;color:var(--brand-500);text-decoration:none;
+             background:var(--brand-50);padding:2px 8px;border-radius:4px;font-weight:700;
+             border:1px solid var(--brand-100);">How Calculated?</a>`;
 
  // Sub-score layer bars
  const subScores = sc.sub_scores || {};
  const layerOrder = [
-  { id: "citation",  icon: "🔍", label: "Citation",      color: "#6366f1" },
-  { id: "content",   icon: "📄", label: "Content",       color: "#8b5cf6" },
-  { id: "access",    icon: "🤖", label: "Access",        color: "#06b6d4" },
-  { id: "authority", icon: "🏛️", label: "Authority",     color: "#f59e0b" },
-  { id: "schema",    icon: "🏷️", label: "Schema",        color: "#10b981" },
+  { id: "citation",  icon: `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>`, label: "Citation" },
+  { id: "content",   icon: `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>`, label: "Content" },
+  { id: "access",    icon: `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="10" rx="2"/><circle cx="12" cy="5" r="2"/><path d="M12 7v4"/><line x1="8" y1="16" x2="8.01" y2="16"/><line x1="16" y1="16" x2="16.01" y2="16"/></svg>`, label: "Access" },
+  { id: "authority", icon: `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="2" y1="22" x2="22" y2="22"/><line x1="12" y1="2" x2="2" y2="7"/><line x1="12" y1="2" x2="22" y2="7"/><line x1="4" y1="22" x2="4" y2="7"/><line x1="9" y1="22" x2="9" y2="7"/><line x1="15" y1="22" x2="15" y2="7"/><line x1="20" y1="22" x2="20" y2="7"/></svg>`, label: "Authority" },
+  { id: "schema",    icon: `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>`, label: "Schema" },
  ];
 
  // Inject sub-score bars into a container (add if not exists)
@@ -333,21 +345,21 @@ function displayStudioResults(data, domain, funnelText) {
  subScoreEl.innerHTML = layerOrder.map(layer => {
   const ls  = subScores[layer.id] || { score: 0, max: 0, pct: 0, deductions: [] };
   const pct = ls.max > 0 ? Math.round(ls.score / ls.max * 100) : 0;
-  const barColor = pct >= 80 ? "#10b981" : pct >= 50 ? "#f59e0b" : "#ef4444";
+  const barColor = pct >= 80 ? "var(--status-success)" : pct >= 50 ? "var(--status-warning)" : "var(--status-danger)";
   const deductionTip = (ls.deductions || []).map(d =>
    `${d.code}: ${d.points}pts`
   ).join(" | ") || "No deductions";
   return `
   <div title="${deductionTip}" style="cursor:default;">
    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:3px;">
-    <span style="font-size:0.78rem;color:#94a3b8;font-family:'JetBrains Mono',monospace;">
+    <span style="font-size:0.78rem;color:var(--text-secondary);font-family:'JetBrains Mono',monospace;display:flex;align-items:center;gap:5px;">
      ${layer.icon} ${layer.label.toUpperCase()}
     </span>
-    <span style="font-size:0.78rem;font-weight:700;color:#e2e8f0;font-family:'JetBrains Mono',monospace;">
+    <span style="font-size:0.78rem;font-weight:700;color:var(--text-primary);font-family:'JetBrains Mono',monospace;">
      ${ls.score}/${ls.max}
     </span>
    </div>
-   <div style="background:rgba(255,255,255,0.06);border-radius:4px;height:6px;overflow:hidden;">
+   <div style="background:var(--border-default);border-radius:4px;height:6px;overflow:hidden;">
     <div style="width:${pct}%;height:100%;background:${barColor};border-radius:4px;
                 transition:width 0.8s cubic-bezier(0.4,0,0.2,1);"></div>
    </div>
@@ -357,8 +369,8 @@ function displayStudioResults(data, domain, funnelText) {
  // Gate warning
  if (sc.access_gate_applied) {
   const gateWarn = document.createElement("div");
-  gateWarn.style.cssText = "margin-top:0.8rem;padding:0.6rem 0.9rem;background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.3);border-radius:8px;font-size:0.8rem;color:#fca5a5;";
-  gateWarn.textContent = `⚠ Access Gate applied — score capped at ${sc.access_gate_cap}. AI crawlers cannot fully access this site.`;
+  gateWarn.style.cssText = "margin-top:0.8rem;padding:0.6rem 0.9rem;background:var(--status-danger-bg);border:1px solid var(--status-danger-border);border-left:3px solid var(--status-danger);border-radius:8px;font-size:0.8rem;color:var(--status-danger);";
+  gateWarn.innerHTML = `<div style="display:flex;align-items:center;gap:6px;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg><span>Access Gate applied — score capped at ${sc.access_gate_cap}. AI crawlers cannot fully access this site.</span></div>`;
   subScoreEl.appendChild(gateWarn);
  }
 
@@ -368,181 +380,227 @@ function displayStudioResults(data, domain, funnelText) {
   let ledgerEl = document.getElementById("res-score-ledger");
   if (!ledgerEl) {
    ledgerEl = document.createElement("details");
-   ledgerEl.id = "res-score-ledger";
-   ledgerEl.style.cssText = "margin-top:1rem;font-size:0.78rem;color:#64748b;";
-   subScoreEl.after(ledgerEl);
+    ledgerEl.style.cssText = "margin-top:1rem;font-size:0.78rem;color:var(--text-tertiary);";
+    subScoreEl.after(ledgerEl);
   }
   const sorted = [...breakdown].sort((a, b) => (b.running_total||0) - (a.running_total||0));
   ledgerEl.innerHTML = `
-   <summary style="cursor:pointer;color:#94a3b8;font-family:'JetBrains Mono',monospace;
-                   font-size:0.75rem;user-select:none;list-style:none;margin-bottom:0.5rem;">
-    ▸ Score justification ledger (${breakdown.length} deductions)
-   </summary>
-   <table style="width:100%;border-collapse:collapse;font-family:'JetBrains Mono',monospace;font-size:0.73rem;">
-    <thead>
-     <tr style="color:#475569;border-bottom:1px solid #1e293b;">
-      <th style="text-align:left;padding:4px 6px;">Check Code</th>
-      <th style="text-align:right;padding:4px 6px;">Points</th>
-      <th style="text-align:right;padding:4px 6px;">Running Total</th>
-     </tr>
-    </thead>
-    <tbody>
-     <tr style="color:#6ee7b7;">
-      <td style="padding:4px 6px;">Starting score</td>
-      <td style="text-align:right;">—</td>
-      <td style="text-align:right;font-weight:700;">100</td>
-     </tr>
-     ${sorted.map(d => `
-      <tr style="border-top:1px solid rgba(255,255,255,0.04);color:#cbd5e1;"
-          title="${escapeHtml(d.message||'')}">
-       <td style="padding:4px 6px;">${escapeHtml(d.code)}</td>
-       <td style="text-align:right;color:#f87171;">${d.points}</td>
-       <td style="text-align:right;font-weight:600;">${d.running_total}</td>
-      </tr>`).join("")}
-     <tr style="border-top:2px solid #334155;color:#6366f1;font-weight:700;">
-      <td style="padding:6px 6px;">Final Score</td>
-      <td style="text-align:right;">—</td>
-      <td style="text-align:right;">${score}</td>
-     </tr>
-    </tbody>
-   </table>`;
- }
+    <summary style="cursor:pointer;color:var(--text-secondary);font-family:'JetBrains Mono',monospace;
+                    font-size:0.75rem;user-select:none;list-style:none;margin-bottom:0.5rem;">
+      ▸ Score justification ledger (${breakdown.length} deductions)
+    </summary>
+    <table style="width:100%;border-collapse:collapse;font-family:'JetBrains Mono',monospace;font-size:0.73rem;">
+      <thead>
+        <tr style="color:var(--text-tertiary);border-bottom:1px solid var(--border-default);">
+          <th style="text-align:left;padding:4px 6px;">Check Code</th>
+          <th style="text-align:right;padding:4px 6px;">Points</th>
+          <th style="text-align:right;padding:4px 6px;">Running Total</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr style="color:var(--brand-500);">
+          <td style="padding:4px 6px;">Starting score</td>
+          <td style="text-align:right;">—</td>
+          <td style="text-align:right;font-weight:700;">100</td>
+        </tr>
+        ${sorted.map(d => `
+          <tr style="border-top:1px solid rgba(255,249,235,0.04);color:var(--text-secondary);"
+              title="${escapeHtml(d.message||'')}">
+            <td style="padding:4px 6px;">${escapeHtml(d.code)}</td>
+            <td style="text-align:right;color:#F87171;">${d.points}</td>
+            <td style="text-align:right;font-weight:600;">${d.running_total}</td>
+          </tr>`).join("")}
+        <tr style="border-top:2px solid var(--border-strong);color:var(--brand-500);font-weight:700;">
+          <td style="padding:6px 6px;">Final Score</td>
+          <td style="text-align:right;">—</td>
+          <td style="text-align:right;">${score}</td>
+        </tr>
+      </tbody>
+    </table>`;
+  }
 
- const auth = data.executive_scorecard.authority_metrics || {};
+  const auth = data.executive_scorecard.authority_metrics || {};
 
- if (!auth.authority_score || auth.authority_score === 0) {
- document.getElementById("res-authority").textContent = 'N/A';
- document.getElementById("res-referring").textContent = 'Authority metrics not configured';
- } else {
- document.getElementById("res-authority").textContent = `${auth.authority_score} / 100`;
- document.getElementById("res-referring").textContent = `${Number(auth.referring_domains || 0).toLocaleString()} referring domains`;
- }
+  if (!auth.authority_score || auth.authority_score === 0) {
+    document.getElementById("res-authority").textContent = 'N/A';
+    document.getElementById("res-referring").textContent = 'Authority metrics not configured';
+  } else {
+    document.getElementById("res-authority").textContent = `${auth.authority_score} / 100`;
+    document.getElementById("res-referring").textContent = `${Number(auth.referring_domains || 0).toLocaleString()} referring domains`;
+  }
 
- document.getElementById("res-crawler").textContent = data.executive_scorecard.crawler_status;
- document.getElementById("res-llms").textContent = `llms.txt: ${data.executive_scorecard.llms_txt_status}`;
- document.getElementById("res-citations").textContent = data.executive_scorecard.observed_citation_rate;
- document.getElementById("res-caveat").textContent = data.tos_caveat || "[METHODOLOGY NOTE] Observed citation frequency is probabilistic across runs.";
+  document.getElementById("res-crawler").textContent = data.executive_scorecard.crawler_status;
+  document.getElementById("res-llms").textContent = `llms.txt: ${data.executive_scorecard.llms_txt_status}`;
+  document.getElementById("res-citations").textContent = data.executive_scorecard.observed_citation_rate;
+  document.getElementById("res-caveat").textContent = data.tos_caveat || "[METHODOLOGY NOTE] Observed citation frequency is probabilistic across runs.";
 
 
- // Helper: decode pre-encoded DB text, then escape for HTML, then apply light markdown
- function renderUserText(text) {
-  if (!text) return '';
-  const decoded = String(text)
-    .replace(/&#x27;/g, "'")
-    .replace(/&#039;/g, "'")
-    .replace(/&amp;/g, '&')
-    .replace(/&lt;/g, '<')
-    .replace(/&gt;/g, '>')
-    .replace(/&quot;/g, '"');
-  const safe = escapeHtml(decoded);
-  return safe.replace(/\*([^*\n]+)\*/g, '<em>$1</em>');
- }
+  // Helper: decode pre-encoded DB text, then escape for HTML, then apply light markdown
+  function renderUserText(text) {
+    if (!text) return '';
+    const decoded = String(text)
+      .replace(/&#x27;/g, "'")
+      .replace(/&#039;/g, "'")
+      .replace(/&amp;/g, '&')
+      .replace(/&lt;/g, '<')
+      .replace(/&gt;/g, '>')
+      .replace(/&quot;/g, '"');
+    const safe = escapeHtml(decoded);
+    return safe.replace(/\*([^*\n]+)\*/g, '<em>$1</em>');
+  }
 
- // Helper: map numeric priority score to a color-coded label
- function priorityLabel(score) {
-  const s = score || 5;
-  if (s >= 9) return { text: 'CRITICAL', bg: 'rgba(239,68,68,0.2)', color: '#fca5a5' };
-  if (s >= 7) return { text: 'HIGH', bg: 'rgba(239,68,68,0.12)', color: '#f87171' };
-  if (s >= 5) return { text: 'MEDIUM', bg: 'rgba(245,158,11,0.18)', color: '#fbbf24' };
-  return { text: 'LOW', bg: 'rgba(16,185,129,0.12)', color: '#6ee7b7' };
- }
+  // Helper: map numeric priority score to a color-coded label
+  function priorityLabel(score) {
+    const s = score || 5;
+    if (s >= 9) return { text: 'CRITICAL', bg: 'rgba(239,68,68,0.2)', color: '#FCA5A5' };
+    if (s >= 7) return { text: 'HIGH', bg: 'rgba(239,68,68,0.12)', color: '#F87171' };
+    if (s >= 5) return { text: 'MEDIUM', bg: 'rgba(245,158,11,0.18)', color: '#FDE68A' };
+    return { text: 'LOW', bg: 'rgba(197,227,132,0.15)', color: '#C5E384' };
+  }
 
- // 2. Prioritized Remediation Plan
- const recList = document.getElementById("remediation-list");
- recList.innerHTML = "";
- if (!data.remediation_plan || data.remediation_plan.length === 0) {
- recList.innerHTML = `<div style="padding: 2rem; text-align: center; color: #6ee7b7; background: rgba(16, 185, 129, 0.1); border-radius: 12px;">[DONE] Excellent! No technical AEO/GEO vulnerabilities detected on this domain.</div>`;
- } else {
- data.remediation_plan.forEach((rec, idx) => {
- const card = document.createElement("div");
- card.className = "rec-item";
- const badgeColor = rec.severity === "error" ? "#ef4444" : "#f59e0b";
- const pLabel = priorityLabel(rec.priority_score || (idx + 1) * 3);
+  // 2. Prioritized Remediation Plan
+  const recList = document.getElementById("remediation-list");
+  recList.innerHTML = "";
+  if (!data.remediation_plan || data.remediation_plan.length === 0) {
+    recList.innerHTML = `<div style="padding: 2rem; text-align: center; color: var(--brand-500); background: rgba(197,227,132,0.1); border-radius: 12px;">[DONE] Excellent! No technical AEO/GEO vulnerabilities detected on this domain.</div>`;
+  } else {
+    data.remediation_plan.forEach((rec, idx) => {
+      const card = document.createElement("div");
+      card.className = "rec-item";
+      const badgeColor = rec.severity === "error" ? "#EF4444" : "#F59E0B";
+      const pLabel = priorityLabel(rec.priority_score || (idx + 1) * 3);
 
- const safeTitle = renderUserText(rec.title);
- const safeDesc = renderUserText(rec.description);
- const safeClaimStmt = renderUserText(rec.governing_claim_statement);
- const safeCheckCode = escapeHtml(rec.check_code);
+      const safeTitle = renderUserText(rec.title);
+      const safeDesc = renderUserText(rec.description);
+      const safeClaimStmt = renderUserText(rec.governing_claim_statement);
+      const safeCheckCode = escapeHtml(rec.check_code);
+      const safeKid = typeof escapeHtml === 'function' ? escapeHtml(rec.governing_claim_id || '') : String(rec.governing_claim_id || '');
+      const encodedKid = encodeURIComponent(rec.governing_claim_id || '').replace(/'/g, '%27');
 
- card.innerHTML = `
- <div class="rec-header" onclick="toggleRecBody(this)">
- <div style="display: flex; align-items: center; gap: 1rem; flex: 1 1 300px;">
- <div class="step-num">${idx + 1}</div>
- <div>
- <div style="font-weight: 700; font-size: 1.15rem; color: #f1f5f9;">${safeTitle}</div>
- <div style="font-size: 0.85rem; color: #64748b; font-family: 'JetBrains Mono', monospace; margin-top: 0.2rem;">Code: [${safeCheckCode}] • Severity: <span style="color: ${badgeColor}; font-weight: 600;">${rec.severity.toUpperCase()}</span></div>
- </div>
- </div>
-  <div style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
-  <span style="background: ${pLabel.bg}; color: ${pLabel.color}; padding: 0.3rem 0.8rem; border-radius: 6px; font-size: 0.8rem; font-weight: 700; font-family: 'JetBrains Mono', monospace;">${pLabel.text}</span>
-  <span style="font-size: 1.2rem; color: #94a3b8; margin-left: 0.4rem;"></span>
- </div>
- </div>
- <div class="rec-body ${idx === 0 ? 'open' : ''}">
- <p style="color: #e2e8f0; line-height: 1.6; margin-top: 0;">${safeDesc}</p>
- <a href="claims_browser.html?claim_id=${rec.governing_claim_id}" target="_blank" class="citation-box" style="display:block; text-decoration:none;" onclick="event.stopPropagation();">
- <span class="citation-badge"> View Governing Research Basis [Claim ID: ${rec.governing_claim_id}] (${rec.confidence} Confidence / ${rec.source_tier}) ↗</span>
- <div style="margin-top: 0.4rem; color:var(--text);">${safeClaimStmt}</div>
- </a>
- </div>
- `;
- recList.appendChild(card);
- });
- }
+      // Render V2 Evidence
+      let evidenceHtml = '';
+      if (rec.source_citations && rec.source_citations.length > 0) {
+        evidenceHtml += `<div style="margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--border-default); font-size: 0.85rem; color: var(--text-secondary);">`;
+        evidenceHtml += `<div style="font-weight: 600; margin-bottom: 4px; text-transform: uppercase;">Source Citations:</div>`;
+        rec.source_citations.forEach(src => {
+          evidenceHtml += `<div style="margin-bottom: 2px;">• <a href="${safeUrl(src.url)}" target="_blank" style="color: var(--brand-500); text-decoration: none;">${escapeHtml(src.title || src.url)}</a> (${escapeHtml(src.authority)})</div>`;
+        });
+        evidenceHtml += `</div>`;
+      }
+      
+      if (rec.backing_facts && rec.backing_facts.length > 0) {
+        evidenceHtml += `<div style="margin-top: 8px; font-size: 0.85rem; color: var(--text-secondary);">`;
+        evidenceHtml += `<div style="font-weight: 600; margin-bottom: 4px; text-transform: uppercase;">Backing Facts:</div>`;
+        rec.backing_facts.forEach(fact => {
+          evidenceHtml += `<div style="margin-bottom: 2px;">• [${escapeHtml(fact.kid)}] ${escapeHtml(fact.statement)}</div>`;
+        });
+        evidenceHtml += `</div>`;
+      }
+
+      card.innerHTML = `
+        <div class="rec-header" onclick="toggleRecBody(this)">
+          <div style="display: flex; align-items: center; gap: 1rem; flex: 1 1 300px;">
+            <div class="step-num">${idx + 1}</div>
+            <div>
+              <div style="font-weight: 700; font-size: 1.15rem; color: var(--text-primary);">${safeTitle}</div>
+              <div style="font-size: 0.85rem; color: var(--text-tertiary); font-family: 'JetBrains Mono', monospace; margin-top: 0.2rem;">Code: [${safeCheckCode}] • Severity: <span style="color: ${badgeColor}; font-weight: 600;">${rec.severity.toUpperCase()}</span></div>
+            </div>
+          </div>
+          <div style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
+            <span style="background: ${pLabel.bg}; color: ${pLabel.color}; padding: 0.3rem 0.8rem; border-radius: 6px; font-size: 0.8rem; font-weight: 700; font-family: 'JetBrains Mono', monospace;">${pLabel.text}</span>
+            ${rec.is_contested ? `<span style="background: var(--status-warning-bg); color: var(--status-warning); padding: 0.3rem 0.8rem; border-radius: 6px; font-size: 0.8rem; font-weight: 700; border: 1px solid var(--status-warning-border); display:inline-flex; align-items:center; gap:4px;"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg> CONTESTED</span>` : ''}
+            ${rec.is_stale ? `<span style="background: var(--status-danger-bg); color: var(--status-danger); padding: 0.3rem 0.8rem; border-radius: 6px; font-size: 0.8rem; font-weight: 700; border: 1px solid var(--status-danger-border); display:inline-flex; align-items:center; gap:4px;"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg> STALE DATA</span>` : ''}
+            <span style="font-size: 1.2rem; color: var(--text-tertiary); margin-left: 0.4rem;"></span>
+          </div>
+        </div>
+        <div class="rec-body ${idx === 0 ? 'open' : ''}">
+          <p style="color: var(--text-primary); line-height: 1.6; margin-top: 0;">${safeDesc}</p>
+          <a href="knowledge_explorer.html?kid=${encodedKid}" target="_blank" class="citation-box" style="display:block; text-decoration:none;" onclick="event.stopPropagation();">
+            <span class="citation-badge"> View Knowledge Record [${safeKid}] (${rec.confidence} Confidence / ${rec.source_tier}) ↗</span>
+            <div style="margin-top: 0.4rem; color:var(--text-primary);">${safeClaimStmt}</div>
+            ${evidenceHtml}
+          </a>
+        </div>
+      `;
+      recList.appendChild(card);
+    });
+  }
 
  // 3. Guided Manual Review Wizard & Progress Meter (Item 9)
  const wizardList = document.getElementById("wizard-list");
  wizardList.innerHTML = "";
  evaluatedCardIds.clear();
 
- // Toggle the wizard empty state based on whether cards exist
+ // Toggle the wizard empty state and shield banner based on whether an audit has run and cards exist
  const wizardEmptyState = document.getElementById('wizard-empty-state');
+ const shieldBanner = document.getElementById('review-shield-banner');
+ const caveatBox = document.getElementById('wizard-caveat-box');
 
  if (!data.manual_review_wizard || data.manual_review_wizard.length === 0) {
-  if (wizardEmptyState) wizardEmptyState.style.display = 'flex';
- wizardList.innerHTML = `<div style="padding: 1.5rem; text-align: center; color: #94a3b8; background: rgba(30, 41, 59, 0.4); border-radius: 12px;">All diagnostic checks were determined automatically. No qualitative manual reviews required.</div>`;
- totalWizardCards = 0;
- updateShieldProgress();
+   if (wizardEmptyState) wizardEmptyState.style.display = 'none';
+   if (shieldBanner) shieldBanner.style.display = 'none';
+   if (caveatBox) caveatBox.style.display = 'block';
+   wizardList.innerHTML = `
+     <div style="padding: 2.5rem 1.5rem; text-align: center; color: var(--text-secondary); background: var(--surface-panel); border: 1px solid var(--border-default); border-radius: 12px; margin: 0 40px;">
+       <h4 style="margin:0 0 8px 0; color:var(--brand-500); font-size:1.1rem; font-weight:700;">All Automated Checks Verified</h4>
+       <p style="margin:0; font-size:0.9rem; color:var(--text-secondary);">All diagnostic checks were determined automatically by the audit engine. No qualitative manual reviews are required for this run.</p>
+     </div>`;
+   totalWizardCards = 0;
+   updateShieldProgress();
  } else {
-  if (wizardEmptyState) wizardEmptyState.style.display = 'none';
- totalWizardCards = data.manual_review_wizard.length;
- completedWizardCards = 0;
- updateShieldProgress();
-  if (typeof window.GuidedReview !== "undefined" && typeof window.GuidedReview.start === "function") {
-    window.GuidedReview.start(data.manual_review_wizard, {
-      mode: "inline",
-      container: "#wizard-list",
-      runId: data.run_id,
-      onVerdict: (id) => {
-        if (!evaluatedCardIds.has(id)) {
-          evaluatedCardIds.add(id);
-          completedWizardCards++;
-          updateShieldProgress(); // Item 9 Trigger
-        }
-      }
-    });
-  }
+   if (wizardEmptyState) wizardEmptyState.style.display = 'none';
+   if (shieldBanner) shieldBanner.style.display = 'flex';
+   if (caveatBox) caveatBox.style.display = 'block';
+
+   // T-B06: Dynamic card count based on mode + satisfied conditionals
+   function computeShownCards(cards) {
+     if (typeof window.GuidedReview !== 'undefined' &&
+         typeof window.GuidedReview.isQuestionVisible === 'function') {
+       return cards.filter(c => window.GuidedReview.isQuestionVisible(c.card_id)).length;
+     }
+     // Fallback: Express mode = 4, Full mode = all
+     const mode = window.AreosContext && window.AreosContext.reviewMode;
+     if (mode === 'express') return 4;
+     return cards.length;
+   }
+   totalWizardCards = computeShownCards(data.manual_review_wizard);
+   completedWizardCards = 0;
+   updateShieldProgress();
+   if (typeof window.GuidedReview !== "undefined" && typeof window.GuidedReview.start === "function") {
+     window.GuidedReview.start(data.manual_review_wizard, {
+       mode: "inline",
+       container: "#wizard-list",
+       runId: data.run_id,
+       onVerdict: (id) => {
+         if (!evaluatedCardIds.has(id)) {
+           evaluatedCardIds.add(id);
+           completedWizardCards++;
+           updateShieldProgress(); // Item 9 Trigger
+         }
+       }
+     });
+   }
  }
 }
 
 // Item 9: Shield Progress Logic
 function updateShieldProgress() {
- const shieldBanner = document.getElementById("review-shield-banner");
- const shieldIcon = document.getElementById("shield-icon");
- const shieldTitle = document.getElementById("shield-title");
- const shieldSub = document.getElementById("shield-sub");
- const progressText = document.getElementById("val-progress-text");
- const meterFill = document.getElementById("meter-fill");
+  const shieldBanner = document.getElementById("review-shield-banner");
+  const shieldIcon = document.getElementById("shield-icon");
+  const shieldTitle = document.getElementById("shield-title");
+  const shieldSub = document.getElementById("shield-sub");
+  const progressText = document.getElementById("val-progress-text");
+  const meterFill = document.getElementById("meter-fill");
 
- const pct = totalWizardCards > 0 ? Math.round((completedWizardCards / totalWizardCards) * 100) : 100;
- progressText.textContent = `${completedWizardCards} / ${totalWizardCards}`;
- meterFill.style.width = `${pct}%`;
+  const pct = totalWizardCards > 0 ? Math.round((completedWizardCards / totalWizardCards) * 100) : 100;
+  if (progressText) progressText.textContent = `${completedWizardCards} / ${totalWizardCards}`;
+  if (meterFill) meterFill.style.width = `${pct}%`;
 
- if (pct === 100) {
- shieldBanner.className = "shield-banner shield-unlocked";
- shieldIcon.textContent = "\u2713";
- shieldTitle.textContent = "Human review complete";
- shieldSub.textContent = "Every check has been verified. Your final report is being written.";
+  if (pct === 100) {
+    if (shieldBanner) shieldBanner.className = "context-helper-card";
+    if (shieldIcon) shieldIcon.textContent = "✓";
+    if (shieldTitle) shieldTitle.textContent = "Human Verification Complete";
+    if (shieldSub) shieldSub.textContent = "Every check has been evaluated and recorded into the persistent empirical repository.";
 
     if (window._synthesisTriggeredForRun !== _activeRunId) {
       window._synthesisTriggeredForRun = _activeRunId;
@@ -550,17 +608,17 @@ function updateShieldProgress() {
         if (typeof triggerPostWizardSynthesis === 'function') triggerPostWizardSynthesis();
       }, 1500);
     }
- } else {
- shieldBanner.className = "shield-banner shield-locked";
- shieldIcon.textContent = "";
- shieldTitle.textContent = "One more step: a few checks need a human eye";
- shieldSub.textContent = "Answer the questions below \u2014 takes about 3 minutes. Your final report unlocks when you're done.";
- }
+  } else {
+    if (shieldBanner) shieldBanner.className = "context-helper-card";
+    if (shieldIcon) shieldIcon.textContent = "";
+    if (shieldTitle) shieldTitle.textContent = "Qualitative Evaluation Protocol";
+    if (shieldSub) shieldSub.textContent = "Inspect on-page evidence to calibrate the composite diagnostic score and unlock synthesis.";
+  }
 
- syncStepper(pct);
- syncResultsActionBanner(pct);
- syncOutcomeFormAvailability();
- syncFinalReportButton(pct);
+  syncStepper(pct);
+  syncResultsActionBanner(pct);
+  syncOutcomeFormAvailability();
+  syncFinalReportButton(pct);
 }
 
 // Reflects run progress on the 4-step navigation bar (replaces the old flat
@@ -611,17 +669,21 @@ function syncResultsActionBanner(pct) {
   if (pct < 100) {
     resBanner.style.display = "flex";
     resBanner.classList.remove("is-complete");
-    titleEl.textContent = `\u26A0 This score is provisional \u2014 ${totalWizardCards - completedWizardCards} check(s) still need a human look`;
-    subEl.textContent = "Finish the Manual Review Wizard to unlock your final report.";
-    btnEl.textContent = "Finish Human Review \u2192";
-    btnEl.setAttribute("onclick", "document.querySelector('[data-tab=tab-wizard]').click()");
+    if (titleEl) titleEl.textContent = `Provisional Score: ${totalWizardCards - completedWizardCards} qualitative check(s) pending`;
+    if (subEl) subEl.textContent = "Complete the Manual Review Wizard to calibrate your final diagnostic score.";
+    if (btnEl) {
+      btnEl.textContent = "Complete Manual Review";
+      btnEl.setAttribute("onclick", "document.querySelector('[data-tab=tab-wizard]').click()");
+    }
   } else {
     resBanner.style.display = "flex";
     resBanner.classList.add("is-complete");
-    titleEl.textContent = "\u2713 Human review complete";
-    subEl.textContent = "Your final report is ready.";
-    btnEl.textContent = "View Final Report \u2192";
-    btnEl.setAttribute("onclick", "document.querySelector('[data-tab=tab-synthesis]').click()");
+    if (titleEl) titleEl.textContent = "Human Verification Complete";
+    if (subEl) subEl.textContent = "Your full executive synthesis report is ready.";
+    if (btnEl) {
+      btnEl.textContent = "View Final Report";
+      btnEl.setAttribute("onclick", "document.querySelector('[data-tab=tab-synthesis]').click()");
+    }
   }
 }
 
@@ -707,6 +769,8 @@ async function loadRunById(runId) {
     };
 
     currentAuditData = data;
+    window.AreosContext = window.AreosContext || {};
+    window.AreosContext.auditResult = data;
     _activeRunId = full.run_id;
 
     const domainInput = document.getElementById("domain-input");
@@ -842,43 +906,58 @@ async function submitStudioOutcome() {
 
 // Item 1: One-Click Report Export (Markdown)
 function exportExecutiveReport() {
- if (!currentAuditData) return AreosAPI.notify("No active audit results to export.");
- const domain = document.getElementById("domain-input").value.trim();
- const sc = currentAuditData.executive_scorecard;
- const wizardDone = totalWizardCards === 0 || completedWizardCards >= totalWizardCards;
+  if (!currentAuditData) return AreosAPI.notify("No active audit results to export.");
+  const domainInput = document.getElementById("domain-input");
+  const domain = domainInput ? domainInput.value.trim() : (currentAuditData.target_domain || "unknown.com");
+  const sc = currentAuditData.executive_scorecard || {};
+  const wizardDone = totalWizardCards === 0 || completedWizardCards >= totalWizardCards;
 
- let md = wizardDone
- ? `# Citeable Generative Search Engine Audit Report (Automated Findings)\n`
- : `# Citeable Generative Search Engine Audit Report \u2014 PRELIMINARY, Human Review Not Yet Complete\n`;
- md += `**Target Domain**: ${domain}\n`;
- md += `**Audit Date**: ${new Date().toLocaleDateString()} • **Run ID**: \`${currentAuditData.run_id}\`\n\n`;
- if (!wizardDone) {
- md += `> \u26A0 **${totalWizardCards - completedWizardCards} manual review check(s) not yet completed.** This export contains automated findings only \u2014 it does not include human-verified checks or the final AI-written report. Complete the Manual Review Wizard in Citeable Studio for the full report.\n\n`;
- }
- md += `## 1. Executive Scorecard\n`;
- md += `| Diagnostic Index | Measured Value | Status Note |\n`;
- md += `| :--- | :--- | :--- |\n`;
- md += `| **Overall AEO Score** | **${sc.overall_score} / 100** | Weighted AI Visibility Rating |\n`;
- 
- if (sc.provider_used === 'not_configured' || !sc.authority_metrics.authority_score) {
- md += `| **Entity Authority Score** | **N/A** | Authority metrics not configured |
-`;
- } else {
- md += `| **Entity Authority Score** | **${sc.authority_metrics.authority_score} / 100** | ${sc.authority_metrics.referring_domains} referring domains |
-`;
- }
+  let md = wizardDone
+    ? `# Citeable Generative Search Engine Audit Report (Automated Findings)\n`
+    : `# Citeable Generative Search Engine Audit Report — PRELIMINARY, Human Review Not Yet Complete\n`;
+  md += `**Target Domain**: ${escapeHtml(domain)}\n`;
+  md += `**Audit Date**: ${new Date().toLocaleDateString()} • **Run ID**: \`${escapeHtml(currentAuditData.run_id || "")}\`\n\n`;
+  if (!wizardDone) {
+    md += `> [!WARNING]\n> **${Math.max(0, totalWizardCards - completedWizardCards)} manual review check(s) not yet completed.** This export contains automated findings only. Complete the Manual Review Wizard in Citeable Studio for the full report.\n\n`;
+  }
+  md += `## 1. Executive Scorecard\n`;
+  md += `| Diagnostic Index | Measured Value | Status Note |\n`;
+  md += `| :--- | :--- | :--- |\n`;
+  md += `| **Overall AEO Score** | **${sc.overall_score || 0} / 100** | Weighted AI Visibility Rating |\n`;
+  
+  if (sc.provider_used === 'not_configured' || !sc.authority_metrics || !sc.authority_metrics.authority_score) {
+    md += `| **Entity Authority Score** | **N/A** | Authority metrics not configured |\n`;
+  } else {
+    md += `| **Entity Authority Score** | **${sc.authority_metrics.authority_score || 0} / 100** | ${sc.authority_metrics.referring_domains || 0} referring domains |\n`;
+  }
 
- md += `| **AI Crawler Access** | **${sc.crawler_status}** | llms.txt: ${sc.llms_txt_status} |\n`;
- md += `| **Observed Citation Frequency**| **${sc.observed_citation_rate}** | Live AI Answer Engine Sampling |\n\n`;
+  md += `| **AI Crawler Access** | **${sc.crawler_status || 'N/A'}** | llms.txt: ${sc.llms_txt_status || 'N/A'} |\n`;
+  md += `| **Observed Citation Frequency**| **${sc.observed_citation_rate || 'N/A'}** | Live AI Answer Engine Sampling |\n\n`;
  
  md += `## 2. Prioritized Remediation Plan\n\n`;
  if (currentAuditData.remediation_plan && currentAuditData.remediation_plan.length > 0) {
  currentAuditData.remediation_plan.forEach((rec, i) => {
- const code = enrichCodeSnippet(rec, domain);
+ const code = rec.remediation_snippet || '';
  md += `### Step ${i+1}: ${escapeHtml(rec.title)} [Priority: ${rec.priority_score || (i+1)*3}]\n`;
- md += `- **Check Code**: \`${escapeHtml(rec.check_code)}\` (${rec.severity.toUpperCase()})\n`;
+ md += `- **Check Code**: \`${escapeHtml(rec.check_code)}\` (${(rec.severity || 'info').toUpperCase()})\n`;
  md += `- **Diagnostic Details**: ${escapeHtml(rec.description)}\n`;
  md += `- **Governing Research Basis**: *Claim ID ${rec.governing_claim_id}* (${rec.confidence} Confidence / ${rec.source_tier}): "${escapeHtml(rec.governing_claim_statement)}"\n\n`;
+ 
+ if (rec.evidence_chain || rec.source_citations || rec.backing_facts) {
+ md += `  **Supporting Evidence:**\n`;
+ if (rec.source_citations && rec.source_citations.length > 0) {
+ rec.source_citations.forEach(src => {
+ md += `  - **Source**: ${escapeHtml(src.title || src.url)} (${escapeHtml(src.authority)})\n`;
+ });
+ }
+ if (rec.backing_facts && rec.backing_facts.length > 0) {
+ rec.backing_facts.forEach(fact => {
+ md += `  - **Fact [${escapeHtml(fact.kid)}]**: ${escapeHtml(fact.statement)}\n`;
+ });
+ }
+ md += `\n`;
+ }
+
  md += `**Recommended Implementation Code / Fix**:\n\`\`\`html\n${code}\n\`\`\`\n\n`;
  });
  } else {
@@ -887,7 +966,7 @@ function exportExecutiveReport() {
 
  md += `## 3. Qualitative Human Evaluation Registry\n\n`;
  md += `*Manual verification completed via Citeable Guided Review Shield (${completedWizardCards}/${totalWizardCards} cards signed off).* \n\n`;
- md += `---\n*Generated automatically via Google Antigravity Citeable Studio • Mandatory Governance Caveat: ${currentAuditData.tos_caveat}*\n`;
+ md += `---\n*Generated automatically via Google Antigravity Citeable Studio • Mandatory Governance Caveat: ${currentAuditData.tos_caveat}*\n\n*Disclaimer: Findings are algorithmic diagnostic observations, not guarantees of commercial outcomes or professional advice. Provided AS-IS without warranty. See docs for full legal notices.*\n`;
 
  const blob = new Blob([md], { type: "text/markdown;charset=utf-8" });
  const url = URL.createObjectURL(blob);
@@ -903,7 +982,7 @@ function resetMonitorStages() {
   ["robots", "schema", "extract", "format", "authority", "citation"].forEach((id, idx) => {
   const el = document.querySelector(`#stage-${id} .stage-icon`);
   el.className = idx === 0 ? "stage-icon active" : "stage-icon";
-  el.textContent = idx === 0 ? "⏳" : "";
+  el.innerHTML = idx === 0 ? `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="animation:spin 1s linear infinite;"><circle cx="12" cy="12" r="10" stroke-opacity="0.25"/><path d="M12 2a10 10 0 0 1 10 10" stroke-opacity="0.85"/></svg>` : "";
   });
 }
 
@@ -914,10 +993,10 @@ function animatePipelineStages() {
   window._pipelineStageInterval = setInterval(() => {
   if (current < stages.length - 1) {
   const oldEl = document.querySelector(`#stage-${stages[current]} .stage-icon`);
-  if (oldEl) { oldEl.className = "stage-icon done"; oldEl.textContent = ""; }
+  if (oldEl) { oldEl.className = "stage-icon done"; oldEl.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>`; }
   current++;
   const newEl = document.querySelector(`#stage-${stages[current]} .stage-icon`);
-  if (newEl) { newEl.className = "stage-icon active"; newEl.textContent = "⏳"; }
+  if (newEl) { newEl.className = "stage-icon active"; newEl.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="animation:spin 1s linear infinite;"><circle cx="12" cy="12" r="10" stroke-opacity="0.25"/><path d="M12 2a10 10 0 0 1 10 10" stroke-opacity="0.85"/></svg>`; }
   } else {
     clearInterval(window._pipelineStageInterval);
     window._pipelineStageInterval = null;
@@ -932,7 +1011,7 @@ function completeAllStages() {
   }
   ["robots", "schema", "extract", "format", "authority", "citation"].forEach(id => {
   const el = document.querySelector(`#stage-${id} .stage-icon`);
-  if (el) { el.className = "stage-icon done"; el.textContent = ""; }
+  if (el) { el.className = "stage-icon done"; el.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>`; }
   });
 }
 
@@ -981,9 +1060,26 @@ function renderSynthesisTab(data) {
           \u2192 Finish Manual Review
         </button>`;
     } else {
-      if (icon)  icon.textContent  = '\u26A0';
+      if (icon)  icon.textContent  = '\u26A0\uFE0F';
       if (title) title.textContent = 'Final report not available for this run';
-      if (sub)   sub.textContent   = synth.reason || 'No LLM provider configured';
+      if (sub) {
+        if (synth.byok_prompt) {
+          sub.innerHTML = `
+            <div style="background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.1); border-radius:12px; padding:1.4rem 1.6rem; margin-top:0.8rem; text-align:left;">
+              <p style="font-size:1rem; color:#e2e8f0; margin:0 0 0.6rem 0; font-weight:600;">Add a free AI key to generate your final report</p>
+              <p style="font-size:0.875rem; color:#94a3b8; margin:0 0 1.1rem 0; line-height:1.6;">
+                Your audit data is ready. The final report needs an AI key to write the narrative.<br>
+                Google Gemini and Groq are both free — no credit card required.
+              </p>
+              <button onclick="window.byokVaultManager && window.byokVaultManager.open ? window.byokVaultManager.open() : document.querySelector('[onclick*=byok]') && document.querySelector('[onclick*=byok]').click()" style="background:#ffffff; color:#000000; border:none; border-radius:8px; padding:10px 22px; font-weight:700; font-size:0.9rem; cursor:pointer; letter-spacing:0.04em;">
+                Open BYOK AI Vault &rarr;
+              </button>
+              <p style="font-size:0.8rem; color:#64748b; margin:0.8rem 0 0;">Keys stay in your browser only &mdash; never stored on our servers.</p>
+            </div>`;
+        } else {
+          sub.textContent = synth.reason || 'No AI provider configured';
+        }
+      }
     }
     const fp = document.getElementById('synth-flags-panel');
     const nc = document.getElementById('synth-narrative-card');
@@ -1104,7 +1200,12 @@ async function triggerPostWizardSynthesis() {
   if (synthBtn) synthBtn.classList.add('active');
   const synthTab = document.getElementById('tab-synthesis');
   if (synthTab) synthTab.style.display = 'block';
-  if (typeof syncStepper === 'function') syncStepper();
+  // TQ-008: Lock all wizard inputs immediately to prevent modification during synthesis
+  document.querySelectorAll('#wizard-list input, #wizard-list textarea, #wizard-list button.btn-verdict, .gr-card input, .gr-card textarea, .gr-card button').forEach(el => {
+    el.disabled = true;
+    el.style.opacity = '0.5';
+    el.style.cursor = 'not-allowed';
+  });
 
   try {
     const res = await AreosAPI.fetch(`/api/v1/audit/runs/${_activeRunId}/synthesize`, {
@@ -1113,9 +1214,15 @@ async function triggerPostWizardSynthesis() {
     });
     if (!res.ok) {
       const err = await res.json().catch(() => ({ detail: res.statusText }));
-      if (icon)  icon.textContent  = '✗';
+      if (icon)  icon.innerHTML   = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>';
       if (title) title.textContent = 'Synthesis failed';
       if (sub)   sub.textContent   = err.detail || 'Unknown error from synthesis endpoint';
+      // QA-FE / TR-503: Re-enable inputs on failure so user can retry
+      document.querySelectorAll('#wizard-list input, #wizard-list textarea, #wizard-list button.btn-verdict, .gr-card input, .gr-card textarea, .gr-card button').forEach(el => {
+        el.disabled = false;
+        el.style.opacity = '1';
+        el.style.cursor = 'default';
+      });
       return;
     }
     const synthResult = await res.json();
@@ -1124,9 +1231,15 @@ async function triggerPostWizardSynthesis() {
     AreosAPI.notify('AI Synthesis complete — grounded narrative ready.', 'success');
   } catch (err) {
     console.error('[Synthesis] POST failed:', err);
-    if (icon)  icon.textContent  = '✗';
+    if (icon)  icon.innerHTML   = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>';
     if (title) title.textContent = 'Synthesis request failed';
     if (sub)   sub.textContent   = err.message;
+    // QA-FE / TR-503: Re-enable inputs on failure so user can retry
+    document.querySelectorAll('#wizard-list input, #wizard-list textarea, #wizard-list button.btn-verdict, .gr-card input, .gr-card textarea, .gr-card button').forEach(el => {
+      el.disabled = false;
+      el.style.opacity = '1';
+      el.style.cursor = 'default';
+    });
   }
 }
 

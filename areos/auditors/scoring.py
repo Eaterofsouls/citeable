@@ -99,14 +99,8 @@ LAYER_DEDUCTIONS: dict[str, tuple[str, int]] = {
     # ── AP-01 Access (max 20) ──────────────────────────────────────────────
     "CRAWLER_FULLY_BLOCKED":          ("access",   20),  # entire layer wiped
     "NOSNIPPET_BLOCKING_AI":          ("access",    8),  # blocks snippet extraction
-    "LLMS_TXT_MISSING":               ("access",    6),  # no AI context file at all
     "CRAWLER_PARTIAL":                ("access",    5),  # some bots blocked
-    "GPTBOT_MISSING":                 ("access",    3),  # GPTBot not explicitly allowed
-    "GOOGLE_EXTENDED_MISSING":        ("access",    3),  # Google-Extended not allowed
-    "LLMS_TXT_MISSING_H1":            ("access",    2),  # file exists but malformed
-    "LLMS_TXT_MISSING_SECTION":       ("access",    2),
-    "LLMS_TXT_NO_LINKS":              ("access",    2),
-    "LLMS_TXT_EMPTY_CONTENT":         ("access",    2),
+    "AUDIT_PHASE_CRASHED":            ("access",    5),  # audit sub-phase failure
     "INVALID_CRAWL_DELAY":            ("access",    1),
 
     # ── AP-02 Schema (max 15) ─────────────────────────────────────────────
@@ -132,10 +126,57 @@ LAYER_DEDUCTIONS: dict[str, tuple[str, int]] = {
     # CITATION_OBSERVED → no deduction (layer intact)
 
     # ── AP-05 Authority (max 15) ──────────────────────────────────────────
-    "AUTHORITY_DR_LOW":               ("authority", 6),  # domain rating < threshold
     "REFERRING_DOMAINS_CRITICAL":     ("authority", 5),  # <50 referring domains
     "WIKIPEDIA_ENTITY_MISSING":       ("authority", 5),  # no Wikidata/Wikipedia entity
     "BRAND_MENTIONS_STAGNANT":        ("authority", 3),  # no recent brand mentions
+
+    # ── Phase 2-6 additions (T-301) ──────────────────────────────────────
+
+    # AP-01 Access — redirect, cloaking, sitemap
+    "REDIRECT_CHAIN_LONG":             ("access",    3),
+    "REDIRECT_CHAIN_EXCESSIVE":        ("access",    8),
+    "META_NOINDEX":                    ("access",    8),
+    "CLOAKING_DETECTED":               ("access",   10),
+    "CLOAKING_SUSPECTED":              ("access",    5),
+    "AI_BOT_BLOCKED_HTTP":             ("access",    8),
+    "SITEMAP_MISSING":                 ("access",    3),
+    "SITEMAP_EMPTY":                   ("access",    2),
+    "SITEMAP_NOT_IN_ROBOTS":           ("access",    1),
+    "SITEMAP_PAGES_UNREACHABLE":       ("access",    2),
+
+    # AP-02 Schema — canonical, entity, multi-page
+    "CANONICAL_MISMATCH":              ("schema",    4),
+    "CANONICAL_MISSING":               ("schema",    2),
+    "REDIRECT_DOMAIN_CHANGE":          ("schema",    3),
+    "ENTITY_NAME_MISSING":             ("schema",    5),
+    "SAMEAS_MISSING":                  ("schema",    2),
+    "SAMEAS_INCOMPLETE":               ("schema",    1),
+    "SAMEAS_DEAD_LINK":                ("schema",    3),
+    "WIKIDATA_MISSING":                ("schema",    2),
+
+    # AP-03 Content — freshness, media, rendering
+    "CONTENT_STALE":                   ("content",   4),
+    "CONTENT_AGING":                   ("content",   2),
+    "DATE_MISSING":                    ("content",   2),
+    "IFRAME_HEAVY":                    ("content",   4),
+    "IMAGES_MISSING_ALT":              ("content",   3),
+    "ALL_CONTENT_IN_MEDIA":            ("content",   8),
+    "VIDEO_NO_TRANSCRIPT":             ("content",   2),
+    "SITEMAP_NO_LASTMOD":              ("content",   2),
+
+    # AP-04 Citation — analytics
+    "CITATION_RATE_LOW":               ("citation", 15),
+    "SHARE_OF_VOICE_LOW":              ("citation", 10),
+
+    # Additional Phase Findings & Auditor Integrations
+    "MULTI_PAGE_SCHEMA_GAPS":          ("schema",    5),
+    "MULTI_PAGE_THIN_CONTENT":         ("content",   5),
+    "NEAR_DUPLICATE_PAGES":            ("content",   4),
+    "COMPETITOR_SCHEMA_ADVANTAGE":     ("schema",    3),
+    "COMPETITOR_CONTENT_ADVANTAGE":    ("content",   3),
+    "JS_CRITICAL_CONTENT_GATED":       ("access",   10),
+    "CLOAKING_FETCH_FAILED":           ("access",    5),
+    "PAGE_FETCH_FAILED":               ("access",   10),
 }
 
 
@@ -145,6 +186,8 @@ LAYER_DEDUCTIONS: dict[str, tuple[str, int]] = {
 ACCESS_GATE: dict[str, int] = {
     "CRAWLER_FULLY_BLOCKED": 25,  # hard ceiling — AI can't reach the site
     "CRAWLER_PARTIAL":       65,  # soft ceiling — some AI access but incomplete
+    "CLOAKING_DETECTED":     35,  # T-302: cloaked content → near-zero AI trust
+    "META_NOINDEX":          15,  # T-302: noindex → page explicitly excluded from AI
 }
 
 

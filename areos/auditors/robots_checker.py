@@ -70,6 +70,8 @@ class RobotsResult:
     # "wildcard" = the * catch-all
     wildcard_directive: Optional[CrawlerDirective] = None
     issues: list[RobotsIssue] = field(default_factory=list)
+    # T-402: Sitemap directive URLs extracted from robots.txt
+    sitemap_urls: list[str] = field(default_factory=list)
 
     def effective_policy(self, crawler: str) -> CrawlerDirective | None:
         """Return the most specific directive applicable to a given crawler."""
@@ -133,9 +135,13 @@ def parse_robots_txt(robots_txt: str) -> RobotsResult:
 
     for raw_line in robots_txt.splitlines():
         line = raw_line.strip()
-        # Strip inline comments
-        if "#" in line:
-            line = line[:line.index("#")].strip()
+        # Strip comments (full-line or inline comments preceded by whitespace per QA-L05)
+        if line.startswith("#"):
+            continue
+        if " #" in line:
+            line = line[:line.index(" #")].strip()
+        elif "\t#" in line:
+            line = line[:line.index("\t#")].strip()
         if not line:
             # Blank line = end of group
             flush_group()
@@ -162,6 +168,10 @@ def parse_robots_txt(robots_txt: str) -> RobotsResult:
                     "warning", "INVALID_CRAWL_DELAY",
                     f"Could not parse crawl-delay value: {line}"
                 ))
+        elif lower.startswith("sitemap:"):
+            s_url = line.split(":", 1)[1].strip()
+            if s_url:
+                result.sitemap_urls.append(s_url)
 
     flush_group()
 

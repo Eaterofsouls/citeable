@@ -13,7 +13,6 @@ ENV PYTHONUNBUFFERED=1
 # Install OS utilities required for building & sqlite persistence
 RUN apt-get update && apt-get install -y --no-install-recommends \
     sqlite3 \
-    curl \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy requirements & install dependencies
@@ -38,4 +37,4 @@ USER areos
 EXPOSE 8000
 
 # Shell form so ${PORT} expands at runtime (SEC-6)
-CMD ["sh", "-c", "python -m uvicorn areos.api.main:app --host 0.0.0.0 --port ${PORT:-8000} --proxy-headers --forwarded-allow-ips='*'"]
+CMD ["sh", "-c", "python -m uvicorn areos.api.main:app --host 0.0.0.0 --port ${PORT:-8000} --proxy-headers --forwarded-allow-ips='*' --limit-concurrency 100 --timeout-keep-alive 5"]

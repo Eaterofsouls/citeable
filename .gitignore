@@ -1,6 +1,44 @@
+# Byte-compiled / optimized / virtual environments
 .venv/
+venv/
+env/
 __pycache__/
-*.pyc
-*.zip
+*.py[cod]
+*$py.class
+.pytest_cache/
+
+# Local configuration & secrets
 .env
+.env.*
+!.env.example
+
+# OS artifacts
+.DS_Store
+Thumbs.db
+desktop.ini
+*.log
+
+# SQLite database files & WAL journals (ignore test/scratch DBs, preserve areos.db)
+*.db-shm
+*.db-wal
+*.db
+!areos.db
+
+# Workspace archives & packages
+*.zip
+*.tar.gz
+external_audit_packages/
+
+# Local diagnostic dumps & scratch scripts
+dump.txt
+files.json
+file_info.json
+tree.txt
+parse.py
+query.py
+generate_map.py
+test_ui.py
+scratch/
+backups/
+screenshots/
 qa_screenshots/

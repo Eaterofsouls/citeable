@@ -1,3 +1,135 @@
+# Citeable Changelog
+
+## [Unreleased] - External Documentation Information Boundary Audit & Rewrite
+- **Information Security Audit**: Deployed research subagents to audit all 6 external documentation pages for leaked internal implementation details. Found 143+ file paths, 47+ function names, database schemas, exact provider lists, API endpoints, and security implementation specifics exposed to public users.
+- **Classification System Established**: Defined strict boundary between external (product reference) and internal (engineering spec) documentation. External docs may describe what Citeable does and show conceptual diagrams; internal docs retain full implementation detail behind admin auth.
+- **External Documentation Rewrite (6 files)**:
+  - `index.md`: Abstracted tech stack (removed FastAPI, SQLite, Uvicorn references), relabeled system architecture diagram to product terms, generalized responsibility matrix and technical summary.
+  - `lifecycle.md`: Rewrote as user journey (removed all function names, file paths, DB table references, API endpoints, internal state constants). Preserved worked scoring example with check codes.
+  - `scoring.md`: Kept all 59 check codes and deduction tables (product reference). Removed variable names (LAYER_DEDUCTIONS, ScorecardResult), code syntax, and internal constants. Reframed as actionable scoring guide.
+  - `knowledge.md`: Reframed as "Our Evidence Standards". Removed schema field names, class names, exact record counts, API paths, cosine thresholds. Kept 7-tier source hierarchy, claim lifecycle, and governance workflow.
+  - `ai-architecture.md`: Implemented recruiter-friendly provider strategy — shows multi-model cascade architecture, forward/reverse waterfall, zero-SDK integration without naming any vendor. Removed all provider names, function names, internal constants, retry parameters.
+  - `security.md`: Reframed as security posture page. Removed all class names, function names, IP ranges, library names, middleware details, environment variables. Kept defense-in-depth commitments and general security guarantees.
+- **Diagram Relabeling**: All 17 Mermaid diagrams across external docs relabeled from engineering terms to product terms while preserving the Cognitive Clarity pastel card design system.
+- **Verification**: Grep audit across all 6 files returned 0 matches for leaked internals. All Mermaid fences balanced. Orphan files (limitations.md, review.md, testing.md, internal_legacy.md) identified as not routed in docs.js.
+- **Zero Content Loss**: All removed implementation detail already exists in corresponding internal documentation (behind admin auth gate).
+- **Server-Side Internal Docs Auth Guard (Security Fix)**:
+  - `areos/api/main.py`: Added `_guard_internal_docs` HTTP middleware that intercepts all requests to `/docs/internal/` and requires a valid `Authorization: Bearer <token>` header (same `AREOS_API_TOKEN` used across the API). Uses constant-time `hmac.compare_digest` comparison. Returns 401 JSON response for unauthenticated or invalid requests. Previously, internal docs were only hidden by client-side JS in `docs.js` — anyone who knew the URL path could fetch them directly.
+  - `areos/ui/docs.js`: Updated `fetchMarkdown()` to include `Authorization: Bearer` header (from `sessionStorage.areos_api_token`) when fetching internal documentation pages. External docs continue to fetch without auth.
+
+
+## [Previous] - Documentation Diagram System Transformation (Cognitive Clarity Standard)
+- **Batch 1 Complete (External Documentation Suite)**:
+  - `index.md`: Upgraded System Topology to 3-zone architecture with solid Sapphire Ingress card, drop shadows, and 2.5px connectors.
+  - `lifecycle.md`: Upgraded Audit Lifecycle pipeline and converted arithmetic sequence diagram into a solid-fill deduction flowchart ladder.
+  - `scoring.md`: Upgraded 5-Layer Point Pool, Deduction Pipeline, and Non-Linear Access Gate Ceiling hierarchy with solid fills and WCAG AAA contrast.
+  - `knowledge.md`: Upgraded 7-Tier Authority Pyramid, Claim Lifecycle stateflow, and Human Governance Pipeline with solid tiered cards.
+  - `ai-architecture.md`: Upgraded Dual-Waterfall Forward/Reverse sequence, 3-Step Synthesis flowchart, Prompt Fencing sandbox, and Ephemeral BYOK stack lifecycle.
+  - `security.md`: Upgraded 4-Layer Security Perimeter Shield and Multi-Stage SSRF Socket Pinning flowchart.
+  - **Checkpoint 1 Verification**: 100% passed across all external documentation routes in Playwright with 0 syntax errors.
+- **Batch 2 Complete (Internal Architecture & Evidence Engine 00-05)**:
+  - `00-orientation.md`: Upgraded System Orientation into 4 unified execution tiers with solid Sapphire/Emerald cards.
+  - `01-architecture.md`: Upgraded Component Dependency map and Trust Boundaries perimeter into solid-fill Cognitive Clarity standard.
+  - `03-audit-engine.md`: Injected high-density execution pipeline flowchart across collection, scoring, review, and synthesis.
+  - `04-data-model.md`: Verified relational integrity across 16 database tables and `write_as()` triggers.
+  - `05-evidence-findings.md`: Upgraded Evidence Traceability Graph and 3-Tier RAG Knowledge Resolution flowchart.
+  - **Checkpoint 2 Verification**: 100% passed across all internal routes `00` through `05` in Playwright with 0 syntax errors.
+- **Batch 3 Complete (Scoring, AI Synthesis, Security & Governance 06-11)**:
+  - `06-scoring.md`: Upgraded 5-Layer Point Pool, Non-Linear Access Gate Ceiling hierarchy, and Scoring Deduction Algorithm.
+  - `07-ai-llm.md`: Upgraded Dual-Waterfall Forward/Reverse sequence, Ephemeral BYOK stack closure lifecycle, and 3-Step Synthesis flowchart.
+  - `08-frontend.md`: Upgraded Frontend Module Dependency graph into 3 stratified horizontal layers (Views $\to$ Feature Controllers $\to$ Shared Core).
+  - `09-api-reference.md`: Injected Request Routing & Middleware Stack architecture diagram.
+  - `10-security.md`: Upgraded Trust Boundaries flow and 4-Layer Security Perimeter Shield.
+  - `11-governance.md`: Upgraded Knowledge Mutation & Human Governance Stateflow diagram.
+  - **Checkpoint 3 Verification**: 100% passed across all internal routes `06` through `11` in Playwright with 0 syntax errors.
+- **Batch 4 Complete (QA, Operations, ADRs & Maintainer Flowcharts 12-17)**:
+  - `12-testing-qa.md`: Injected CI/CD Automated Verification Pipeline flowchart.
+  - `13-operations.md`: Injected Application Startup Lifespan sequence diagram.
+  - `14-adrs.md`: Injected Derived Audit Run State Machine flowchart.
+  - `17-how-to-change.md`: Injected "Add Audit Rule" and "Add LLM Provider" developer decision flowcharts.
+  - **Checkpoint 4 Verification**: 100% passed across all internal routes `00` through `18` in Playwright with 0 syntax errors (19 diagram cards rendered).
+- **Universal High-Contrast & Text Legibility Overhaul**:
+  - Replaced saturated dark fills with elevated, crisp pastel cards (`#EFF6FF`, `#ECFDF5`, `#FEF2F2`, `#FAF5FF`, `#FFFBEB`) featuring 2px bold structural borders and dark, high-contrast text (`#1E3A8A`, `#065F46`, `#991B1B`, `#5B21B6`, `#92400E`, `#0F172A`).
+  - Added targeted CSS selectors to `areos/ui/index.css` ensuring foreignObject HTML labels inherit the correct high-contrast palette.
+  - **Final Verification**: 100% passed across all 25+ external and internal documentation routes with 0 errors and verified text legibility.
+
+## [2.1.0] - Automation Expansion & Manual Review Redesign (Phases 0-7, Track B)
+Comprehensive automation suite expansion, manual review wizard redesign, and master regression verification across 184 unit and integration tests.
+
+### Added
+- **New Automated Auditor Modules (Phase 2 & Phases 5-7)**:
+  - `areos/auditors/freshness_auditor.py`: Mechanical date parser scanning JSON-LD `dateModified`/`datePublished` and HTML meta/time tags (`CONTENT_STALE`, `CONTENT_AGING`, `DATE_MISSING`, `FRESHNESS_OK`).
+  - `areos/auditors/redirect_auditor.py`: Redirect chain, canonical URL, and meta robots noindex analyzer (`REDIRECT_CHAIN_LONG`, `REDIRECT_CHAIN_EXCESSIVE`, `META_NOINDEX`, `CANONICAL_MISMATCH`, `ACCESS_OK`).
+  - `areos/auditors/cloaking_detector.py`: GPTBot user-agent differential crawler comparing browser DOM vs bot responses (`CLOAKING_DETECTED`, `CLOAKING_SUSPECTED`, `CLOAKING_OK`).
+  - `areos/auditors/entity_verifier.py`: Evaluates Organization and Person schema `sameAs` completeness and Wikidata/Wikipedia authority links (`SAMEAS_MISSING`, `SAMEAS_INCOMPLETE`, `WIKIDATA_MISSING`, `ENTITY_NAME_MISSING`, `ENTITY_OK`).
+  - `areos/auditors/media_blindness_auditor.py`: Identifies content trapped behind iframes, images missing alt attributes, and media-only pages (`IFRAME_HEAVY`, `IMAGES_MISSING_ALT`, `ALL_CONTENT_IN_MEDIA`, `MEDIA_OK`).
+  - `areos/auditors/sitemap_auditor.py`: Verifies `/sitemap.xml` presence, XML parsing, and page URL inventory (`SITEMAP_MISSING`, `SITEMAP_EMPTY`, `SITEMAP_PARSE_ERROR`, `SITEMAP_OK`).
+  - `areos/auditors/rendering_auditor.py`: Optional headless Chromium DOM diffing comparing raw HTML vs client-rendered DOM (`JS_CRITICAL_CONTENT_GATED`, `JS_CONTENT_DEPENDENCY`, `LAZY_LOAD_HIDDEN`, `HIDDEN_CONTENT_DEFAULT`, `RENDERING_OK`).
+  - `areos/auditors/multipage_auditor.py`: Sitemap-guided top-10 page crawler with sequence similarity deduplication and thin content detection (`MULTI_PAGE_SCHEMA_GAPS`, `MULTI_PAGE_THIN_CONTENT`, `NEAR_DUPLICATE_PAGES`, `SITEMAP_PAGES_UNREACHABLE`, `MULTI_PAGE_OK`).
+  - `areos/auditors/competitor_analyzer.py`: Automated competitor homepage scraper comparing schema implementations and content formatting (`COMPETITOR_SCHEMA_ADVANTAGE`, `COMPETITOR_CONTENT_ADVANTAGE`, `COMPETITOR_ANALYSIS_OK`).
+- **Citation Analytics (Phase 2)**:
+  - Added `compute_citation_analytics()` to `citation_sampler.py` calculating Share of Voice, citation rate, and competitor domain identification (`CITATION_RATE_LOW`, `SHARE_OF_VOICE_LOW`).
+  - Added `full_answer_text` capture across Perplexity and Gemini Grounding engines.
+- **Manual Review Redesign (Track B)**:
+  - Database schema: Created `manual_observations` table and index in `schema.sql`.
+  - Pydantic model: Added `ObservationPayload` with structured answers, question IDs, and human diagnosis text.
+  - API Endpoints: Added `POST /api/v1/audit/runs/{run_id}/observations` (idempotent UPSERT) and `GET /api/v1/audit/runs/{run_id}/full-report` (6-section unified deliverable).
+  - UI Redesign: 11 expert-grade questions in `guided_review.js`, dynamic progress calculation in `studio.js`, Express vs Full review modes, and automated evidence pre-population.
+  - Synthesis Prompt: Appended Rules 9 & 10 to `_DEFAULT_SYNTHESIZER_PROMPT` in `synthesis_pipeline.py`.
+
+### Changed
+- **Single Page Fetch (Phase 1)**: Refactored `audit_orchestrator.py` to fetch page HTML once via `_fetch_page()` and fan out to schema, content, and downstream auditors, avoiding redundant network requests.
+- **Answer Position Check (Phase 4)**: Upgraded `content_format_auditor.py` to evaluate substantive definitions in the top 30% of content blocks rather than a static 3-block window.
+- **Robots Sitemap Extraction (Phase 4)**: Enhanced `robots_checker.py` to extract `Sitemap:` directives into `RobotsResult.sitemap_urls`.
+- **Knowledge Wiring & Layered Scoring (Phase 3)**:
+  - Added 37 new `LAYER_DEDUCTIONS` entries and `ACCESS_GATE` caps (`CLOAKING_DETECTED: 35`, `META_NOINDEX: 15`) in `scoring.py`.
+  - Added 32 new check-code mappings (KT-200 to KT-231) and unverifiable code fallbacks in `check_code_to_knowledge_map.json`.
+  - Expanded `ACTION_SNIPPETS` in `audit_orchestrator.py` with code-level deployment instructions for all check codes.
+
+### Fixed (Phase 0)
+- Fixed `NameError` on `_MANUAL_REMEDIATION_TEXT` and `REMEDIATION_TEXT` in `synthesis_engine.py`.
+- Added `_BASELINE_PRIORITIES` fallback on DB connection error in `_load_priority_scores()`.
+- Removed hardcoded fallback tokens in `build_kb.py`.
+- Removed legacy `_CHECK_CODE_MAPPINGS` fallbacks in `ingest_claims.py`, `findings_to_claims.py`, and `audit.py`.
+- Fixed variable shadowing with `f` in `audit.py`.
+- Added `AP-03` stage tracking and fixed copy-paste error messages in `audit_orchestrator.py`.
+- Added `PAGE_FETCH_FAILED` to `ErrorCode` enum.
+
+## [2.0.0] - AREOS V2 Hybrid Knowledge Architecture
+This major architectural upgrade migrates Citeable from hardcoded Python dictionaries to a governable, deterministic-first Knowledge Base mapped against an LLM-assisted fallback (Three-Tier RAG) architecture.
+
+### Added
+- **Knowledge Corpus (reos/kb/corpus/)**: A JSONL-based declarative dataset (knowledge.jsonl, evidence.jsonl, sources.jsonl) that acts as the single source of truth for the audit's diagnostic principles, citations, and evidence chains.
+- **SQLite Database Builder (reos/kb/build_kb.py)**: An idempotent startup script that drops and rebuilds the SQLite schema (knowledge, kb_evidence, kb_sources, kb_check_code_map) from the flat JSONL corpus, preserving the legacy claims view for backwards compatibility.
+- **Deterministic Knowledge Router (reos/kb/router.py)**: Routes detector check_codes (e.g., CRAWLER_FULLY_BLOCKED) deterministically to their governing knowledge records via kb_check_code_map.
+- **Three-Tier RAG Semantic Fallback**: If a check code is not explicitly mapped, the Knowledge Router degrades gracefully to a cosine similarity search against the corpus embeddings:
+  - **Tier 1 (Primary)**: Threshold 0.82. Direct hit mapping.
+  - **Tier 2 (Enrichment)**: Threshold 0.70. Contextual support mapping.
+  - **Tier 3 (Cross-Phase)**: Threshold 0.75. Global cross-phase intelligence retrieval.
+- **BYOK (Bring Your Own Key) Embeddings**: Embedded vector search logic running purely on the user's provided API keys (reos/kb/embeddings.py), eliminating the need for server-side secret management. Automatically defaults to Graceful Degradation (no embeddings) when keys are unavailable.
+- **Evidence Chains & Citations**: Remediation recommendations now include structured evidence_chain, source_citations, and acking_facts pulled explicitly from kb_evidence and kb_sources.
+- **Temporal Governance**: Built-in detection for stale records (using provenance.review_due) and contested records (using status='contested'), directly surfaced into the Knowledge Router API responses.
+- **Knowledge Explorer API (reos/api/routers/knowledge.py)**: A set of robust REST endpoints providing deep access to the KB (e.g., /api/v1/knowledge, /api/v1/knowledge/{kid}, /api/v1/knowledge/stats).
+- **Knowledge Explorer UI (knowledge_explorer.html)**: A new interactive frontend in Citeable Studio that replaces the static Claims Browser. It adds FACT/GUIDANCE/FINDING badges and an interactive drawer for exploring Evidence Chains and citations.
+- **Governed Manual Remediation**: Migrated the 14 manual remediation directives from hardcoded Python strings to first-class GUIDANCE records in the knowledge base (KG-001 through KG-014).
+
+### Changed
+- **Synthesis Pipeline (reos/llm/synthesis_pipeline.py)**: Updated the system prompt to explicitly command the LLM to weave evidence_chain and source_citations into its narrative recommendations.
+- **Executive Audit Export (studio.js)**: The Markdown export function now loops over and renders the nested V2 Evidence structures instead of a flat string.
+- **Finding Cards UI (studio.js)**: Remediation cards now display distinct ?? CONTESTED and ? STALE DATA badges, explicitly driven by the Knowledge Router's evaluation.
+- **Audit Router (reos/api/routers/audit.py)**: Rebuilt the enriched_recs mapping logic to use reos.kb.router.resolve instead of raw SQL queries against the legacy check_code_mappings table.
+
+### Removed
+- **Legacy Dicts (reos/auditors/synthesis_engine.py)**: Completely removed REMEDIATION_TEXT, MANUAL_REMEDIATION_TEXT, and PRIORITY_SCORES. Priority scores and remediation text are now strictly governed by the SQLite KB schema.
+- **Legacy Mappings (reos/db/ingest_claims.py)**: Removed _CHECK_CODE_MAPPINGS. These are now governed inside reos/kb/check_code_to_knowledge_map.json.
+
+### Design Decisions & Context for Future Developers
+- **MF-11 Connection Pool Rule**: The Knowledge Router and API explicitly respect the connection pool rules (reos/db/connection.py). conn.close() is never called directly by the routing logic.
+- **Idempotency**: uild_kb.py must run safely against any deployment state. The tables are always DROPped and CREATEd from scratch, except for claims which uses a view layer if missing.
+- **Graceful Degradation**: Always assume the caller does not have an API key. Embeddings and Vector Search must degrade gracefully to deterministic fallback (returning ag_available: False rather than raising hard exceptions).
+- **Hard Deletes**: We do not use hard deletes in the Knowledge Base. Stale or retracted findings should have their status set to deprecated or contested, maintaining a permanent audit trail.
+
+
 # Changelog — UX Audit Remediation Pass
 
 Implements the full audit at `citeable_ux_audit_and_recalibration_plan.md` (§3, §4, §5). Every entry below is
@@ -398,3 +530,11 @@ confirm the fix didn't regress anything.
 
 **Scope:** confined entirely to `docs.html`/`docs.js`/`index.css`'s new `.docs-section*`/`.docs-toggle-all-btn`
 rules. No other page's markup, scripts, or existing CSS rules were modified.
+
+# #   P h a s e   V e r i f i c a t i o n   ( 2 0 2 6 - 0 9 - 0 2 ) 
+ 
+ -   V e r i f i e d   0   r e g r e s s i o n s   a c r o s s   t h e   f u l l   t e s t   s u i t e   ( 3 3 9   t e s t s ) . 
+ -   S e m a n t i c   P a r i t y   G a t e   P A S S E D :   7 7   c h e c k   c o d e s   f u l l y   s y n c h r o n i z e d . 
+ -   M a s t e r   A t o m i c   I m p l e m e n t a t i o n   T a s k s   ( T A S K - 0 1   t o   T A S K - 1 9 )   a r e   e f f e c t i v e l y   V E R I F I E D   a n d   C L O S E D . 
+  
+ 

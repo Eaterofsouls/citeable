@@ -25,7 +25,11 @@ def get_db() -> Generator[sqlite3.Connection, None, None]:
     try:
         yield conn
     finally:
-        pass  # MF-13's pooling now owns the connection lifecycle — do not close here
+        if getattr(conn, "in_transaction", False):
+            try:
+                conn.rollback()
+            except Exception:
+                pass
 
 def verify_admin(authorization: str | None = Header(None)) -> None:
     """Verify API token using constant-time comparison."""
@@ -42,10 +46,11 @@ def get_client_keys(request: Request) -> dict[str, str]:
     """Extract BYOK API keys from request headers."""
     keys = {}
     for header, value in request.headers.items():
-        if header.startswith("x-api-key-"):
-            provider = header.replace("x-api-key-", "")
+        header_lower = header.lower()
+        if header_lower.startswith("x-api-key-"):
+            provider = header_lower.replace("x-api-key-", "").lower()
             keys[provider] = value.strip()
-        elif header.startswith("x-api-base-"):
-            provider_base = header.replace("-", "_")  # e.g., x-api-base-azure -> x_api_base_azure
+        elif header_lower.startswith("x-api-base-"):
+            provider_base = header_lower.replace("-", "_")  # e.g., x-api-base-azure -> x_api_base_azure
             keys[provider_base] = value.strip()
     return keys

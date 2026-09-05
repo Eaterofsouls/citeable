@@ -16,22 +16,22 @@ from pathlib import Path
 from typing import Any
 
 import requests
+import logging
 
 from areos.api.error_codes import ErrorCode
 from areos.services.cache import ttl_cache
 
+logger = logging.getLogger(__name__)
+
 @ttl_cache(ttl=300)
 def _fetch_robots_txt(domain: str) -> str | None:
     try:
-        # FIX (Readiness Audit, Critical 2): this had no validate_domain_ssrf
-        # call at all before fetching an attacker-suppliable domain — the
-        # caller validated a *different* code path's requests.get(), not
-        # this one. safe_get() validates every hop, not just the first URL.
+        # FIX (Readiness Audit, Critical 2): safe_get validates every hop
         r_resp = safe_get(f"https://{domain}/robots.txt", timeout=4, headers={"User-Agent": "AREOS-Auditor/1.0"})
-        if r_resp.status_code == 200:
+        if r_resp and r_resp.status_code == 200:
             return r_resp.text
-    except Exception:
-        pass
+    except Exception as e:
+        logger.warning("Failed to fetch robots.txt for domain %s: %s", domain, e)
     return None
 
 from areos.auditors.authority_auditor import audit_domain_authority
@@ -61,6 +61,77 @@ ACTION_SNIPPETS = {
     "REFERRING_DOMAINS_CRITICAL": "/* Action Item: Entity Backlink Expansion */\nExpand independent referring domain count above the minimum threshold of 50 via industry case studies and verifiable open data contributions.",  # noqa: E501
     "WIKIPEDIA_ENTITY_MISSING": "/* Action Item: Wikidata & Open Data Entry */\nEstablish an objective, neutrally cited Wikidata item representing the organization, linking official social and documentation profiles via sameAs attributes.",  # noqa: E501
     "BRAND_MENTIONS_STAGNANT": "/* Action Item: Digital PR Velocity Campaign */\nExecute digital PR outreach to generate fresh unlinked and linked news citations in industry trade publications within the current 90-day indexing window.",  # noqa: E501
+    # ── Phase 2-6 additions (T-304) ──────────────────────────────────────
+    "SCHEMA_MISSING": '<!-- Add foundational JSON-LD block -->\n<script type="application/ld+json">\n{\n  "@context": "https://schema.org",\n  "@type": "Organization",\n  "name": "Your Brand"\n}\n</script>',  # noqa: E501
+    "SCHEMA_UNVERIFIABLE": "/* Ensure the page returns HTTP 200 and does not block the auditor's IP. */",  # noqa: E501
+    "ROBOTS_UNVERIFIABLE": "/* Ensure /robots.txt is accessible and returns HTTP 200. */",  # noqa: E501
+    "LLMS_UNVERIFIABLE": "/* Ensure /llms.txt is accessible if present. */",  # noqa: E501
+    "CONTENT_STALE": '<!-- Update schema dates -->\n"dateModified": "2026-08-31T12:00:00Z"',  # noqa: E501
+    "CONTENT_AGING": '<!-- Update schema dates -->\n"dateModified": "2026-08-31T12:00:00Z"',  # noqa: E501
+    "DATE_MISSING": '<!-- Add date to schema -->\n"datePublished": "2026-08-01"',  # noqa: E501
+    "REDIRECT_CHAIN_LONG": "/* Update internal links to point directly to the final destination URL. */",  # noqa: E501
+    "REDIRECT_CHAIN_EXCESSIVE": "/* Eliminate unnecessary redirects — serve content at the canonical URL. */",  # noqa: E501
+    "REDIRECT_DOMAIN_CHANGE": "/* Ensure canonical domain is consistent across redirects. */",  # noqa: E501
+    "CANONICAL_MISMATCH": '<link rel="canonical" href="https://domain.com/exact-page" />',  # noqa: E501
+    "CANONICAL_MISSING": '<link rel="canonical" href="https://domain.com/exact-page" />',  # noqa: E501
+    "META_NOINDEX": '<!-- Remove noindex tag if page should be cited -->\n<meta name="robots" content="index, follow">',  # noqa: E501
+    "CLOAKING_DETECTED": "/* Serve identical HTML payloads to GPTBot, Anthropic, and standard browsers. */",  # noqa: E501
+    "CLOAKING_SUSPECTED": "/* Verify dynamic content injection does not strip core text for bots. */",  # noqa: E501
+    "AI_BOT_BLOCKED_HTTP": "/* Whitelist AI User-Agents in WAF/Cloudflare rules. */",  # noqa: E501
+    "SAMEAS_DEAD_LINK": "/* Remove or update broken sameAs URLs in schema. */",  # noqa: E501
+    "SAMEAS_MISSING": '"sameAs": ["https://en.wikipedia.org/wiki/Brand"]',  # noqa: E501
+    "SAMEAS_INCOMPLETE": '"sameAs": ["https://twitter.com/brand", "https://linkedin.com/company/brand", "https://www.wikidata.org/wiki/Q12345"]',  # noqa: E501
+    "WIKIDATA_MISSING": '"sameAs": ["https://www.wikidata.org/wiki/Q123456"]',  # noqa: E501
+    "ENTITY_NAME_MISSING": '/* Add required name field to Organization/LocalBusiness schema. */\n"name": "Your Brand Name"',  # noqa: E501
+    "IFRAME_HEAVY": "/* Extract critical iframe text into native HTML elements. */",  # noqa: E501
+    "IMAGES_MISSING_ALT": '<img src="logo.png" alt="Descriptive text for the image" />',  # noqa: E501
+    "ALL_CONTENT_IN_MEDIA": "/* Move core content out of iframes/videos into plain HTML text. */",  # noqa: E501
+    "VIDEO_NO_TRANSCRIPT": '<track kind="captions" src="transcript.vtt" srclang="en" />',  # noqa: E501
+    "SITEMAP_MISSING": "/* Generate and host an XML sitemap at /sitemap.xml */",  # noqa: E501
+    "SITEMAP_EMPTY": "/* Populate sitemap with valid <url> entries. */",  # noqa: E501
+    "SITEMAP_NO_LASTMOD": "<lastmod>2026-08-31T12:00:00Z</lastmod>",  # noqa: E501
+    "SITEMAP_NOT_IN_ROBOTS": "Sitemap: https://domain.com/sitemap.xml",  # noqa: E501
+    "SITEMAP_PAGES_UNREACHABLE": "/* Remove 404/500 URLs from the XML sitemap. */",  # noqa: E501
+    "CITATION_RATE_LOW": "/* Increase high-DR referring domains and unambiguous schema density. */",  # noqa: E501
+    "SHARE_OF_VOICE_LOW": "/* Restructure content to directly answer intent-based questions better than competitors. */",  # noqa: E501
+    "PAGE_FETCH_FAILED": "/* Ensure the target page is accessible and returns HTTP 200. */",  # noqa: E501
+    "AUDIT_PHASE_CRASHED": "/* An audit sub-phase encountered an unexpected error during execution. Inspect server logs for details. */",  # noqa: E501
+    # ── QA-M-SNIPPETS: 16 missing check codes remediation text (TQ-015 / D-QA-010) ──
+    "CITATION_NOT_OBSERVED": "/* Improve on-page answer density and entity authority backlinks to earn direct generative AI citations. */",  # noqa: E501
+    "CRAWLER_PARTIAL": "# Ensure robots.txt explicitly allows major AI bots (GPTBot, ClaudeBot, PerplexityBot, Google-Extended).",  # noqa: E501
+    "EXTRACTABILITY_LOW": "<!-- Structure key brand definitions in clean, concise HTML paragraphs near the top of the page. -->",  # noqa: E501
+    "EXTRACTABILITY_MEDIUM": "<!-- Refactor long prose paragraphs into clear sections with H2/H3 subheadings and bullet lists. -->",  # noqa: E501
+    "EXTRACTABILITY_NONE": "<!-- Add clear, crawlable body text describing your brand, offerings, and direct answers to key queries. -->",  # noqa: E501
+    "GOOGLE_EXTENDED_MISSING": "# Add to robots.txt:\nUser-agent: Google-Extended\nAllow: /",  # noqa: E501
+    "GPTBOT_MISSING": "# Add to robots.txt:\nUser-agent: GPTBot\nAllow: /",  # noqa: E501
+    "INVALID_CRAWL_DELAY": "# Remove excessive Crawl-delay from robots.txt or set to standard \u22642 seconds for search engines.",  # noqa: E501
+    "LLMS_TXT_EMPTY_CONTENT": "# Populate /llms.txt with core site overview, key URLs, and markdown documentation references.",  # noqa: E501
+    "LLMS_TXT_MISSING_SECTION": "# Add standard markdown sections in /llms.txt (e.g. ## Core Documentation, ## Features).",  # noqa: E501
+    "LLMS_TXT_NO_LINKS": "# Include absolute markdown links to primary documentation pages in /llms.txt.",  # noqa: E501
+    "MISSING_RECOMMENDED_FIELD": "/* Add recommended Schema.org properties (e.g. description, sameAs, logo) to enhance entity graph context. */",  # noqa: E501
+    "MISSING_TYPE": "/* Specify the @type property (e.g. 'Organization', 'WebSite') in your JSON-LD block. */",  # noqa: E501
+    "NOSNIPPET_BLOCKING_AI": "<!-- Remove nosnippet directive if you want AI engines to extract and cite text passages from this page. -->",  # noqa: E501
+    "UNKNOWN_FIELD": "/* Validate Schema.org properties against official vocabulary and remove typo or unsupported keys. */",  # noqa: E501
+    "UNKNOWN_SCHEMA_TYPE": "/* Use official Schema.org types (e.g. Organization, Product, Article, FAQPage) for structured data. */",  # noqa: E501
+    "LLMS_TXT_MISSING_H1": "# Ensure your /llms.txt starts with a top-level '# Project or Organization Name' H1 heading.",  # noqa: E501
+    "MULTI_PAGE_SCHEMA_GAPS": "/* Ensure consistent JSON-LD schema deployment across all template types (e.g., Articles, Products). */",  # noqa: E501
+    "MULTI_PAGE_THIN_CONTENT": "<!-- Consolidate or expand thin pages to meet extractability thresholds across the site. -->",  # noqa: E501
+    "NEAR_DUPLICATE_PAGES": '<!-- Consolidate near-duplicate pages via rel="canonical" or 301 redirects. -->',  # noqa: E501
+    "COMPETITOR_SCHEMA_ADVANTAGE": "/* Upgrade schema markup to match or exceed the property density of top-cited competitors. */",  # noqa: E501
+    "COMPETITOR_CONTENT_ADVANTAGE": "<!-- Refactor content structure to directly address entity queries better than competitors. -->",  # noqa: E501
+    "JS_CRITICAL_CONTENT_GATED": "<!-- Serve critical text content in the initial HTML payload without requiring JS execution. -->",  # noqa: E501
+    "CLOAKING_FETCH_FAILED": "/* Verify the page does not conditionally block AI bot IPs or User-Agents during fetch. */",  # noqa: E501
+    "PAGE_FETCH_FAILED": "/* Verify target URL returns 200 OK and is accessible to crawler requests. */",  # noqa: E501
+    "CITATION_OBSERVED": "// Domain actively cited in AI engine responses. Maintain content freshness and schema precision to preserve citation share.",  # noqa: E501
+    "CITATION_WHY_UNKNOWN": "// Citation observed without specific keyword match. Verify brand mentions and unstructured entity references across citation sources.",  # noqa: E501
+    "CRAWLER_ALLOWED": "// AI search crawlers explicitly allowed in robots.txt. Continue monitoring robots.txt for inadvertent block directives.",  # noqa: E501
+    "NO_DIRECTIVE": "// No explicit AI bot directives found in robots.txt. Standard search crawler permissions apply.",  # noqa: E501
+    "EXTRACTABILITY_HIGH": "// Content extraction efficiency is high. Main text, headings, and structure are cleanly extractable by AI scrapers.",  # noqa: E501
+    "ANSWER_FORMAT_GOOD": "// Answer formatting conforms to LLM answer box standards. Maintain concise definition paragraphs and list structures.",  # noqa: E501
+    "AUTHORITY_PROFILE_GOOD": "// Strong domain authority profile detected with healthy referring domain count and brand presence.",  # noqa: E501
+    "SCHEMA_UNVERIFIABLE": "/* Verify schema validity when full page DOM can be rendered. */",  # noqa: E501
+    "ROBOTS_UNVERIFIABLE": "# Verify robots.txt accessibility when domain host is online.",  # noqa: E501
+    "LLMS_UNVERIFIABLE": "# Verify /llms.txt file presence when domain host is online.",  # noqa: E501
 }
 
 # Guided instructions for manual review wizard cards
@@ -103,6 +174,29 @@ _JSON_LD_RE = re.compile(
     re.IGNORECASE | re.DOTALL,
 )
 
+import logging
+_orch_logger = logging.getLogger(__name__)
+
+
+def _fetch_page(clean_domain: str, page_url: str) -> tuple[str, int, str]:
+    """Fetch page HTML exactly once and return (html, redirect_hop_count, final_url).
+
+    On any failure (network, timeout, SSRF block), returns ("", 0, page_url)
+    so downstream auditors can degrade gracefully.
+    """
+    try:
+        validate_domain_ssrf(clean_domain)
+        resp = safe_get(page_url, timeout=4)
+        hop_count = len(resp.history) if hasattr(resp, 'history') else 0
+        final_url = str(resp.url) if hasattr(resp, 'url') else page_url
+        if resp.status_code != 200:
+            _orch_logger.debug("_fetch_page got status %d for %s", resp.status_code, page_url)
+            return ("", hop_count, final_url)
+        return (resp.text, hop_count, final_url)
+    except (requests.exceptions.RequestException, ValueError) as e:
+        _orch_logger.debug("_fetch_page failed for %s: %s", page_url, e)
+        return ("", 0, page_url)
+
 
 def _extract_json_ld_blocks(html: str) -> list:
     """
@@ -118,29 +212,38 @@ def _extract_json_ld_blocks(html: str) -> list:
             continue
         try:
             blocks.append(json.loads(raw))
-        except (json.JSONDecodeError, ValueError):
+        except (json.JSONDecodeError, ValueError, RecursionError):
             blocks.append(raw)  # kept as str -> validator reports JSON_PARSE_FAILURE
     return blocks
 
 
-def _fetch_and_validate_schema(clean_domain: str, page_url: str) -> list[dict]:
-    """
-    Fetch the target page and run its JSON-LD blocks through the real
-    schema_validator. Returns orchestrator-shaped finding dicts.
-    """
-    validate_domain_ssrf(clean_domain)
-    try:
-        resp = safe_get(page_url, timeout=4)
-    except (requests.exceptions.RequestException, ValueError):
-        return [{"code": ErrorCode.SCHEMA_UNVERIFIABLE, "severity": "info", "message": "Could not fetch the page to validate structured data; result is unverifiable, not a failing score.", "page_url": page_url}]  # noqa: E501
+def _validate_schema_from_html(page_html: str, page_url: str) -> tuple[list[dict], list, list[dict]]:
+    """Validate JSON-LD blocks from pre-fetched HTML.
 
-    if resp.status_code != 200:
-        return [{"code": ErrorCode.SCHEMA_UNVERIFIABLE, "severity": "info", "message": "Could not fetch the page to validate structured data; result is unverifiable, not a failing score.", "page_url": page_url}]  # noqa: E501
+    Returns (findings, json_ld_blocks, schema_claims) so the orchestrator
+    can pass blocks and claims to downstream consumers without re-parsing.
+    """
+    from areos.auditors.schema_validator import _extract_schema_claims
 
-    json_ld_blocks = _extract_json_ld_blocks(resp.text)
+    if not page_html:
+        return (
+            [{"code": ErrorCode.SCHEMA_UNVERIFIABLE, "severity": "info",
+              "message": "Could not fetch the page to validate structured data; result is unverifiable, not a failing score.",  # noqa: E501
+              "page_url": page_url}],
+            [],
+            [],
+        )
+
+    json_ld_blocks = _extract_json_ld_blocks(page_html)
     if not json_ld_blocks:
-        return [{"code": "SCHEMA_MISSING", "severity": "warning", "message": "No JSON-LD structured data found on the page.", "page_url": page_url}]  # noqa: E501
+        return (
+            [{"code": "SCHEMA_MISSING", "severity": "warning",
+              "message": "No JSON-LD structured data found on the page.", "page_url": page_url}],
+            [],
+            [],
+        )
 
+    schema_claims = _extract_schema_claims(json_ld_blocks)
     results = validate_page_schemas(json_ld_blocks)
     findings: list[dict] = []
     for result in results:
@@ -149,7 +252,7 @@ def _fetch_and_validate_schema(clean_domain: str, page_url: str) -> list[dict]:
             continue
         for issue in result.issues:
             findings.append({"code": issue.code, "severity": issue.severity, "message": f"[{result.schema_type}] {issue.message}", "page_url": page_url})  # noqa: E501
-    return findings
+    return (findings, json_ld_blocks, schema_claims)
 
 
 
@@ -199,15 +302,14 @@ def run_orchestrated_audit(
                     robots_ok = False
         
     
-    except Exception:
+    except Exception as exc:
+        logger.warning("Failed to fetch or parse robots.txt for %s: %s", clean_domain, exc, exc_info=True)
         findings.append({
             "code": ErrorCode.ROBOTS_UNVERIFIABLE,
             "severity": "info",
-            "message": "Could not fetch the page to validate structured data; result is unverifiable, not a failing score.",  # noqa: E501
+            "message": "Could not fetch or parse robots.txt; crawler access result is unverifiable, not a failing score.",  # noqa: E501
             "page_url": page_url
         })
-
-        
 
     try:
         validate_domain_ssrf(clean_domain)
@@ -229,47 +331,69 @@ def run_orchestrated_audit(
                 "page_url": page_url
             })
             llms_ok = False
-    except Exception:
+    except Exception as exc:
+        logger.warning("Failed to fetch or parse llms.txt for %s: %s", clean_domain, exc, exc_info=True)
         findings.append({
             "code": ErrorCode.LLMS_UNVERIFIABLE,
             "severity": "info",
-            "message": "Could not fetch the page to validate structured data; result is unverifiable, not a failing score.",  # noqa: E501
+            "message": "Could not fetch or parse llms.txt; LLM-specific directives result is unverifiable, not a failing score.",  # noqa: E501
             "page_url": page_url
         })
         llms_ok = False
 
-    # 2. Schema & JSON-LD Structure — actually fetches the page and validates
-    # any JSON-LD blocks found via areos.auditors.schema_validator.
+    # ── Single page fetch (T-101/T-103) ──────────────────────────────────────
+    page_html, redirect_hop_count, final_url = _fetch_page(clean_domain, page_url)
+
+    # 2. Schema & JSON-LD Structure — uses pre-fetched HTML
     try:
-        schema_findings = _fetch_and_validate_schema(clean_domain, page_url)
-    except Exception:
+        schema_findings, json_ld_blocks, schema_claims = _validate_schema_from_html(page_html, page_url)
+    except Exception as exc:
+        logger.warning("Failed to validate schema for %s: %s", clean_domain, exc, exc_info=True)
         schema_findings = [{
             "code": ErrorCode.SCHEMA_UNVERIFIABLE,
             "severity": "info",
             "message": "Could not fetch the page to validate structured data; result is unverifiable, not a failing score.",  # noqa: E501
             "page_url": page_url,
         }]
+        json_ld_blocks = []
+        schema_claims = []
     findings.extend(schema_findings)
 
-    # 3. AI Extractability & Content Formatting
-    eval_text = sample_content or f"Welcome to {clean_domain}. We provide services and solutions in several ways. This tool helps users improve performance."  # noqa: E501
-    if len(eval_text.split()) < 30:
-        findings.append({
-            "code": "EXTRACTABILITY_LOW",
-            "severity": "warning",
-            "message": "Content density is insufficient for high-confidence AI chunking and fact extraction.",  # noqa: E501
-            "page_url": page_url
-        })
-    
-    fmt_res = audit_page_format(page_url, html=eval_text, client_keys=client_keys)
-    for iss in fmt_res.issues:
-        if iss.code != "ANSWER_FORMAT_GOOD":
+    # 3. AI Extractability & Content Formatting — uses pre-fetched HTML
+    if page_html:
+        eval_text = sample_content or page_html
+        if len(eval_text.split()) < 30:
             findings.append({
-                "code": iss.code,
-                "severity": iss.severity,
-                "message": iss.message,
+                "code": "EXTRACTABILITY_LOW",
+                "severity": "warning",
+                "message": "Content density is insufficient for high-confidence AI chunking and fact extraction.",  # noqa: E501
                 "page_url": page_url
             })
+        try:
+            fmt_res = audit_page_format(page_url, html=eval_text, client_keys=client_keys)
+        except (KeyError, IndexError, TypeError) as e:
+            _orch_logger.warning("Content format audit failed for %s: %s", page_url, e)
+            fmt_res = None
+    else:
+        # Empty HTML → skip downstream content auditors, emit unverifiable findings
+        findings.append({
+            "code": ErrorCode.PAGE_FETCH_FAILED,
+            "severity": "info",
+            "message": "Could not fetch page HTML; content format analysis is unverifiable.",
+            "page_url": page_url
+        })
+        eval_text = ""
+        fmt_res = None
+
+    if fmt_res:
+        for iss in fmt_res.issues:
+            if iss.code != "ANSWER_FORMAT_GOOD":
+                findings.append({
+                    "code": iss.code,
+                    "severity": iss.severity,
+                    "message": iss.message,
+                    "page_url": page_url
+                })
 
     # 4. Authority & Backlinks
     auth_res = audit_domain_authority(clean_domain, api_provider=api_provider, client_keys=client_keys)  # noqa: E501
@@ -282,7 +406,174 @@ def run_orchestrated_audit(
                 "page_url": page_url
             })
 
-    # 5. Live AI Citation Sampling
+    # 5. Redirects & Access Audit
+    try:
+        from areos.auditors.redirect_auditor import audit_redirects_and_access
+        redir_res = audit_redirects_and_access(page_url, page_html, redirect_hop_count, final_url)
+        for iss in redir_res.issues:
+            if iss.code != "ACCESS_OK":
+                findings.append({
+                    "code": iss.code,
+                    "severity": iss.severity,
+                    "message": iss.message,
+                    "page_url": page_url
+                })
+    except Exception as e:
+        _orch_logger.warning("Redirect audit failed for %s: %s", page_url, e)
+        findings.append({
+            "code": "AUDIT_PHASE_CRASHED",
+            "severity": "error",
+            "message": f"Redirect audit phase failed: {e}",
+            "page_url": page_url
+        })
+
+    # 6. Content Freshness Audit
+    if page_html:
+        try:
+            from areos.auditors.freshness_auditor import audit_freshness
+            fresh_res = audit_freshness(page_url, page_html, json_ld_blocks)
+            for iss in fresh_res.issues:
+                if iss.code != "FRESHNESS_OK":
+                    findings.append({
+                        "code": iss.code,
+                        "severity": iss.severity,
+                        "message": iss.message,
+                        "page_url": page_url
+                    })
+        except Exception as e:
+            _orch_logger.warning("Freshness audit failed for %s: %s", page_url, e)
+            findings.append({
+                "code": "AUDIT_PHASE_CRASHED",
+                "severity": "error",
+                "message": f"Content freshness audit phase failed: {e}",
+                "page_url": page_url
+            })
+
+    # 7. Entity Verification & sameAs
+    if page_html or json_ld_blocks:
+        try:
+            from areos.auditors.entity_verifier import audit_entities
+            ent_res = audit_entities(page_url, page_html, json_ld_blocks)
+            for iss in ent_res.issues:
+                if iss.code != "ENTITY_OK":
+                    findings.append({
+                        "code": iss.code,
+                        "severity": iss.severity,
+                        "message": iss.message,
+                        "page_url": page_url
+                    })
+        except Exception as e:
+            _orch_logger.warning("Entity verification failed for %s: %s", page_url, e)
+            findings.append({
+                "code": "AUDIT_PHASE_CRASHED",
+                "severity": "error",
+                "message": f"Entity verification audit phase failed: {e}",
+                "page_url": page_url
+            })
+
+    # 8. Media Blindness Audit
+    if page_html:
+        try:
+            from areos.auditors.media_blindness_auditor import audit_media_blindness
+            med_res = audit_media_blindness(page_url, page_html)
+            for iss in med_res.issues:
+                if iss.code != "MEDIA_OK":
+                    findings.append({
+                        "code": iss.code,
+                        "severity": iss.severity,
+                        "message": iss.message,
+                        "page_url": page_url
+                    })
+        except Exception as e:
+            _orch_logger.warning("Media blindness audit failed for %s: %s", page_url, e)
+            findings.append({
+                "code": "AUDIT_PHASE_CRASHED",
+                "severity": "error",
+                "message": f"Media blindness audit phase failed: {e}",
+                "page_url": page_url
+            })
+
+    # 9. Cloaking Detection (GPTBot vs Browser UA)
+    if page_html:
+        try:
+            from areos.auditors.cloaking_detector import audit_cloaking
+            cloak_res = audit_cloaking(clean_domain, page_url, page_html)
+            for iss in cloak_res.issues:
+                if iss.code not in ("CLOAKING_OK", "CLOAKING_FETCH_FAILED"):
+                    findings.append({
+                        "code": iss.code,
+                        "severity": iss.severity,
+                        "message": iss.message,
+                        "page_url": page_url
+                    })
+        except Exception as e:
+            _orch_logger.warning("Cloaking check failed for %s: %s", page_url, e)
+            findings.append({
+                "code": "AUDIT_PHASE_CRASHED",
+                "severity": "error",
+                "message": f"Cloaking detection audit phase failed: {e}",
+                "page_url": page_url
+            })
+
+    # 10. Sitemap Audit & Phase 6 Multi-Page Crawl
+    try:
+        from areos.auditors.sitemap_auditor import audit_sitemap
+        sitemap_res = audit_sitemap(clean_domain, robots_result=res_rob if 'res_rob' in locals() else None)
+        for iss in sitemap_res.issues:
+            if iss.code != "SITEMAP_OK":
+                findings.append({
+                    "code": iss.code,
+                    "severity": iss.severity,
+                    "message": iss.message,
+                    "page_url": f"https://{clean_domain}/sitemap.xml"
+                })
+        if sitemap_res.urls:
+            try:
+                from areos.auditors.multipage_auditor import audit_multi_page
+                multi_res = audit_multi_page(sitemap_res.urls[:10], clean_domain, robots_result=res_rob if 'res_rob' in locals() else None)
+                findings.extend(multi_res.as_finding_dicts())
+            except Exception as e:
+                _orch_logger.warning("Multi-page crawl failed for %s: %s", clean_domain, e)
+                findings.append({
+                    "code": "AUDIT_PHASE_CRASHED",
+                    "severity": "error",
+                    "message": f"Multi-page crawl sub-phase failed: {e}",
+                    "page_url": f"https://{clean_domain}/sitemap.xml"
+                })
+    except Exception as e:
+        _orch_logger.warning("Sitemap audit failed for %s: %s", clean_domain, e)
+        findings.append({
+            "code": "AUDIT_PHASE_CRASHED",
+            "severity": "error",
+            "message": f"Sitemap audit phase failed: {e}",
+            "page_url": f"https://{clean_domain}/sitemap.xml"
+        })
+
+    # 11. Phase 5: JS Rendering Diff (Optional)
+    if page_html:
+        try:
+            from areos.auditors.rendering_auditor import audit_js_rendering, PLAYWRIGHT_AVAILABLE
+            if PLAYWRIGHT_AVAILABLE:
+                render_res = audit_js_rendering(page_url, page_html)
+                if not render_res.skipped:
+                    for iss in render_res.issues:
+                        if iss.code != "RENDERING_OK":
+                            findings.append({
+                                "code": iss.code,
+                                "severity": iss.severity,
+                                "message": iss.message,
+                                "page_url": page_url
+                            })
+        except Exception as e:
+            _orch_logger.warning("Rendering audit failed for %s: %s", page_url, e)
+            findings.append({
+                "code": "AUDIT_PHASE_CRASHED",
+                "severity": "error",
+                "message": f"JS Rendering audit phase failed: {e}",
+                "page_url": page_url
+            })
+
+    # 12. Live AI Citation Sampling & Phase 7 Competitor Analysis
     prompts = load_active_prompt_set(clean_domain, db_path=str(db_path))
     if not prompts:
         prompts = [
@@ -312,6 +603,50 @@ def run_orchestrated_audit(
             "page_url": page_url
         })
 
+    # Citation Analytics & Competitor Extraction
+    try:
+        from areos.auditors.citation_sampler import compute_citation_analytics
+        cit_analytics = compute_citation_analytics(sample_res)
+        if cit_analytics.get("citation_rate", 0) < 0.2 and citation_obs:
+            findings.append({
+                "code": "CITATION_RATE_LOW",
+                "severity": "warning",
+                "message": f"Brand citation rate is low ({cit_analytics.get('citation_rate', 0):.1%}) across sampled prompts.",
+                "page_url": page_url
+            })
+        if cit_analytics.get("share_of_voice", 0) < 0.1 and citation_obs:
+            findings.append({
+                "code": "SHARE_OF_VOICE_LOW",
+                "severity": "warning",
+                "message": f"Brand share of voice is low ({cit_analytics.get('share_of_voice', 0):.1%}) compared to cited competitors.",
+                "page_url": page_url
+            })
+
+        # Phase 7 Competitor analysis
+        comp_domains = cit_analytics.get("competitor_domains", [])
+        if comp_domains:
+            try:
+                from areos.auditors.competitor_analyzer import analyze_competitors
+                target_types = [claim.get("value") for claim in schema_claims if isinstance(claim, dict) and claim.get("field") == "@type"]
+                comp_res = analyze_competitors(comp_domains, clean_domain, target_types)
+                findings.extend(comp_res.as_finding_dicts())
+            except Exception as e:
+                _orch_logger.warning("Competitor analysis failed for %s: %s", clean_domain, e)
+                findings.append({
+                    "code": "AUDIT_PHASE_CRASHED",
+                    "severity": "error",
+                    "message": f"Competitor analysis sub-phase failed: {e}",
+                    "page_url": page_url
+                })
+    except Exception as e:
+        _orch_logger.warning("Citation analytics failed for %s: %s", clean_domain, e)
+        findings.append({
+            "code": "AUDIT_PHASE_CRASHED",
+            "severity": "error",
+            "message": f"Citation analytics sub-phase failed: {e}",
+            "page_url": page_url
+        })
+
     # Compute score with the layered model (B+C) — stored in DB so the
     # run record always carries the score even before the return payload.
     _scorecard_pre = compute_layered_score(findings)
@@ -329,7 +664,7 @@ def run_orchestrated_audit(
                 run_id,
                 clean_domain,
                 run_date,
-                json.dumps(["AP-01", "AP-02", "AP-04", "AP-05", "AP-06"]),
+                json.dumps(["AP-01", "AP-02", "AP-03", "AP-04", "AP-05", "AP-06"]),
                 json.dumps(findings),
                 "automated_complete",
                 _overall_score_pre,
@@ -388,7 +723,7 @@ def run_orchestrated_audit(
     codes_fired = list({f.get("code") for f in findings if f.get("code")})
     summary = AuditRunSummary(
         target_domain=clean_domain,
-        audited_stages=["AP-01", "AP-02", "AP-04", "AP-05", "AP-06"],
+        audited_stages=["AP-01", "AP-02", "AP-03", "AP-04", "AP-05", "AP-06"],
         check_codes_fired=codes_fired,
         automated_findings=findings,
         run_date=run_date

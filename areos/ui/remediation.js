@@ -192,19 +192,19 @@ function renderRecCard(rec, num) {
   card.appendChild(citationEl);
 
   const renderCitation = (statement, sourceUrl) => {
-   if (!statement) { citationEl.innerHTML = `<span style="color:var(--text-secondary);">Citation: <em>${rec.claim_id}</em></span>`; return; }
-   const isWebUrl = sourceUrl && /^https?:\/\//i.test(sourceUrl);
-   const sourceLink = isWebUrl
-    ? `<a href="${sourceUrl}" target="_blank" rel="noopener noreferrer" style="color:var(--brand-400); margin-left:10px; white-space:nowrap;">View Source ↗</a>`
-    : (sourceUrl ? `<span style="color:var(--text-secondary); margin-left:10px; font-size:0.78rem;">${sourceUrl}</span>` : '');
-   citationEl.innerHTML = `
-    <div style="display:flex; align-items:baseline; gap:6px; flex-wrap:wrap;">
-     <span style="color:var(--brand-400); font-weight:700; white-space:nowrap;">📎 ${rec.claim_id}</span>
-     <span style="color:var(--text-secondary);">—</span>
-     <span style="color:var(--text-primary); line-height:1.45;">${statement}</span>
-     ${sourceLink}
-    </div>`;
-  };
+    if (!statement) { citationEl.innerHTML = `<span style="color:var(--text-secondary);">Citation: <em>${escapeHtml(rec.claim_id)}</em></span>`; return; }
+    const isWebUrl = sourceUrl && /^https?:\/\//i.test(sourceUrl);
+    const sourceLink = isWebUrl
+     ? `<a href="${safeUrl(sourceUrl)}" target="_blank" rel="noopener noreferrer" style="color:var(--brand-400); margin-left:10px; white-space:nowrap;">View Source ↗</a>`
+     : (sourceUrl ? `<span style="color:var(--text-secondary); margin-left:10px; font-size:0.78rem;">${escapeHtml(sourceUrl)}</span>` : '');
+    citationEl.innerHTML = `
+     <div style="display:flex; align-items:baseline; gap:6px; flex-wrap:wrap;">
+      <span style="color:var(--brand-500); font-weight:700; white-space:nowrap; display:inline-flex; align-items:center; gap:4px;"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg> ${escapeHtml(rec.claim_id)}</span>
+      <span style="color:var(--text-secondary);">—</span>
+      <span style="color:var(--text-primary); line-height:1.45;">${escapeHtml(statement)}</span>
+      ${sourceLink}
+     </div>`;
+   };
 
   if (rec.claim_statement) {
    // Already in the API response — no second fetch needed

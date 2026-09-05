@@ -32,17 +32,21 @@ def write_as(conn: sqlite3.Connection, actor: str, reason: str):
             conn.execute("UPDATE claims SET status = 'active' WHERE claim_id = ?",
                          ("CLM-042",))
         # conn.commit() is called automatically on clean exit.
-        # _txn_context is reset to NULL/NULL after the block, clean for the next caller.
 
     Raises:
         Any exception from the body of the `with` block is re-raised after
-        rolling back the transaction and resetting _txn_context.
+        rolling back the transaction.
     """
-    conn.execute(
-        "UPDATE _txn_context SET actor = ?, reason = ? WHERE id = 1",
-        (actor, reason),
-    )
-    rolled_back = False
+    try:
+        cur = conn.execute(
+            "UPDATE _txn_context SET actor = ?, reason = ? WHERE id = 1",
+            (actor, reason),
+        )
+        if cur.rowcount == 0:
+            conn.execute("INSERT OR REPLACE INTO _txn_context (id, actor, reason) VALUES (1, ?, ?)", (actor, reason))
+    except sqlite3.OperationalError:
+        conn.execute("CREATE TEMP TABLE IF NOT EXISTS _txn_context (id INTEGER PRIMARY KEY, actor TEXT, reason TEXT)")
+        conn.execute("INSERT OR REPLACE INTO _txn_context (id, actor, reason) VALUES (1, ?, ?)", (actor, reason))
     try:
         yield conn
         conn.commit()
@@ -50,17 +54,6 @@ def write_as(conn: sqlite3.Connection, actor: str, reason: str):
         logger.error("write_as() rolling back: %s", exc, exc_info=True)
         try:
             conn.rollback()
-            rolled_back = True
         except Exception as rb_exc:
             logger.error("write_as() exception during rollback: %s", rb_exc)
         raise
-    finally:
-        # Only reset if we didn't roll back (since rollback already restores prior state).
-        if not rolled_back:
-            try:
-                conn.execute(
-                    "UPDATE _txn_context SET actor = NULL, reason = NULL WHERE id = 1"
-                )
-                conn.commit()
-            except Exception as reset_exc:
-                logger.warning("Failed to reset _txn_context: %s", reset_exc)

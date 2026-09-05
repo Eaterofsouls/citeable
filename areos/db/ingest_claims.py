@@ -59,53 +59,15 @@ _DEFAULT_SOURCE_TIER_VOCAB = "system_native"
 _DEFAULT_SOURCE_TIER_VALUE = "internal-playbook"
 _DEFAULT_STATUS = "active"
 
-# check_code -> claim_id, copied verbatim from the two pre-existing,
-# already-correct one-off migration scripts. Kept here (rather than
-# importing those scripts) because they are standalone entry points with
-# their own __main__ / hardcoded DB_PATH, not importable modules.
-_CHECK_CODE_MAPPINGS: dict[str, list[str]] = {
-    "MISSING_REQUIRED_FIELD": ["C054"],
-    "MISSING_RECOMMENDED_FIELD": ["C054"],
-    "UNKNOWN_FIELD": ["C054"],
-    "MISSING_TYPE": ["C054"],
-    "JSON_PARSE_FAILURE": ["C054"],
-    "UNKNOWN_SCHEMA_TYPE": ["C054"],
-    "CRAWLER_FULLY_BLOCKED": ["C050"],
-    "CRAWLER_PARTIAL": ["C050"],
-    "CRAWLER_ALLOWED": ["C050"],
-    "NO_DIRECTIVE": ["C050"],
-    "GOOGLE_EXTENDED_MISSING": ["C050"],
-    "GPTBOT_MISSING": ["C050"],
-    "INVALID_CRAWL_DELAY": ["C050"],
-    "LLMS_TXT_MISSING": ["C051"],
-    "LLMS_TXT_MISSING_H1": ["C051"],
-    "LLMS_TXT_MISSING_SECTION": ["C051"],
-    "LLMS_TXT_NO_LINKS": ["C051"],
-    "LLMS_TXT_EMPTY_CONTENT": ["C051"],
-    "EXTRACTABILITY_HIGH": ["C057"],
-    "EXTRACTABILITY_MEDIUM": ["C061"],
-    "EXTRACTABILITY_LOW": ["C058"],
-    "EXTRACTABILITY_NONE": ["C058"],
-    "CITATION_OBSERVED": ["C071"],
-    "CITATION_NOT_OBSERVED": ["C071"],
-    "CITATION_WHY_UNKNOWN": ["C073"],
-    "ANSWER_NOT_NEAR_TOP": ["C051"],
-    "ANSWER_NOT_SELF_CONTAINED": ["C057"],
-    "ANSWER_NOT_FACTUALLY_SPECIFIC": ["C061"],
-    "NO_LIST_OR_TABLE": ["C050"],
-    "NOSNIPPET_BLOCKING_AI": ["C310"],
-    "ANSWER_FORMAT_GOOD": ["C050"],
-    "AUTHORITY_DR_LOW": ["C292"],
-    "REFERRING_DOMAINS_CRITICAL": ["C292"],
-    "WIKIPEDIA_ENTITY_MISSING": ["C284"],
-    "BRAND_MENTIONS_STAGNANT": ["C293"],
-    "AUTHORITY_PROFILE_GOOD": ["C293"],
-}
+# _CHECK_CODE_MAPPINGS removed — V2 uses kb_check_code_map via check_code_to_knowledge_map.json
 
 
-def _load_source_rows() -> list[dict[str, Any]]:
+def _load_source_rows(source_path: Path | str | None = None) -> list[dict[str, Any]]:
     """Load claims from active_claims.json. Handles both list and dict-wrapped formats."""
-    data = json.loads(_CLAIMS_JSON.read_text(encoding="utf-8"))
+    p = Path(source_path) if source_path else _CLAIMS_JSON
+    if not p.exists():
+        return []
+    data = json.loads(p.read_text(encoding="utf-8"))
     # Claude's rebuilt JSON uses {"claims": [...], "sources": [...]} wrapper
     return data["claims"] if isinstance(data, dict) else data
 
@@ -134,7 +96,7 @@ def _build_row(raw: dict[str, Any]) -> dict[str, Any]:
     }
 
 
-def ingest(db_path: Path | str | None = None, *, verbose: bool = True) -> dict[str, Any]:
+def ingest(db_path: Path | str | None = None, source_path: Path | str | None = None, *, verbose: bool = True) -> dict[str, Any]:
     """
     Idempotently load active_claims.json into `claims`, then wire
     `check_code_mappings` on top. Returns a summary dict; never raises for
@@ -142,10 +104,6 @@ def ingest(db_path: Path | str | None = None, *, verbose: bool = True) -> dict[s
     infrastructure failures (missing file, migration failure — MF-9).
     """
     if db_path is None:
-        # FIX (Readiness Audit, Blocker 3): resolve via the shared,
-        # Render-aware get_db_path() instead of a hardcoded repo-root path,
-        # so `python -m areos.db.ingest_claims` seeds the same file the
-        # running app actually reads (including /data/areos.db on Render).
         db_path = get_db_path()
 
     # Ensure schema (including the is_client_evidence column and kb_meta
@@ -158,12 +116,9 @@ def ingest(db_path: Path | str | None = None, *, verbose: bool = True) -> dict[s
         "claims_inserted": 0,
         "claims_already_present": 0,
         "claims_rejected": [],  # list of (claim_id, [lint errors])
-        "mappings_inserted": 0,
-        "mappings_already_present": 0,
-        "mappings_skipped_missing_claim": [],  # list of (check_code, claim_id)
     }
 
-    rows = _load_source_rows()
+    rows = _load_source_rows(source_path)
     summary["claims_seen"] = len(rows)
     _alias_file = _ROOT / "stage_id_aliases.yaml"
 
@@ -199,52 +154,28 @@ def ingest(db_path: Path | str | None = None, *, verbose: bool = True) -> dict[s
             summary["claims_already_present"] += 1
             continue
 
-        conn.execute(
-            """
-            INSERT INTO claims (
-                claim_id, stage_id, claim_scope, claim_type, statement,
-                status, confidence, source_url, source_tier_vocab,
-                source_tier_value, source_date, last_verified, superseded_by
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            """,
-            (
-                row["claim_id"], row["stage_id"], row["claim_scope"],
-                row["claim_type"], row["statement"], row["status"],
-                row["confidence"], row["source_url"], row["source_tier_vocab"],
-                row["source_tier_value"], row["source_date"],
-                row["last_verified"], row["superseded_by"],
-            ),
-        )
+        with write_as(conn, actor="ingest_claims", reason="Bulk seed claims from active_claims.json"):
+            conn.execute(
+                """
+                INSERT INTO claims (
+                    claim_id, stage_id, claim_scope, claim_type, statement,
+                    status, confidence, source_url, source_tier_vocab,
+                    source_tier_value, source_date, last_verified, superseded_by
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    row["claim_id"], row["stage_id"], row["claim_scope"],
+                    row["claim_type"], row["statement"], row["status"],
+                    row["confidence"], row["source_url"], row["source_tier_vocab"],
+                    row["source_tier_value"], row["source_date"],
+                    row["last_verified"], row["superseded_by"],
+                ),
+            )
         summary["claims_inserted"] += 1
 
     conn.commit()
 
-    # Now wire check_code_mappings, skipping any target claim_id that isn't
-    # actually present (FK would otherwise reject the whole insert).
-    for check_code, claim_ids in _CHECK_CODE_MAPPINGS.items():
-        for claim_id in claim_ids:
-            has_claim = conn.execute(
-                "SELECT 1 FROM claims WHERE claim_id = ?", (claim_id,)
-            ).fetchone()
-            if not has_claim:
-                summary["mappings_skipped_missing_claim"].append((check_code, claim_id))
-                continue
-
-            existing = conn.execute(
-                "SELECT 1 FROM check_code_mappings WHERE check_code = ? AND claim_id = ?",
-                (check_code, claim_id),
-            ).fetchone()
-            if existing:
-                summary["mappings_already_present"] += 1
-                continue
-
-            conn.execute(
-                "INSERT INTO check_code_mappings (check_code, claim_id) VALUES (?, ?)",
-                (check_code, claim_id),
-            )
-            summary["mappings_inserted"] += 1
-
-    conn.commit()
+    # Legacy _CHECK_CODE_MAPPINGS wiring loop removed — V2 uses kb_check_code_map
 
     # FIX (Readiness Audit, Major #6): increment_kb_version() was fully
     # implemented per AREOS_ONTOLOGY_EVOLUTION_SPEC.md §3.6 but never called
@@ -271,12 +202,6 @@ def _print_summary(summary: dict[str, Any]) -> None:
     print(f"claims rejected by lint:         {len(summary['claims_rejected'])}")
     for cid, errors in summary["claims_rejected"]:
         print(f"  - {cid}: {'; '.join(errors)}")
-    print(f"mappings inserted:               {summary['mappings_inserted']}")
-    print(f"mappings already present (skip): {summary['mappings_already_present']}")
-    skipped = summary["mappings_skipped_missing_claim"]
-    print(f"mappings skipped (no such claim): {len(skipped)}")
-    for check_code, claim_id in skipped:
-        print(f"  - {check_code} -> {claim_id} (claim not in corpus)")
     print("=======================================")
 
 

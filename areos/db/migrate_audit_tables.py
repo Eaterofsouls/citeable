@@ -15,6 +15,7 @@
 #   python generate_schema.py            # writes the canonical root schema.sql
 #   cp schema.sql areos/db/schema.sql    # keep this copy in sync
 
+import sqlite3
 import sys
 from pathlib import Path
 
@@ -26,22 +27,29 @@ from areos.db.connection import get_connection, get_db_path  # noqa: E402
 _SCHEMA_SQL = Path(__file__).resolve().parent / "schema.sql"
 
 
+def _split_sql_statements(sql: str) -> list[str]:
+    """Split a SQL script into individual complete statements using sqlite3.complete_statement."""
+    statements = []
+    current_statement = ""
+    for line in sql.splitlines(keepends=True):
+        current_statement += line
+        if sqlite3.complete_statement(current_statement):
+            stmt = current_statement.strip()
+            if stmt:
+                statements.append(stmt)
+            current_statement = ""
+    remainder = current_statement.strip()
+    if remainder:
+        statements.append(remainder)
+    return statements
+
+
 def migrate(db_path: Path | str | None = None) -> None:
     """
     Apply the generated schema.sql against the target DB.
     Raises on failure — callers must NOT swallow this (MF-9).
     """
     if db_path is None:
-        # FIX (data-quality pass, follow-up sweep): this used to default to
-        # a hardcoded `_ROOT / "areos.db"`, ignoring AREOS_TEST_DB entirely
-        # — unlike every other DB entry point in the codebase, which goes
-        # through get_db_path(). Confirmed live (not just latent): pytest's
-        # `tests/test_audit_orchestrator.py` and `tests/test_prompts_api.py`
-        # both call `migrate()` with no args from an autouse fixture, so on
-        # any checkout where the real root areos.db hasn't already had the
-        # full schema applied, a routine `pytest` run would silently write
-        # schema changes into the real seed DB instead of the isolated test
-        # DB conftest.py sets up. Delegate to the single canonical resolver.
         db_path = Path(get_db_path())
 
     if not _SCHEMA_SQL.exists():
@@ -52,7 +60,26 @@ def migrate(db_path: Path | str | None = None) -> None:
 
     conn = get_connection(db_path)
     sql = _SCHEMA_SQL.read_text(encoding="utf-8")
-    conn.executescript(sql)
+
+    # QA-C04 / D-QA-004 / D-QA2-010 / DEC-11: If claims is already a VIEW, skip table/index/trigger/FK statements for claims
+    claims_row = conn.execute("SELECT type FROM sqlite_master WHERE name='claims'").fetchone()
+    is_claims_view = bool(claims_row and claims_row[0] == 'view')
+
+    statements = _split_sql_statements(sql)
+    for stmt in statements:
+        norm = stmt.strip().upper()
+        if is_claims_view:
+            if norm.startswith("CREATE TABLE IF NOT EXISTS CLAIMS") or norm.startswith("CREATE TABLE CLAIMS"):
+                continue
+            if norm.startswith("CREATE INDEX") and " ON CLAIMS" in norm:
+                continue
+            if norm.startswith("CREATE TRIGGER") and " ON CLAIMS" in norm:
+                continue
+            import re
+            stmt = re.sub(r'REFERENCES\s+claims\s*\([^)]+\)(?:\s+ON\s+DELETE\s+\w+)?(?:\s+ON\s+UPDATE\s+\w+)?', '', stmt, flags=re.IGNORECASE)
+
+        conn.execute(stmt)
+    conn.commit()
 
     # Ensure approved_count / rejected_count columns exist on sources
     # (backward-compat for DBs created before the sources schema update)
@@ -85,7 +112,10 @@ def migrate(db_path: Path | str | None = None) -> None:
         "  updated_by TEXT"
         ")"
     )
-    conn.execute("INSERT OR IGNORE INTO kb_meta (id) VALUES (1)")
+    try:
+        conn.execute("INSERT OR IGNORE INTO kb_meta (id) VALUES (1)")
+    except Exception:
+        pass
 
     # areos/auditors/findings_to_claims.py's _lookup_claim() selects
     # is_client_evidence from claims, but no schema generator defines that
@@ -94,16 +124,22 @@ def migrate(db_path: Path | str | None = None) -> None:
     # seeded, this will hard-crash wire_finding() with "no such column".
     # Computed purely from claim_scope (already on every row), not
     # fabricated data — safe to add unconditionally.
-    try:
-        conn.execute("SELECT is_client_evidence FROM claims LIMIT 1")
-    except Exception:
-        conn.execute(
-            "ALTER TABLE claims ADD COLUMN is_client_evidence BOOLEAN "
-            "GENERATED ALWAYS AS (claim_scope IS NULL OR claim_scope != 'general-knowledge') VIRTUAL"
-        )
-        conn.execute(
-            "CREATE INDEX IF NOT EXISTS idx_claims_client_evidence ON claims(is_client_evidence)"
-        )
+    # QA-C04: Guard against V2 KB where build_kb.py converts claims to a VIEW.
+    # ALTER TABLE on a VIEW raises "Cannot add a column to a view".
+    claims_type_row = conn.execute(
+        "SELECT type FROM sqlite_master WHERE name='claims'"
+    ).fetchone()
+    if claims_type_row and claims_type_row[0] == 'table':
+        try:
+            conn.execute("SELECT is_client_evidence FROM claims LIMIT 1")
+        except Exception:
+            conn.execute(
+                "ALTER TABLE claims ADD COLUMN is_client_evidence BOOLEAN "
+                "GENERATED ALWAYS AS (claim_scope IS NULL OR claim_scope != 'general-knowledge') VIRTUAL"
+            )
+            conn.execute(
+                "CREATE INDEX IF NOT EXISTS idx_claims_client_evidence ON claims(is_client_evidence)"
+            )
 
     # FIX (Readiness Audit, Blocker 2): claims.stage_id REFERENCES
     # audit_phase(audit_phase_id) with FK enforcement on (db/connection.py),
@@ -140,20 +176,33 @@ def migrate(db_path: Path | str | None = None) -> None:
     conn.commit()
     print("Migration complete (SEC-11 consolidated schema applied).")
 
-    # 0008: synthesis_prompts table (Phase 2 LLM pipeline)
+    # 0008: synthesis_prompts table & defaults (Phase 2 LLM pipeline)
+    conn.execute(
+        "CREATE TABLE IF NOT EXISTS synthesis_prompts ("
+        "  step TEXT PRIMARY KEY,"
+        "  system_prompt TEXT NOT NULL,"
+        "  updated_at TEXT,"
+        "  updated_by TEXT"
+        ")"
+    )
     try:
-        import importlib, sys as _sys
-        _spec = importlib.util.spec_from_file_location(
-            "migration_0008",
-            Path(__file__).resolve().parents[2] / "migrations" / "0008_add_synthesis_prompts.py"
+        from areos.llm.synthesis_pipeline import (
+            _DEFAULT_SYNTHESIZER_PROMPT,
+            _DEFAULT_RED_TEAMER_PROMPT,
+            _DEFAULT_GROUNDER_PROMPT,
         )
-        _m = importlib.util.module_from_spec(_spec)
-        _spec.loader.exec_module(_m)
-        _m.migrate(db_path=str(db_path))
-    except FileNotFoundError:
-        pass  # migration file not present yet
+        conn.executemany(
+            "INSERT OR IGNORE INTO synthesis_prompts (step, system_prompt, updated_at, updated_by) "
+            "VALUES (?, ?, datetime('now'), 'system')",
+            [
+                ("synthesizer", _DEFAULT_SYNTHESIZER_PROMPT),
+                ("red_teamer", _DEFAULT_RED_TEAMER_PROMPT),
+                ("grounder", _DEFAULT_GROUNDER_PROMPT),
+            ],
+        )
     except Exception as exc:  # noqa: BLE001
-        print(f"[Warning] Migration 0008 failed (non-fatal): {exc}")
+        print(f"[Warning] Seeding synthesis_prompts defaults failed (non-fatal): {exc}")
+    conn.commit()
 
 
 if __name__ == "__main__":

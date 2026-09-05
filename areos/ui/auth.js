@@ -47,11 +47,11 @@ function getByokHeaders() {
  const vaultData = localStorage.getItem(BYOK_VAULT_KEY);
  if (vaultData) {
  const parsed = JSON.parse(vaultData);
- Object.entries(parsed).forEach(([provider, data]) => {
- if (data && data.key && (data.status === 'live' || data.status === 'verifying' || data.status === 'unverified')) {
- headers[`X-API-Key-${provider}`] = data.key.trim();
- }
- });
+    Object.entries(parsed).forEach(([provider, data]) => {
+      if (data && data.key && (data.status === 'live' || data.status === 'verifying' || data.status === 'unverified')) {
+        headers[`x-api-key-${provider.toLowerCase()}`] = data.key.trim();
+      }
+    });
  }
  } catch (e) {
  console.warn("Failed to read BYOK credentials from local storage:", e);

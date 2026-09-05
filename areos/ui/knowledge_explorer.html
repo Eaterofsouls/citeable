@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Citeable | Knowledge Explorer</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="index.css?v=3">
+  <link rel="icon" type="image/svg+xml" href="favicon.svg">
+
+  <script src="context.js"></script>
+  <script src="identity.js"></script>
+  <script src="api.js"></script>
+  <script src="dom.js"></script>
+  <script src="nav.js"></script>
+</head>
+<body>
+  <div class="app-container">
+    <!-- Sidebar Navigation -->
+    <aside class="sidebar">
+      <div class="logo">
+        <div class="logo-icon"><img src="favicon.svg" alt="Citeable Logo" width="32" height="32"></div>
+        <h1>Citeable</h1>
+      </div>
+      <nav id="main-nav"></nav>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="main-content">
+      <header class="topbar">
+        <div class="page-title-wrap">
+          <h2>Knowledge Explorer</h2>
+        </div>
+        <div class="topbar-meta">
+          <span class="status-pill info" id="total-knowledge">Loading database...</span>
+        </div>
+      </header>
+
+      <div class="page-container page-container--fluid">
+
+        <!-- HELPER CARD: Claim Taxonomy Primer -->
+        <div class="context-helper-card" id="helper-taxonomy-primer" style="border-radius: 8px; border: 1px solid var(--border-default); box-shadow: var(--shadow-sm); overflow: hidden; background: #FFFFFF; margin-bottom: 24px;">
+          <div class="helper-card-header" onclick="toggleHelperCard('helper-taxonomy-content', 'helper-taxonomy-chevron')" style="padding: 14px 20px; display: flex; align-items: center; justify-content: space-between; cursor: pointer; user-select: none; background: #FFFFFF;">
+            <div style="display:flex; align-items:center; gap:12px;">
+              <div style="width:30px; height:30px; border-radius:6px; background:#F8FAFC; display:flex; align-items:center; justify-content:center; border:1px solid #E2E8F0; color:#334155;">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/></svg>
+              </div>
+              <div>
+                <div style="font-weight:600; color:var(--text-primary); font-size:0.875rem; letter-spacing: -0.01em;">Citeable Knowledge Base &amp; Claim Taxonomy</div>
+                <div style="font-size:0.75rem; color:var(--text-tertiary);">Scientific Classification · 216 Verified Empirical &amp; Technical Claims</div>
+              </div>
+            </div>
+            <div style="display:flex; align-items:center; gap:12px;">
+              <span style="font-size:0.75rem; font-family:var(--font-mono); font-weight:600; color:var(--text-secondary); background:#F1F5F9; border:1px solid #E2E8F0; padding:2px 8px; border-radius:9999px;">5 Scientific Tiers</span>
+              <span id="helper-taxonomy-chevron" style="font-size:0.75rem; color:var(--text-tertiary); font-weight:700; transition: transform 0.2s;">▾</span>
+            </div>
+          </div>
+          <div id="helper-taxonomy-content" class="accordion-grid open">
+            <div class="accordion-inner" style="border-top:1px solid var(--border-default); background:#F8FAFC; padding: 14px 20px;">
+              <div style="display:grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 12px;">
+                
+                <!-- FACT -->
+                <div style="background:#FFFFFF; border:1px solid var(--border-default); border-radius:6px; padding:12px 14px; display:flex; flex-direction:column; gap:4px;">
+                  <div style="display:flex; align-items:center; gap:6px;">
+                    <span style="width:6px; height:6px; border-radius:50%; background:#16A34A;"></span>
+                    <span style="font-family:var(--font-mono); font-size:0.75rem; font-weight:700; color:#0F172A; letter-spacing:0.04em;">FACT</span>
+                  </div>
+                  <div style="font-size:0.75rem; color:var(--text-secondary); line-height:1.4;">Empirically verified platform mechanics.</div>
+                </div>
+
+                <!-- GUIDANCE -->
+                <div style="background:#FFFFFF; border:1px solid var(--border-default); border-radius:6px; padding:12px 14px; display:flex; flex-direction:column; gap:4px;">
+                  <div style="display:flex; align-items:center; gap:6px;">
+                    <span style="width:6px; height:6px; border-radius:50%; background:#0A66C2;"></span>
+                    <span style="font-family:var(--font-mono); font-size:0.75rem; font-weight:700; color:#0F172A; letter-spacing:0.04em;">GUIDANCE</span>
+                  </div>
+                  <div style="font-size:0.75rem; color:var(--text-secondary); line-height:1.4;">Official documentation best practices.</div>
+                </div>
+
+                <!-- STANDARD -->
+                <div style="background:#FFFFFF; border:1px solid var(--border-default); border-radius:6px; padding:12px 14px; display:flex; flex-direction:column; gap:4px;">
+                  <div style="display:flex; align-items:center; gap:6px;">
+                    <span style="width:6px; height:6px; border-radius:50%; background:#475569;"></span>
+                    <span style="font-family:var(--font-mono); font-size:0.75rem; font-weight:700; color:#0F172A; letter-spacing:0.04em;">STANDARD</span>
+                  </div>
+                  <div style="font-size:0.75rem; color:var(--text-secondary); line-height:1.4;">Formal industry RFC &amp; W3C specifications.</div>
+                </div>
+
+                <!-- FINDING -->
+                <div style="background:#FFFFFF; border:1px solid var(--border-default); border-radius:6px; padding:12px 14px; display:flex; flex-direction:column; gap:4px;">
+                  <div style="display:flex; align-items:center; gap:6px;">
+                    <span style="width:6px; height:6px; border-radius:50%; background:#D97706;"></span>
+                    <span style="font-family:var(--font-mono); font-size:0.75rem; font-weight:700; color:#0F172A; letter-spacing:0.04em;">FINDING</span>
+                  </div>
+                  <div style="font-size:0.75rem; color:var(--text-secondary); line-height:1.4;">Correlated multi-domain search data.</div>
+                </div>
+
+                <!-- UNCERTAINTY -->
+                <div style="background:#FFFFFF; border:1px solid var(--border-default); border-radius:6px; padding:12px 14px; display:flex; flex-direction:column; gap:4px;">
+                  <div style="display:flex; align-items:center; gap:6px;">
+                    <span style="width:6px; height:6px; border-radius:50%; background:#E11D48;"></span>
+                    <span style="font-family:var(--font-mono); font-size:0.75rem; font-weight:700; color:#0F172A; letter-spacing:0.04em;">UNCERTAINTY</span>
+                  </div>
+                  <div style="font-size:0.75rem; color:var(--text-secondary); line-height:1.4;">Actively shifting frontier behavior.</div>
+                </div>
+
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Filters Bar -->
+        <section class="filters-bar">
+          <div class="filter-group" style="grid-column: span 2;">
+            <label>Search Knowledge</label>
+            <input type="text" id="search-input" class="input" placeholder="Search claims (e.g. schema, robots.txt, extractability)...">
+          </div>
+          <div class="filter-group checkbox-group" style="display:flex; align-items:center; gap:8px; padding-bottom:8px;">
+            <input type="checkbox" id="filter-pinned" style="width:16px; height:16px; accent-color:var(--brand-500);">
+            <label for="filter-pinned" style="margin:0; cursor:pointer; font-size:0.8125rem;">Pinned Only</label>
+          </div>
+          <div class="filter-group">
+            <label>Audit Scope</label>
+            <select id="filter-scope" class="input">
+              <option value="">All Scopes</option>
+              <option value="AP-01">AP-01: Strategy</option>
+              <option value="AP-02">AP-02: Schema</option>
+              <option value="AP-03">AP-03: Extractability</option>
+              <option value="AP-04">AP-04: Authority</option>
+              <option value="AP-05">AP-05: Citations</option>
+              <option value="AP-06">AP-06: Comp Intel</option>
+              <option value="AP-07">AP-07: Remediation</option>
+              <option value="AP-08">AP-08: Legal</option>
+              <option value="AP-09">AP-09: Tools</option>
+              <option value="AP-10">AP-10: Planning</option>
+            </select>
+          </div>
+          <div class="filter-group">
+            <label>Status</label>
+            <select id="filter-status" class="input">
+              <option value="">Active &amp; Contested</option>
+              <option value="active">Active</option>
+              <option value="contested">Contested</option>
+              <option value="deprecated">Deprecated</option>
+              <option value="archived">Archived</option>
+            </select>
+          </div>
+          <div class="filter-group">
+            <label>Confidence</label>
+            <select id="filter-confidence" class="input">
+              <option value="">Any Confidence</option>
+              <option value="high">High</option>
+              <option value="medium">Medium</option>
+              <option value="low">Low</option>
+            </select>
+          </div>
+          <div class="filter-group">
+            <label>Claim Type</label>
+            <select id="filter-type" class="input">
+              <option value="">All Types</option>
+              <option value="FACT">FACT</option>
+              <option value="GUIDANCE">GUIDANCE</option>
+              <option value="STANDARD">STANDARD</option>
+              <option value="FINDING">FINDING</option>
+              <option value="UNCERTAINTY">UNCERTAINTY</option>
+            </select>
+          </div>
+          <button id="btn-reset" class="btn-secondary" style="height:40px;">Reset</button>
+        </section>
+
+        <!-- Layout (Grid + Drawer) -->
+        <div class="claims-layout">
+          <!-- Grid -->
+          <section class="claims-grid" id="knowledge-container">
+            <!-- Loader -->
+            <div class="loader-container" style="display:flex; flex-direction:column; gap:12px;">
+              <div style="height:52px; width:100%; background:var(--surface-sunken); border-radius:6px; border:1px solid var(--border-default);"></div>
+              <div style="height:52px; width:100%; background:var(--surface-sunken); border-radius:6px; border:1px solid var(--border-default);"></div>
+              <div style="height:52px; width:100%; background:var(--surface-sunken); border-radius:6px; border:1px solid var(--border-default);"></div>
+            </div>
+          </section>
+          
+          <!-- Right Side Drawer -->
+          <aside id="knowledge-drawer" class="claim-drawer" style="display: none;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; padding-bottom:12px; border-bottom:1px solid var(--border-default);">
+              <h3 style="margin:0; font-size:1.05rem; color:var(--text-primary);">Knowledge Detail</h3>
+              <button id="btn-close-drawer" style="background:none; border:none; color:var(--text-tertiary); cursor:pointer; font-size:1.25rem; padding:4px;">&times;</button>
+            </div>
+            <div id="drawer-content"></div>
+          </aside>
+        </div>
+
+      </div>
+    </main>
+  </div>
+  
+  <script src="auth.js"></script>
+  <script src="knowledge_explorer.js"></script>
+  <script>
+    document.addEventListener('DOMContentLoaded', () => { 
+      window.AreosNav.renderNav('knowledge'); 
+    });
+
+    function toggleHelperCard(contentId, chevronId) {
+      const content = document.getElementById(contentId);
+      const chevron = document.getElementById(chevronId);
+      if (content && content.classList.contains('open')) {
+        content.classList.remove('open');
+        if (chevron) chevron.style.transform = 'rotate(-90deg)';
+      } else if (content) {
+        content.classList.add('open');
+        if (chevron) chevron.style.transform = 'rotate(0deg)';
+      }
+    }
+  </script>
+</body>
+</html>

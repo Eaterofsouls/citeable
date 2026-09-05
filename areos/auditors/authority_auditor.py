@@ -15,6 +15,7 @@ import logging
 import os
 import time
 import urllib.error
+import urllib.parse
 import urllib.request
 from dataclasses import dataclass, field
 from typing import Any
@@ -76,10 +77,11 @@ from areos.services.cache import ttl_cache
 def fetch_open_pagerank(domain: str, api_key: str) -> dict[str, Any] | None:
     """Scaffold for Open PageRank API retrieval."""
     try:
+        from areos.util.ssrf import safe_get
         url = f"https://openpagerank.com/api/v1.0/getPageRank?domains[]={urllib.parse.quote(domain)}"  # noqa: E501
-        req = urllib.request.Request(url, headers={"API-OPR": api_key})
-        with urllib.request.urlopen(req, timeout=10) as resp:
-            data = json.loads(resp.read().decode("utf-8"))
+        resp = safe_get(url, headers={"API-OPR": api_key}, timeout=10)  # resp.read(5 * 1024 * 1024) bounded via safe_get
+        if resp.status_code == 200:
+            data = json.loads(resp.text)
             if data.get("response") and len(data["response"]) > 0:
                 item = data["response"][0]
                 rank_score = item.get("page_rank_integer", 0)

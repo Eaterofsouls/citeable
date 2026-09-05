@@ -1,0 +1,200 @@
+{"rid": "REL-001", "from_kid": "KT-020", "to_kid": "KT-015", "rel_type": "related", "note": "Both concern the May 2026 FAQPage rich-result deprecation, but KT-015 is the SERP feature itself while KT-020 is the Search Console tooling (report + API) built around it."}
+{"rid": "REL-002", "from_kid": "KT-021", "to_kid": "KT-018", "rel_type": "related", "note": "Organic-rank-as-predictor finding (KT-018) and citation-selection-divergence-from-top-10 finding (KT-021) are complementary facets of the same underlying phenomenon."}
+{"rid": "REL-003", "from_kid": "KT-022", "to_kid": "KT-002", "rel_type": "related", "note": "KT-022 is a specific robots.txt-applicability caveat within the user-initiated-fetch crawler category that KT-002 defines."}
+{"rid": "REL-004", "from_kid": "KT-025", "to_kid": "KT-007", "rel_type": "related", "note": "Attribute-rich Product/Review schema showing a citation-rate difference is a possible narrow exception to KT-007’s null-to-negative finding for generic schema."}
+{"rid": "REL-005", "from_kid": "KT-026", "to_kid": "KT-007", "rel_type": "contradicts", "note": "Deprecated vendor uplift claims vs. the controlled-study null-to-negative finding that supersedes them as evidence."}
+{"rid": "REL-006", "from_kid": "KT-027", "to_kid": "KT-006", "rel_type": "related", "note": "Both concern schema not being strictly required for AI parsing."}
+{"rid": "REL-007", "from_kid": "KT-027", "to_kid": "KT-008", "rel_type": "related", "note": "Schema’s value is in disambiguation, not raw HTML parseability."}
+{"rid": "REL-008", "from_kid": "KT-029", "to_kid": "KT-001", "rel_type": "related", "note": "Same training-only opt-out-token pattern as Google-Extended."}
+{"rid": "REL-009", "from_kid": "KT-032", "to_kid": "KT-016", "rel_type": "related", "note": "API-terms counterpart to KT-016’s consumer-ToS scraping prohibition."}
+{"rid": "REL-010", "from_kid": "KT-034", "to_kid": "KT-033", "rel_type": "related", "note": "Rank-position disagreement about a factor whose existence KT-033 confirms."}
+{"rid": "REL-011", "from_kid": "KT-035", "to_kid": "KT-007", "rel_type": "related", "note": "Citation-volume half of the rank-position disagreement."}
+{"rid": "REL-012", "from_kid": "KT-035", "to_kid": "KT-008", "rel_type": "related", "note": "Entity-disambiguation half of the rank-position disagreement."}
+{"rid": "REL-013", "from_kid": "KT-036", "to_kid": "KT-010", "rel_type": "related", "note": "Rank-position companion to KT-010’s underlying JS-invisibility fact."}
+{"rid": "REL-014", "from_kid": "KT-039", "to_kid": "KT-037", "rel_type": "related", "note": "Clarifies which \"domain authority\" KT-037’s correlation figures refer to (general concept, not the Moz score)."}
+{"rid": "REL-015", "from_kid": "KT-041", "to_kid": "KT-034", "rel_type": "related", "note": "Shares the same unverified Zyppy/Shepard meta-analysis lead as a potential rank-dispute adjudicator."}
+{"rid": "REL-016", "from_kid": "KT-041", "to_kid": "KT-037", "rel_type": "related", "note": "Same Zyppy/Shepard source used elsewhere in this KB (unverified)."}
+{"rid": "REL-017", "from_kid": "KT-102", "to_kid": "KT-016", "rel_type": "instantiates", "note": "This groundingMetadata field is the Google-specific instance of the purpose-built citation-data-structure pattern generalized in KT-016."}
+{"rid": "REL-018", "from_kid": "KT-103", "to_kid": "KT-033", "rel_type": "related", "note": "Both concern crawl-access gating; KT-033 covers robots.txt-based blocking as a binary access gate, this record covers discovery (the prior step of URLs being *found* at all) and the crawl-vs-index distinction for Disallowed paths."}
+{"rid": "REL-019", "from_kid": "KT-104", "to_kid": "KT-033", "rel_type": "related", "note": "KT-033 states robots.txt-based blocking is a binary, documented access gate; this record supplies the mechanism (pre-fetch check happens before any HTTP request is made at all) plus the crawl-budget dimension KT-033 does not cover."}
+{"rid": "REL-020", "from_kid": "KT-104", "to_kid": "KT-002", "rel_type": "related", "note": "This record's WAF-misclassification failure mode (GPTBot/PerplexityBot returning 403/429) is a practical consequence of the crawler-category distinctions KT-002 documents."}
+{"rid": "REL-021", "from_kid": "KT-010", "to_kid": "KT-106", "rel_type": "elaborated_by", "note": "See REL from this record to KT-010 (elaborates) — recorded both directions for discoverability."}
+{"rid": "REL-022", "from_kid": "KT-108", "to_kid": "KT-013", "rel_type": "related", "note": "KT-013 covers indexability/snippet-control directives (nosnippet, noai); this record covers a distinct earlier concern — whether the crawler can fetch the subresources needed to render the page at all. Not a duplicate."}
+{"rid": "REL-023", "from_kid": "KT-110", "to_kid": "KT-109", "rel_type": "related", "note": "Deduplication (clustering near-duplicates) is the analytical step that precedes and feeds canonical selection; kept as separate records per the corpus's own separation of these two stages, cross-linked here."}
+{"rid": "REL-024", "from_kid": "KT-033", "to_kid": "KT-124", "rel_type": "justifies_guidance", "note": "KT-033 justifies the GUIDANCE record for check code CRAWLER_FULLY_BLOCKED."}
+{"rid": "REL-025", "from_kid": "KT-006", "to_kid": "KT-125", "rel_type": "justifies_guidance", "note": "KT-006 justifies the GUIDANCE record for check code JSON_PARSE_FAILURE."}
+{"rid": "REL-026", "from_kid": "KT-006", "to_kid": "KT-126", "rel_type": "justifies_guidance", "note": "KT-006 justifies the GUIDANCE record for check code MISSING_TYPE."}
+{"rid": "REL-027", "from_kid": "KT-006", "to_kid": "KT-127", "rel_type": "justifies_guidance", "note": "KT-006 justifies the GUIDANCE record for check code MISSING_REQUIRED_FIELD."}
+{"rid": "REL-028", "from_kid": "KT-010", "to_kid": "KT-128", "rel_type": "justifies_guidance", "note": "KT-010 justifies the GUIDANCE record for check code EXTRACTABILITY_NONE."}
+{"rid": "REL-029", "from_kid": "KT-041", "to_kid": "KT-129", "rel_type": "justifies_guidance", "note": "KT-041 justifies the GUIDANCE record for check code EXTRACTABILITY_LOW."}
+{"rid": "REL-030", "from_kid": "KT-009", "to_kid": "KT-130", "rel_type": "justifies_guidance", "note": "KT-009 justifies the GUIDANCE record for check code LLMS_TXT_MISSING."}
+{"rid": "REL-031", "from_kid": "KT-009", "to_kid": "KT-131", "rel_type": "justifies_guidance", "note": "KT-009 justifies the GUIDANCE record for check code LLMS_TXT_MISSING_H1."}
+{"rid": "REL-032", "from_kid": "KT-009", "to_kid": "KT-132", "rel_type": "justifies_guidance", "note": "KT-009 justifies the GUIDANCE record for check code LLMS_TXT_MISSING_SECTION."}
+{"rid": "REL-033", "from_kid": "KT-009", "to_kid": "KT-133", "rel_type": "justifies_guidance", "note": "KT-009 justifies the GUIDANCE record for check code LLMS_TXT_NO_LINKS."}
+{"rid": "REL-034", "from_kid": "KT-009", "to_kid": "KT-134", "rel_type": "justifies_guidance", "note": "KT-009 justifies the GUIDANCE record for check code LLMS_TXT_EMPTY_CONTENT."}
+{"rid": "REL-035", "from_kid": "KT-001", "to_kid": "KT-135", "rel_type": "justifies_guidance", "note": "KT-001 justifies the GUIDANCE record for check code GOOGLE_EXTENDED_MISSING."}
+{"rid": "REL-036", "from_kid": "KT-002", "to_kid": "KT-136", "rel_type": "justifies_guidance", "note": "KT-002 justifies the GUIDANCE record for check code GPTBOT_MISSING."}
+{"rid": "REL-037", "from_kid": "KT-012", "to_kid": "KT-137", "rel_type": "justifies_guidance", "note": "KT-012 justifies the GUIDANCE record for check code CITATION_NOT_OBSERVED."}
+{"rid": "REL-038", "from_kid": "KT-014", "to_kid": "KT-138", "rel_type": "justifies_guidance", "note": "KT-014 justifies the GUIDANCE record for check code CITATION_OBSERVED."}
+{"rid": "REL-039", "from_kid": "KT-014", "to_kid": "KT-139", "rel_type": "justifies_guidance", "note": "KT-014 justifies the GUIDANCE record for check code CITATION_WHY_UNKNOWN."}
+{"rid": "REL-040", "from_kid": "KT-025", "to_kid": "KT-140", "rel_type": "justifies_guidance", "note": "KT-025 justifies the GUIDANCE record for check code MISSING_RECOMMENDED_FIELD."}
+{"rid": "REL-041", "from_kid": "KT-006", "to_kid": "KT-141", "rel_type": "justifies_guidance", "note": "KT-006 justifies the GUIDANCE record for check code UNKNOWN_FIELD."}
+{"rid": "REL-042", "from_kid": "KT-006", "to_kid": "KT-142", "rel_type": "justifies_guidance", "note": "KT-006 justifies the GUIDANCE record for check code UNKNOWN_SCHEMA_TYPE."}
+{"rid": "REL-043", "from_kid": "KT-033", "to_kid": "KT-143", "rel_type": "justifies_guidance", "note": "KT-033 justifies the GUIDANCE record for check code CRAWLER_PARTIAL."}
+{"rid": "REL-044", "from_kid": "KT-033", "to_kid": "KT-144", "rel_type": "justifies_guidance", "note": "KT-033 justifies the GUIDANCE record for check code CRAWLER_ALLOWED."}
+{"rid": "REL-045", "from_kid": "KT-003", "to_kid": "KT-145", "rel_type": "justifies_guidance", "note": "KT-003 justifies the GUIDANCE record for check code NO_DIRECTIVE."}
+{"rid": "REL-046", "from_kid": "KT-003", "to_kid": "KT-146", "rel_type": "justifies_guidance", "note": "KT-003 justifies the GUIDANCE record for check code INVALID_CRAWL_DELAY."}
+{"rid": "REL-047", "from_kid": "KT-041", "to_kid": "KT-147", "rel_type": "justifies_guidance", "note": "KT-041 justifies the GUIDANCE record for check code EXTRACTABILITY_MEDIUM."}
+{"rid": "REL-048", "from_kid": "KT-041", "to_kid": "KT-148", "rel_type": "justifies_guidance", "note": "KT-041 justifies the GUIDANCE record for check code EXTRACTABILITY_HIGH."}
+{"rid": "REL-049", "from_kid": "KT-013", "to_kid": "KT-149", "rel_type": "justifies_guidance", "note": "KT-013 justifies the GUIDANCE record for check code NOSNIPPET_BLOCKING_AI."}
+{"rid": "REL-050", "from_kid": "KT-041", "to_kid": "KT-150", "rel_type": "justifies_guidance", "note": "KT-041 justifies the GUIDANCE record for check code ANSWER_NOT_NEAR_TOP."}
+{"rid": "REL-051", "from_kid": "KT-041", "to_kid": "KT-151", "rel_type": "justifies_guidance", "note": "KT-041 justifies the GUIDANCE record for check code ANSWER_NOT_SELF_CONTAINED."}
+{"rid": "REL-052", "from_kid": "KT-041", "to_kid": "KT-152", "rel_type": "justifies_guidance", "note": "KT-041 justifies the GUIDANCE record for check code ANSWER_NOT_FACTUALLY_SPECIFIC."}
+{"rid": "REL-053", "from_kid": "KT-041", "to_kid": "KT-153", "rel_type": "justifies_guidance", "note": "KT-041 justifies the GUIDANCE record for check code NO_LIST_OR_TABLE."}
+{"rid": "REL-054", "from_kid": "KT-041", "to_kid": "KT-154", "rel_type": "justifies_guidance", "note": "KT-041 justifies the GUIDANCE record for check code ANSWER_FORMAT_GOOD."}
+{"rid": "REL-055", "from_kid": "KT-039", "to_kid": "KT-155", "rel_type": "justifies_guidance", "note": "KT-039 justifies the GUIDANCE record for check code AUTHORITY_DR_LOW."}
+{"rid": "REL-056", "from_kid": "KT-037", "to_kid": "KT-156", "rel_type": "justifies_guidance", "note": "KT-037 justifies the GUIDANCE record for check code REFERRING_DOMAINS_CRITICAL."}
+{"rid": "REL-057", "from_kid": "KT-113", "to_kid": "KT-157", "rel_type": "justifies_guidance", "note": "KT-113 justifies the GUIDANCE record for check code WIKIPEDIA_ENTITY_MISSING."}
+{"rid": "REL-058", "from_kid": "KT-037", "to_kid": "KT-158", "rel_type": "justifies_guidance", "note": "KT-037 justifies the GUIDANCE record for check code BRAND_MENTIONS_STAGNANT."}
+{"rid": "REL-059", "from_kid": "KT-037", "to_kid": "KT-159", "rel_type": "justifies_guidance", "note": "KT-037 justifies the GUIDANCE record for check code AUTHORITY_PROFILE_GOOD."}
+{"rid": "REL-060", "from_kid": "KT-108", "to_kid": "KT-160", "rel_type": "justifies_guidance", "note": "KT-108 justifies the GUIDANCE record for check code C052."}
+{"rid": "REL-061", "from_kid": "KT-006", "to_kid": "KT-161", "rel_type": "justifies_guidance", "note": "KT-006 justifies the GUIDANCE record for check code C053."}
+{"rid": "REL-062", "from_kid": "KT-008", "to_kid": "KT-162", "rel_type": "justifies_guidance", "note": "KT-008 justifies the GUIDANCE record for check code C056."}
+{"rid": "REL-063", "from_kid": "KT-010", "to_kid": "KT-163", "rel_type": "justifies_guidance", "note": "KT-010 justifies the GUIDANCE record for check code C058."}
+{"rid": "REL-064", "from_kid": "KT-041", "to_kid": "KT-164", "rel_type": "justifies_guidance", "note": "KT-041 justifies the GUIDANCE record for check code C061."}
+{"rid": "REL-065", "from_kid": "KT-115", "to_kid": "KT-165", "rel_type": "justifies_guidance", "note": "KT-115 justifies the GUIDANCE record for check code C062."}
+{"rid": "REL-066", "from_kid": "KT-014", "to_kid": "KT-166", "rel_type": "justifies_guidance", "note": "KT-014 justifies the GUIDANCE record for check code C072."}
+{"rid": "REL-067", "from_kid": "KT-012", "to_kid": "KT-167", "rel_type": "justifies_guidance", "note": "KT-012 justifies the GUIDANCE record for check code C073."}
+{"rid": "REL-068", "from_kid": "KT-113", "to_kid": "KT-168", "rel_type": "justifies_guidance", "note": "KT-113 justifies the GUIDANCE record for check code C074."}
+{"rid": "REL-069", "from_kid": "KT-037", "to_kid": "KT-169", "rel_type": "justifies_guidance", "note": "KT-037 justifies the GUIDANCE record for check code C077."}
+{"rid": "REL-070", "from_kid": "KT-024", "to_kid": "KT-170", "rel_type": "justifies_guidance", "note": "KT-024 justifies the GUIDANCE record for check code C078."}
+{"rid": "REL-071", "from_kid": "KT-089", "to_kid": "KT-171", "rel_type": "justifies_guidance", "note": "KT-089 justifies the GUIDANCE record for check code C079."}
+{"rid": "REL-072", "from_kid": "KT-092", "to_kid": "KT-172", "rel_type": "justifies_guidance", "note": "KT-092 justifies the GUIDANCE record for check code C082."}
+{"rid": "REL-073", "from_kid": "KT-093", "to_kid": "KT-173", "rel_type": "justifies_guidance", "note": "KT-093 justifies the GUIDANCE record for check code C090."}
+{"rid": "REL-074", "from_kid": "KT-004", "to_kid": "KT-174", "rel_type": "supersedes", "note": "Superseded by atomic split records: KT-174, KT-175, KT-176."}
+{"rid": "REL-075", "from_kid": "KT-005", "to_kid": "KT-177", "rel_type": "supersedes", "note": "Superseded by atomic split records: KT-177, KT-178."}
+{"rid": "REL-076", "from_kid": "KT-006", "to_kid": "KT-179", "rel_type": "supersedes", "note": "Superseded by atomic split records: KT-179, KT-180."}
+{"rid": "REL-077", "from_kid": "KT-009", "to_kid": "KT-181", "rel_type": "supersedes", "note": "Superseded by atomic split records: KT-181, KT-182, KT-183, KT-184."}
+{"rid": "REL-078", "from_kid": "KT-015", "to_kid": "KT-185", "rel_type": "supersedes", "note": "Superseded by atomic split records: KT-185, KT-186."}
+{"rid": "REL-079", "from_kid": "KT-016", "to_kid": "KT-187", "rel_type": "supersedes", "note": "Superseded by atomic split records: KT-187, KT-188."}
+{"rid": "REL-080", "from_kid": "KT-033", "to_kid": "KT-034", "rel_type": "related", "note": "KT-033 establishes the gate is real; KT-034 covers the contested rank-position question."}
+{"rid": "REL-081", "from_kid": "KT-037", "to_kid": "KT-039", "rel_type": "related", "note": "KT-039 distinguishes the Moz-proprietary DA metric from the general concept measured here."}
+{"rid": "REL-082", "from_kid": "KT-060", "to_kid": "KT-189", "rel_type": "supersedes", "note": "Superseded by atomic split records: KT-189, KT-190."}
+{"rid": "REL-083", "from_kid": "KT-069", "to_kid": "KT-191", "rel_type": "supersedes", "note": "Superseded by atomic split records: KT-191, KT-192."}
+{"rid": "REL-084", "from_kid": "KT-106", "to_kid": "KT-010", "rel_type": "elaborates", "note": "KT-010 states the high-level fact that JS-only content is invisible to non-rendering crawlers; this record supplies the mechanism (two-wave model, WRS evergreen Chromium timing, the specific named AI-crawler list, and log-analysis evidence)."}
+{"rid": "REL-085", "from_kid": "KT-106", "to_kid": "KT-193", "rel_type": "supersedes", "note": "Superseded by atomic split records: KT-193, KT-194."}
+{"rid": "REL-086", "from_kid": "KT-107", "to_kid": "KT-010", "rel_type": "related", "note": "Both concern JS-dependent content visibility to crawlers; KT-010 is the high-level fact, this record is the execution-timing/error-handling detail one level deeper than the rendering-stage record."}
+{"rid": "REL-087", "from_kid": "KT-108", "to_kid": "KT-195", "rel_type": "supersedes", "note": "Superseded by atomic split records: KT-195, KT-196."}
+{"rid": "REL-088", "from_kid": "KT-111", "to_kid": "KT-013", "rel_type": "related", "note": "KT-013 covers the nosnippet/data-nosnippet directive family as an indexability/snippet control; this record covers the broader main-content-vs-boilerplate extraction step those directives are one tool within."}
+{"rid": "REL-089", "from_kid": "KT-112", "to_kid": "KT-008", "rel_type": "related", "note": "KT-008 covers whether schema disambiguation empirically helps citation; this record covers the underlying entity-recognition/disambiguation mechanism."}
+{"rid": "REL-090", "from_kid": "KT-113", "to_kid": "KT-008", "rel_type": "related", "note": "KT-008 (schema aids disambiguation) is the citation-relevance framing of this record's KG-association mechanism."}
+{"rid": "REL-091", "from_kid": "KT-114", "to_kid": "KT-197", "rel_type": "supersedes", "note": "Superseded by atomic split records: KT-197, KT-198, KT-199."}
+{"rid": "REL-092", "from_kid": "KT-115", "to_kid": "KT-041", "rel_type": "related", "note": "KT-041 is the content-authoring guidance that this record's passage-ranking mechanism justifies."}
+{"rid": "REL-093", "from_kid": "KT-117", "to_kid": "KT-104", "rel_type": "related", "note": "KT-104 covers the robots.txt pre-fetch check; this record covers the downstream noindex-visibility consequence of combining that with noindex."}
+{"rid": "REL-094", "from_kid": "KT-117", "to_kid": "KT-013", "rel_type": "related", "note": "KT-013 covers the noindex/nosnippet directive family; this record covers the specific robots.txt+noindex misconfiguration failure mode."}
+{"rid": "REL-095", "from_kid": "KT-120", "to_kid": "KT-011", "rel_type": "related", "note": "KT-011 establishes AI Overviews share Search’s index; this record adds the opt-out-control clarification."}
+{"rid": "REL-096", "from_kid": "KT-120", "to_kid": "KT-004", "rel_type": "related", "note": "KT-004 is the detailed Perplexity robots.txt-compliance-dispute record this claim’s Perplexity mention summarizes."}
+{"rid": "REL-097", "from_kid": "KT-120", "to_kid": "KT-022", "rel_type": "related", "note": "KT-022 already documents OpenAI’s GPTBot/OAI-SearchBot/ChatGPT-User distinction in more depth."}
+{"rid": "REL-098", "from_kid": "KT-121", "to_kid": "KT-012", "rel_type": "related", "note": "KT-012 establishes the selection algorithm is undisclosed; this record adds the display-feature inventory on top of that."}
+{"rid": "REL-099", "from_kid": "KT-122", "to_kid": "KT-013", "rel_type": "related", "note": "KT-013 documents the opt-out directive family; this record documents the underlying dynamic-generation mechanism they control."}
+{"rid": "REL-100", "from_kid": "KT-122", "to_kid": "KT-200", "rel_type": "supersedes", "note": "Superseded by atomic split records: KT-200, KT-201, KT-202."}
+{"rid": "REL-101", "from_kid": "KT-124", "to_kid": "KT-033", "rel_type": "related", "note": "Rationale for this GUIDANCE record."}
+{"rid": "REL-102", "from_kid": "KT-125", "to_kid": "KT-006", "rel_type": "related", "note": "Rationale for this GUIDANCE record."}
+{"rid": "REL-103", "from_kid": "KT-126", "to_kid": "KT-006", "rel_type": "related", "note": "Rationale for this GUIDANCE record."}
+{"rid": "REL-104", "from_kid": "KT-127", "to_kid": "KT-006", "rel_type": "related", "note": "Rationale for this GUIDANCE record."}
+{"rid": "REL-105", "from_kid": "KT-128", "to_kid": "KT-010", "rel_type": "related", "note": "Rationale for this GUIDANCE record."}
+{"rid": "REL-106", "from_kid": "KT-128", "to_kid": "KT-111", "rel_type": "related", "note": "KT-111 covers the content-extraction mechanism this check is diagnosing the absence of."}
+{"rid": "REL-107", "from_kid": "KT-129", "to_kid": "KT-041", "rel_type": "related", "note": "Rationale for this GUIDANCE record."}
+{"rid": "REL-108", "from_kid": "KT-130", "to_kid": "KT-009", "rel_type": "related", "note": "Rationale for this GUIDANCE record."}
+{"rid": "REL-109", "from_kid": "KT-131", "to_kid": "KT-009", "rel_type": "related", "note": "Rationale for this GUIDANCE record."}
+{"rid": "REL-110", "from_kid": "KT-132", "to_kid": "KT-009", "rel_type": "related", "note": "Rationale for this GUIDANCE record."}
+{"rid": "REL-111", "from_kid": "KT-133", "to_kid": "KT-009", "rel_type": "related", "note": "Rationale for this GUIDANCE record."}
+{"rid": "REL-112", "from_kid": "KT-134", "to_kid": "KT-009", "rel_type": "related", "note": "Rationale for this GUIDANCE record."}
+{"rid": "REL-113", "from_kid": "KT-135", "to_kid": "KT-001", "rel_type": "related", "note": "Rationale for this GUIDANCE record."}
+{"rid": "REL-114", "from_kid": "KT-136", "to_kid": "KT-002", "rel_type": "related", "note": "Rationale for this GUIDANCE record."}
+{"rid": "REL-115", "from_kid": "KT-137", "to_kid": "KT-012", "rel_type": "related", "note": "Rationale for this GUIDANCE record."}
+{"rid": "REL-116", "from_kid": "KT-138", "to_kid": "KT-014", "rel_type": "related", "note": "Rationale for this GUIDANCE record."}
+{"rid": "REL-117", "from_kid": "KT-139", "to_kid": "KT-014", "rel_type": "related", "note": "Rationale for this GUIDANCE record."}
+{"rid": "REL-118", "from_kid": "KT-140", "to_kid": "KT-025", "rel_type": "related", "note": "Rationale for this GUIDANCE record."}
+{"rid": "REL-119", "from_kid": "KT-141", "to_kid": "KT-006", "rel_type": "related", "note": "Rationale for this GUIDANCE record."}
+{"rid": "REL-120", "from_kid": "KT-142", "to_kid": "KT-006", "rel_type": "related", "note": "Rationale for this GUIDANCE record."}
+{"rid": "REL-121", "from_kid": "KT-143", "to_kid": "KT-033", "rel_type": "related", "note": "Rationale for this GUIDANCE record."}
+{"rid": "REL-122", "from_kid": "KT-144", "to_kid": "KT-033", "rel_type": "related", "note": "Rationale for this GUIDANCE record."}
+{"rid": "REL-123", "from_kid": "KT-145", "to_kid": "KT-003", "rel_type": "related", "note": "Rationale for this GUIDANCE record."}
+{"rid": "REL-124", "from_kid": "KT-146", "to_kid": "KT-003", "rel_type": "related", "note": "Rationale for this GUIDANCE record."}
+{"rid": "REL-125", "from_kid": "KT-147", "to_kid": "KT-041", "rel_type": "related", "note": "Rationale for this GUIDANCE record."}
+{"rid": "REL-126", "from_kid": "KT-148", "to_kid": "KT-041", "rel_type": "related", "note": "Rationale for this GUIDANCE record."}
+{"rid": "REL-127", "from_kid": "KT-149", "to_kid": "KT-013", "rel_type": "related", "note": "Rationale for this GUIDANCE record."}
+{"rid": "REL-128", "from_kid": "KT-150", "to_kid": "KT-041", "rel_type": "related", "note": "Rationale for this GUIDANCE record."}
+{"rid": "REL-129", "from_kid": "KT-151", "to_kid": "KT-041", "rel_type": "related", "note": "Rationale for this GUIDANCE record."}
+{"rid": "REL-130", "from_kid": "KT-152", "to_kid": "KT-041", "rel_type": "related", "note": "Rationale for this GUIDANCE record."}
+{"rid": "REL-131", "from_kid": "KT-153", "to_kid": "KT-041", "rel_type": "related", "note": "Rationale for this GUIDANCE record."}
+{"rid": "REL-132", "from_kid": "KT-154", "to_kid": "KT-041", "rel_type": "related", "note": "Rationale for this GUIDANCE record."}
+{"rid": "REL-133", "from_kid": "KT-155", "to_kid": "KT-039", "rel_type": "related", "note": "Rationale for this GUIDANCE record."}
+{"rid": "REL-134", "from_kid": "KT-156", "to_kid": "KT-037", "rel_type": "related", "note": "Rationale for this GUIDANCE record."}
+{"rid": "REL-135", "from_kid": "KT-157", "to_kid": "KT-113", "rel_type": "related", "note": "Rationale for this GUIDANCE record."}
+{"rid": "REL-136", "from_kid": "KT-157", "to_kid": "KT-008", "rel_type": "related", "note": "KT-008 covers the schema-markup mechanism (sameAs/@id) this guidance recommends using to establish the reference."}
+{"rid": "REL-137", "from_kid": "KT-158", "to_kid": "KT-037", "rel_type": "related", "note": "Rationale for this GUIDANCE record."}
+{"rid": "REL-138", "from_kid": "KT-159", "to_kid": "KT-037", "rel_type": "related", "note": "Rationale for this GUIDANCE record."}
+{"rid": "REL-139", "from_kid": "KT-160", "to_kid": "KT-108", "rel_type": "related", "note": "Rationale for this GUIDANCE record."}
+{"rid": "REL-140", "from_kid": "KT-161", "to_kid": "KT-006", "rel_type": "related", "note": "Rationale for this GUIDANCE record."}
+{"rid": "REL-141", "from_kid": "KT-162", "to_kid": "KT-008", "rel_type": "related", "note": "Rationale for this GUIDANCE record."}
+{"rid": "REL-142", "from_kid": "KT-162", "to_kid": "KT-112", "rel_type": "related", "note": "KT-112 covers the underlying entity-recognition/disambiguation mechanism this guidance is targeting."}
+{"rid": "REL-143", "from_kid": "KT-163", "to_kid": "KT-010", "rel_type": "related", "note": "Rationale for this GUIDANCE record."}
+{"rid": "REL-144", "from_kid": "KT-164", "to_kid": "KT-041", "rel_type": "related", "note": "Rationale for this GUIDANCE record."}
+{"rid": "REL-145", "from_kid": "KT-164", "to_kid": "KT-015", "rel_type": "related", "note": "KT-015 documents the FAQ rich-result deprecation this guidance's FAQPage recommendation should be read in light of."}
+{"rid": "REL-146", "from_kid": "KT-165", "to_kid": "KT-115", "rel_type": "related", "note": "Rationale for this GUIDANCE record."}
+{"rid": "REL-147", "from_kid": "KT-166", "to_kid": "KT-014", "rel_type": "related", "note": "Rationale for this GUIDANCE record."}
+{"rid": "REL-148", "from_kid": "KT-167", "to_kid": "KT-012", "rel_type": "related", "note": "Rationale for this GUIDANCE record."}
+{"rid": "REL-149", "from_kid": "KT-168", "to_kid": "KT-113", "rel_type": "related", "note": "Rationale for this GUIDANCE record."}
+{"rid": "REL-150", "from_kid": "KT-169", "to_kid": "KT-037", "rel_type": "related", "note": "Rationale for this GUIDANCE record."}
+{"rid": "REL-151", "from_kid": "KT-170", "to_kid": "KT-024", "rel_type": "related", "note": "Rationale for this GUIDANCE record."}
+{"rid": "REL-152", "from_kid": "KT-171", "to_kid": "KT-089", "rel_type": "related", "note": "Rationale for this GUIDANCE record."}
+{"rid": "REL-153", "from_kid": "KT-172", "to_kid": "KT-092", "rel_type": "related", "note": "Rationale for this GUIDANCE record."}
+{"rid": "REL-154", "from_kid": "KT-173", "to_kid": "KT-093", "rel_type": "related", "note": "Rationale for this GUIDANCE record."}
+{"rid": "REL-155", "from_kid": "KT-174", "to_kid": "KT-175", "rel_type": "related", "note": "Sibling record from the same SPLIT of KT-004 (Session 10 atomicity audit)."}
+{"rid": "REL-156", "from_kid": "KT-174", "to_kid": "KT-176", "rel_type": "related", "note": "Sibling record from the same SPLIT of KT-004 (Session 10 atomicity audit)."}
+{"rid": "REL-157", "from_kid": "KT-175", "to_kid": "KT-174", "rel_type": "related", "note": "Sibling record from the same SPLIT of KT-004 (Session 10 atomicity audit)."}
+{"rid": "REL-158", "from_kid": "KT-175", "to_kid": "KT-176", "rel_type": "related", "note": "Sibling record from the same SPLIT of KT-004 (Session 10 atomicity audit)."}
+{"rid": "REL-159", "from_kid": "KT-176", "to_kid": "KT-174", "rel_type": "related", "note": "Sibling record from the same SPLIT of KT-004 (Session 10 atomicity audit)."}
+{"rid": "REL-160", "from_kid": "KT-176", "to_kid": "KT-175", "rel_type": "related", "note": "Sibling record from the same SPLIT of KT-004 (Session 10 atomicity audit)."}
+{"rid": "REL-161", "from_kid": "KT-177", "to_kid": "KT-178", "rel_type": "related", "note": "Sibling record from the same SPLIT of KT-005 (Session 10 atomicity audit)."}
+{"rid": "REL-162", "from_kid": "KT-178", "to_kid": "KT-177", "rel_type": "related", "note": "Sibling record from the same SPLIT of KT-005 (Session 10 atomicity audit)."}
+{"rid": "REL-163", "from_kid": "KT-179", "to_kid": "KT-180", "rel_type": "related", "note": "Sibling record from the same SPLIT of KT-006 (Session 10 atomicity audit)."}
+{"rid": "REL-164", "from_kid": "KT-180", "to_kid": "KT-179", "rel_type": "related", "note": "Sibling record from the same SPLIT of KT-006 (Session 10 atomicity audit)."}
+{"rid": "REL-165", "from_kid": "KT-181", "to_kid": "KT-182", "rel_type": "related", "note": "Sibling record from the same SPLIT of KT-009 (Session 10 atomicity audit)."}
+{"rid": "REL-166", "from_kid": "KT-181", "to_kid": "KT-183", "rel_type": "related", "note": "Sibling record from the same SPLIT of KT-009 (Session 10 atomicity audit)."}
+{"rid": "REL-167", "from_kid": "KT-181", "to_kid": "KT-184", "rel_type": "related", "note": "Sibling record from the same SPLIT of KT-009 (Session 10 atomicity audit)."}
+{"rid": "REL-168", "from_kid": "KT-182", "to_kid": "KT-181", "rel_type": "related", "note": "Sibling record from the same SPLIT of KT-009 (Session 10 atomicity audit)."}
+{"rid": "REL-169", "from_kid": "KT-182", "to_kid": "KT-183", "rel_type": "related", "note": "Sibling record from the same SPLIT of KT-009 (Session 10 atomicity audit)."}
+{"rid": "REL-170", "from_kid": "KT-182", "to_kid": "KT-184", "rel_type": "related", "note": "Sibling record from the same SPLIT of KT-009 (Session 10 atomicity audit)."}
+{"rid": "REL-171", "from_kid": "KT-183", "to_kid": "KT-181", "rel_type": "related", "note": "Sibling record from the same SPLIT of KT-009 (Session 10 atomicity audit)."}
+{"rid": "REL-172", "from_kid": "KT-183", "to_kid": "KT-182", "rel_type": "related", "note": "Sibling record from the same SPLIT of KT-009 (Session 10 atomicity audit)."}
+{"rid": "REL-173", "from_kid": "KT-183", "to_kid": "KT-184", "rel_type": "related", "note": "Sibling record from the same SPLIT of KT-009 (Session 10 atomicity audit)."}
+{"rid": "REL-174", "from_kid": "KT-184", "to_kid": "KT-181", "rel_type": "related", "note": "Sibling record from the same SPLIT of KT-009 (Session 10 atomicity audit)."}
+{"rid": "REL-175", "from_kid": "KT-184", "to_kid": "KT-182", "rel_type": "related", "note": "Sibling record from the same SPLIT of KT-009 (Session 10 atomicity audit)."}
+{"rid": "REL-176", "from_kid": "KT-184", "to_kid": "KT-183", "rel_type": "related", "note": "Sibling record from the same SPLIT of KT-009 (Session 10 atomicity audit)."}
+{"rid": "REL-177", "from_kid": "KT-185", "to_kid": "KT-186", "rel_type": "related", "note": "Sibling record from the same SPLIT of KT-015 (Session 10 atomicity audit)."}
+{"rid": "REL-178", "from_kid": "KT-186", "to_kid": "KT-185", "rel_type": "related", "note": "Sibling record from the same SPLIT of KT-015 (Session 10 atomicity audit)."}
+{"rid": "REL-179", "from_kid": "KT-187", "to_kid": "KT-188", "rel_type": "related", "note": "Sibling record from the same SPLIT of KT-016 (Session 10 atomicity audit)."}
+{"rid": "REL-180", "from_kid": "KT-188", "to_kid": "KT-187", "rel_type": "related", "note": "Sibling record from the same SPLIT of KT-016 (Session 10 atomicity audit)."}
+{"rid": "REL-181", "from_kid": "KT-189", "to_kid": "KT-190", "rel_type": "related", "note": "Sibling record from the same SPLIT of KT-060 (Session 10 atomicity audit)."}
+{"rid": "REL-182", "from_kid": "KT-190", "to_kid": "KT-189", "rel_type": "related", "note": "Sibling record from the same SPLIT of KT-060 (Session 10 atomicity audit)."}
+{"rid": "REL-183", "from_kid": "KT-191", "to_kid": "KT-192", "rel_type": "related", "note": "Sibling record from the same SPLIT of KT-069 (Session 10 atomicity audit)."}
+{"rid": "REL-184", "from_kid": "KT-192", "to_kid": "KT-191", "rel_type": "related", "note": "Sibling record from the same SPLIT of KT-069 (Session 10 atomicity audit)."}
+{"rid": "REL-185", "from_kid": "KT-193", "to_kid": "KT-194", "rel_type": "related", "note": "Sibling record from the same SPLIT of KT-106 (Session 10 atomicity audit)."}
+{"rid": "REL-186", "from_kid": "KT-194", "to_kid": "KT-193", "rel_type": "related", "note": "Sibling record from the same SPLIT of KT-106 (Session 10 atomicity audit)."}
+{"rid": "REL-187", "from_kid": "KT-195", "to_kid": "KT-196", "rel_type": "related", "note": "Sibling record from the same SPLIT of KT-108 (Session 10 atomicity audit)."}
+{"rid": "REL-188", "from_kid": "KT-196", "to_kid": "KT-195", "rel_type": "related", "note": "Sibling record from the same SPLIT of KT-108 (Session 10 atomicity audit)."}
+{"rid": "REL-189", "from_kid": "KT-197", "to_kid": "KT-198", "rel_type": "related", "note": "Sibling record from the same SPLIT of KT-114 (Session 10 atomicity audit)."}
+{"rid": "REL-190", "from_kid": "KT-197", "to_kid": "KT-199", "rel_type": "related", "note": "Sibling record from the same SPLIT of KT-114 (Session 10 atomicity audit)."}
+{"rid": "REL-191", "from_kid": "KT-198", "to_kid": "KT-197", "rel_type": "related", "note": "Sibling record from the same SPLIT of KT-114 (Session 10 atomicity audit)."}
+{"rid": "REL-192", "from_kid": "KT-198", "to_kid": "KT-199", "rel_type": "related", "note": "Sibling record from the same SPLIT of KT-114 (Session 10 atomicity audit)."}
+{"rid": "REL-193", "from_kid": "KT-199", "to_kid": "KT-197", "rel_type": "related", "note": "Sibling record from the same SPLIT of KT-114 (Session 10 atomicity audit)."}
+{"rid": "REL-194", "from_kid": "KT-199", "to_kid": "KT-198", "rel_type": "related", "note": "Sibling record from the same SPLIT of KT-114 (Session 10 atomicity audit)."}
+{"rid": "REL-195", "from_kid": "KT-200", "to_kid": "KT-201", "rel_type": "related", "note": "Sibling record from the same SPLIT of KT-122 (Session 10 atomicity audit)."}
+{"rid": "REL-196", "from_kid": "KT-200", "to_kid": "KT-202", "rel_type": "related", "note": "Sibling record from the same SPLIT of KT-122 (Session 10 atomicity audit)."}
+{"rid": "REL-197", "from_kid": "KT-201", "to_kid": "KT-200", "rel_type": "related", "note": "Sibling record from the same SPLIT of KT-122 (Session 10 atomicity audit)."}
+{"rid": "REL-198", "from_kid": "KT-201", "to_kid": "KT-202", "rel_type": "related", "note": "Sibling record from the same SPLIT of KT-122 (Session 10 atomicity audit)."}
+{"rid": "REL-199", "from_kid": "KT-202", "to_kid": "KT-200", "rel_type": "related", "note": "Sibling record from the same SPLIT of KT-122 (Session 10 atomicity audit)."}
+{"rid": "REL-200", "from_kid": "KT-202", "to_kid": "KT-201", "rel_type": "related", "note": "Sibling record from the same SPLIT of KT-122 (Session 10 atomicity audit)."}

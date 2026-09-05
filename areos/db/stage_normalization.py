@@ -11,11 +11,23 @@ from pathlib import Path
 from typing import Optional
 
 _ALIASES: dict[str, str] | None = None
+_ALIASES_MTIME: float | None = None
 
 
 def _load_aliases(alias_file: Path) -> dict[str, str]:
-    global _ALIASES
-    if _ALIASES is None:
+    global _ALIASES, _ALIASES_MTIME
+    current_mtime = alias_file.stat().st_mtime if alias_file.exists() else 0.0
+    if _ALIASES is None or _ALIASES_MTIME != current_mtime:
+        _ALIASES_MTIME = current_mtime
+        default_aliases = {
+            "stage-01": "STAGE-01", "stage-02": "STAGE-02", "stage-03": "STAGE-03",
+            "stage-04": "STAGE-04", "stage-05": "STAGE-05",
+            "ap-01": "STAGE-01", "ap-02": "STAGE-02", "ap-03": "STAGE-03",
+            "ap-04": "STAGE-04", "ap-05": "STAGE-05",
+        }
+        if not alias_file.exists():
+            _ALIASES = default_aliases
+            return _ALIASES
         try:
             import yaml
             data = yaml.safe_load(alias_file.read_text(encoding="utf-8"))
@@ -28,7 +40,8 @@ def _load_aliases(alias_file: Path) -> dict[str, str]:
                     continue
                 k, _, v = line.partition(":")
                 data["aliases"][k.strip().strip('"')] = v.strip().strip('"')
-        _ALIASES = {k.lower().strip(): v for k, v in data.get("aliases", {}).items()}
+        aliases_map = data.get("aliases", {}) if isinstance(data, dict) else {}
+        _ALIASES = {k.lower().strip(): v for k, v in aliases_map.items()} if aliases_map else default_aliases
     return _ALIASES
 
 

@@ -6,8 +6,8 @@
   <title>Citeable | AI Key Vault (BYOK)</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="index.css?v=2">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="index.css?v=3">
   <link rel="icon" type="image/svg+xml" href="favicon.svg">
   <meta name="description" content="Citeable BYOK AI Vault — securely register your own AI provider API keys for use in the synthesis pipeline.">
 
@@ -23,7 +23,7 @@
     <!-- Sidebar Navigation -->
     <aside class="sidebar">
       <div class="logo">
-        <div class="logo-icon"><img src="favicon.svg" alt="Citeable Logo" width="24" height="24"></div>
+        <div class="logo-icon"><img src="favicon.svg" alt="Citeable Logo" width="32" height="32"></div>
         <div class="logo-text">Citeable</div>
       </div>
       <nav id="main-nav"></nav>
@@ -31,49 +31,46 @@
 
     <!-- Main Content -->
     <main class="main-content">
-      <div style="padding: 2rem 2.5rem; max-width: 860px;">
-        <div class="section-header" style="margin-bottom: 2rem;">
-          <h1 style="font-size: 1.8rem; font-weight: 800; color: var(--text); margin: 0 0 0.5rem 0;">
-            AI Key Vault <span style="color: var(--neon-green); font-size: 1rem; font-weight: 600; margin-left: 0.5rem;">BYOK</span>
-          </h1>
-          <p style="color: var(--text-secondary); margin: 0; font-size: 0.95rem;">
-            Register your own AI provider API keys. Keys are stored in your browser only — never sent to Citeable servers except as request headers during synthesis.
-          </p>
+      <header class="topbar">
+        <div class="page-title-wrap">
+          <h2>AI Provider Key Vault (BYOK)</h2>
+        </div>
+        <div class="topbar-meta">
+          <span class="status-pill info">Client-Side Isolation</span>
+        </div>
+      </header>
+
+      <div class="page-container page-container--narrow">
+
+        <!-- HELPER CARD: Security & Local Key Isolation -->
+        <div class="context-helper-card" id="helper-byok-primer">
+          <div class="helper-bar blue"></div>
+          <div style="padding:16px 20px; display:flex; align-items:center; gap:12px;">
+            <div style="width:28px; height:28px; border-radius:6px; background:var(--brand-50); border:1px solid var(--brand-100); display:flex; align-items:center; justify-content:center; color:var(--brand-500); flex-shrink:0;">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
+            </div>
+            <div>
+              <strong style="font-size:0.9rem; color:var(--text-primary); display:block;">Client-Side Ephemeral Credential Security</strong>
+              <p style="margin:2px 0 0; font-size:0.8125rem; color:var(--text-secondary); line-height:1.5;">
+                API keys saved here are stored exclusively in your browser's local memory (<code>localStorage</code>) and transmitted solely as ephemeral headers during audit synthesis. Keys are never logged or stored on our servers.
+              </p>
+            </div>
+          </div>
         </div>
 
         <!-- BYOK panel rendered by byok.js -->
         <div id="byok-vault-container"></div>
 
-        <div style="margin-top: 2rem; padding: 1.2rem 1.5rem; background: rgba(99,102,241,0.08); border: 1px solid rgba(99,102,241,0.25); border-radius: 10px;">
-          <p style="color: var(--text-secondary); font-size: 0.85rem; margin: 0; line-height: 1.6;">
-            <strong style="color: var(--text);">How it works:</strong> After verifying a key, it is stored in your browser's localStorage under <code style="background:rgba(0,0,0,0.3); padding: 0.1rem 0.4rem; border-radius: 4px; font-size: 0.8rem;">areos_byok_vault</code>.
-            When you run an audit, the key is sent as an <code style="background:rgba(0,0,0,0.3); padding: 0.1rem 0.4rem; border-radius: 4px; font-size: 0.8rem;">X-API-Key-&lt;provider&gt;</code> header.
-            Keys are never logged or persisted on the server.
-          </p>
-        </div>
       </div>
     </main>
   </div>
 
   <script src="byok.js"></script>
   <script>
-    // Initialise sidebar nav
     document.addEventListener('DOMContentLoaded', () => {
       if (window.AreosNav) AreosNav.renderNav('byok');
-      // If BYOKVault is loaded, open it into the container
       if (window.BYOKVault && typeof BYOKVault.renderInline === 'function') {
         BYOKVault.renderInline(document.getElementById('byok-vault-container'));
-      } else {
-        // Fallback: trigger the modal open button
-        document.getElementById('byok-vault-container').innerHTML = `
-          <div style="text-align:center; padding: 3rem;">
-            <button onclick="if(window.BYOKVault) BYOKVault.open();" class="btn-primary" style="padding: 0.8rem 2rem; font-size: 1rem;">
-              Open AI Key Vault
-            </button>
-            <p style="color:var(--text-secondary); margin-top: 1rem; font-size: 0.85rem;">
-              Or use the <strong>BYOK AI Vault</strong> button in the sidebar navigation on any page.
-            </p>
-          </div>`;
       }
     });
   </script>

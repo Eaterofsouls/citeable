@@ -1,120 +1,158 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
- <meta charset="UTF-8">
- <meta name="viewport" content="width=device-width, initial-scale=1.0">
- <title>Citeable | Approvals</title>
- <link rel="preconnect" href="https://fonts.googleapis.com">
- <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
- <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
- <link rel="stylesheet" href="index.css">
- <!-- Inline styles stripped for unified design system -->
- <link rel="icon" type="image/svg+xml" href="favicon.svg">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Citeable | Approvals</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="index.css?v=3">
+  <link rel="icon" type="image/svg+xml" href="favicon.svg">
 
- <script src="context.js"></script>
- <script src="identity.js"></script>
- <script src="api.js"></script>
- <script src="dom.js"></script>
- <script src="nav.js"></script>
+  <script src="context.js"></script>
+  <script src="identity.js"></script>
+  <script src="api.js"></script>
+  <script src="dom.js"></script>
+  <script src="nav.js"></script>
 </head>
 <body>
- <div class="app-container">
- <!-- Sidebar Navigation -->
- <aside class="sidebar">
- <div class="logo">
- <div class="logo-icon"><img src="favicon.svg" alt="Citeable Logo" width="24" height="24"></div>
- <h1>Citeable</h1>
- </div>
- <nav id="main-nav"></nav>
- </aside>
+  <div class="app-container">
+    <!-- Sidebar Navigation -->
+    <aside class="sidebar">
+      <div class="logo">
+        <div class="logo-icon"><img src="favicon.svg" alt="Citeable Logo" width="32" height="32"></div>
+        <h1>Citeable</h1>
+      </div>
+      <nav id="main-nav"></nav>
+    </aside>
 
- <!-- Main Content -->
- <main class="main-content">
- <header class="topbar" style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #333333; padding:32px 44px; background:#0D0D0D;">
- <div>
- <div style="font-size:0.78rem; font-weight:800; letter-spacing:0.2em; text-transform:uppercase; color:#AAAAAA; margin-bottom:8px;">Citeable / Verification & Governance</div>
- <h2 style="font-size:2.5rem; font-weight:900; letter-spacing:0.04em; text-transform:uppercase; margin:0;">CLAIM APPROVALS QUEUE</h2>
- </div>
- <div style="display:flex; gap:18px; align-items:center;">
-  <div style="background:#181818; border:1px solid #777777; padding:6px 14px; border-radius:6px; font-family:var(--font-mono); font-weight:700; font-size:0.85rem; color:#FFFFFF; box-shadow:0 4px 18px rgba(0,0,0,0.6);">
-  QUEUE STATUS: <span id="pending-count" style="color:#FFFFFF; font-weight:900; margin-left:8px;">Loading...</span>
+    <!-- Main Content -->
+    <main class="main-content">
+      <header class="topbar">
+        <div class="page-title-wrap">
+          <h2>Claim Approvals Queue</h2>
+        </div>
+        <div class="topbar-meta">
+          <span class="status-pill warning" id="pending-count">Loading queue...</span>
+        </div>
+      </header>
+
+      <div class="page-container page-container--fluid">
+
+        <!-- HELPER CARD: Governance & Mutation Protocol -->
+        <div class="context-helper-card" id="helper-approvals-primer">
+          <div class="helper-bar emerald"></div>
+          <div class="helper-card-header" onclick="toggleHelperCard('helper-approvals-content', 'helper-approvals-chevron')">
+            <div style="display:flex; align-items:center; gap:12px;">
+              <div style="width:28px; height:28px; border-radius:6px; background:var(--surface-sunken); display:flex; align-items:center; justify-content:center; border:1px solid var(--border-default); color:var(--text-secondary);">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="18" cy="18" r="3"/><circle cx="6" cy="6" r="3"/><path d="M13 6h3a2 2 0 0 1 2 2v7"/><line x1="6" y1="9" x2="6" y2="21"/></svg>
+              </div>
+              <div>
+                <div style="font-weight:600; color:var(--text-primary); font-size:0.875rem;">Knowledge Base Mutation &amp; Verification Protocol</div>
+                <div style="font-size:0.75rem; color:var(--text-tertiary);">Approvals Console · Candidate Claim Governance</div>
+              </div>
+            </div>
+            <div style="display:flex; align-items:center; gap:12px;">
+              <span class="status-pill success">DB Truth Protected</span>
+              <span id="helper-approvals-chevron" style="font-size:0.75rem; color:var(--text-tertiary); font-weight:700;">▾</span>
+            </div>
+          </div>
+          <div id="helper-approvals-content" class="accordion-grid open">
+            <div class="accordion-inner" style="padding:16px 20px; border-top:1px solid var(--border-default); font-size:0.8125rem; color:var(--text-secondary); background:var(--surface-sunken);">
+              <p style="margin:0 0 10px 0; color:var(--text-primary);"><strong>Governance Protocol:</strong> To maintain strict data integrity, automated crawler assertions and AI agent mutations must be verified by a human analyst prior to permanent insertion into SQLite truth.</p>
+              <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(220px, 1fr)); gap:12px;">
+                <div style="background:#FFFFFF; border:1px solid var(--border-default); padding:12px; border-radius:6px;">
+                  <strong style="color:var(--text-primary); display:block; margin-bottom:4px;">Analyst Sign-Off</strong>
+                  Protects canonical rules against untested crawler anomalies or LLM hallucinations.
+                </div>
+                <div style="background:#FFFFFF; border:1px solid var(--border-default); padding:12px; border-radius:6px;">
+                  <strong style="color:var(--text-primary); display:block; margin-bottom:4px;">Side-by-Side Diff</strong>
+                  Compare candidate modifications directly against publisher citation URLs and red-team critiques.
+                </div>
+                <div style="background:#FFFFFF; border:1px solid var(--border-default); padding:12px; border-radius:6px;">
+                  <strong style="color:var(--text-primary); display:block; margin-bottom:4px;">Batch Operations</strong>
+                  Approve verified items or quarantine contested mutations with permanent audit justification logs.
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="approval-layout" style="display:grid; grid-template-columns:1fr 1.2fr; gap:24px; align-items:start;">
+          <!-- Pending List Column (Left side) -->
+          <div class="approval-queue-col" style="display:flex; flex-direction:column; min-width:0;">
+            <div id="bulk-actions-bar" class="card" style="display:flex; justify-content:space-between; align-items:center; padding:12px 18px; margin-bottom:12px;">
+              <div style="display:flex; align-items:center; gap:8px;">
+                <input type="checkbox" id="select-all-cb" style="width:16px; height:16px; accent-color:var(--brand-500); cursor:pointer;">
+                <label for="select-all-cb" style="font-size:0.875rem; font-weight:600; cursor:pointer; color:var(--text-primary);">Select All (<span id="bulk-count">0</span>)</label>
+              </div>
+              <div style="display:flex; gap:8px;">
+                <button id="btn-bulk-approve" class="btn-primary" style="padding:6px 14px; font-size:0.8125rem;" disabled>Bulk Approve</button>
+                <button id="btn-bulk-reject" class="btn-reject" style="padding:6px 14px; font-size:0.8125rem;" disabled>Bulk Reject</button>
+              </div>
+            </div>
+
+            <div class="pending-list" id="pending-list" style="display:flex; flex-direction:column; gap:8px;">
+              <div class="loader-container" id="candidate-loader" style="display:flex; flex-direction:column; gap:8px; padding:0;">
+                <div style="height:72px; width:100%; border-radius:6px; background:var(--surface-sunken); border:1px solid var(--border-default);"></div>
+                <div style="height:72px; width:100%; border-radius:6px; background:var(--surface-sunken); border:1px solid var(--border-default);"></div>
+                <div style="height:72px; width:100%; border-radius:6px; background:var(--surface-sunken); border:1px solid var(--border-default);"></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Diff View Column (Right side) -->
+          <div class="diff-console-mad card" id="diff-view" style="padding:28px; position:sticky; top:calc(var(--topbar-height) + 24px); max-height:calc(100vh - 120px); overflow-y:auto;">
+            <div style="display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; height:100%; margin:80px auto; max-width:440px;">
+              <div style="width:48px; height:48px; border-radius:50%; background:var(--surface-sunken); border:1px solid var(--border-default); display:flex; align-items:center; justify-content:center; margin-bottom:16px;">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--brand-500)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
+              </div>
+              <h3 style="font-size:1.05rem; font-weight:700; color:var(--text-primary); margin:0 0 8px 0;">Candidate Inspection Console</h3>
+              <p style="font-size:0.875rem; color:var(--text-secondary); line-height:1.6; margin:0;">
+                Select a candidate claim from the queue on the left to inspect side-by-side diffs, source evidence, and red-team critiques before permanent insertion.
+              </p>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </main>
   </div>
- </div>
- </header>
 
- <!-- Instructional Verification Banner -->
- <div style="margin:36px 44px 32px 44px; background:linear-gradient(135deg, #161616 0%, #0E0E0E 100%); border:1px solid #555555; border-radius:8px; padding:24px 36px; box-shadow:0 12px 45px rgba(0,0,0,0.85); display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:20px;">
- <div style="max-width:850px;">
- <h3 style="font-size:1.2rem; font-weight:900; color:#FFFFFF; text-transform:uppercase; letter-spacing:0.1em; margin-bottom:8px; display:flex; align-items:center; gap:10px;">
- <span style="display:inline-block; width:10px; height:10px; background:#FFFFFF; border-radius:50%;"></span>
- Automated Truth Verification & Override Protocol
- </h3>
- <p style="color:#CCCCCC; font-size:1.0rem; line-height:1.7; margin:0; font-weight:400;">
- Inspect proposed AI audit mutations, corroborate external source URL tiers, and verify adversarial critique reasoning before asserting findings into permanent database truth.
- </p>
- </div>
- <div>
- <span style="display:inline-block; font-size:0.78rem; font-weight:900; background:#222222; border:1px solid #FFFFFF; color:#FFFFFF; padding:6px 14px; border-radius:4px; text-transform:uppercase; letter-spacing:0.15em;">Database Truth Protected</span>
- </div>
- </div>
+  <!-- Confirm Modal -->
+  <div class="modal-overlay" id="password-modal" style="display:none; position:fixed; inset:0; z-index:1000; align-items:center; justify-content:center;">
+    <div class="modal-content" style="padding:24px; max-width:440px; width:90vw;">
+      <h3 id="modal-title" style="color:var(--text-primary); margin:0 0 8px 0; font-size:1.1rem;">Confirm Action</h3>
+      <p id="modal-desc" style="color:var(--text-secondary); font-size:0.875rem; margin:0 0 16px 0;">
+        Are you sure you want to proceed?
+      </p>
+      <div style="display:flex; gap:8px;">
+        <button class="btn-primary" id="btn-submit-password" style="flex:1;">Confirm</button>
+        <button class="btn-secondary" id="btn-cancel-password" style="flex:1;">Cancel</button>
+      </div>
+    </div>
+  </div>
 
- <div class="approval-layout">
- <!-- Pending List Column (Left side) -->
- <div class="approval-queue-col" style="display: flex; flex-direction: column; min-width: 0;">
- <div id="bulk-actions-bar" class="approval-queue-toolbar">
- <div style="display:flex; align-items:center;">
- <input type="checkbox" id="select-all-cb" style="margin-right:12px; width:20px; height:20px; accent-color:#FFFFFF; cursor:pointer;">
- <label for="select-all-cb" style="font-size:1.0rem; font-weight:800; cursor:pointer; color:#FFFFFF; letter-spacing:0.04em;">Select All (<span id="bulk-count">0</span>)</label>
- </div>
- <div style="display:flex; gap:12px;">
- <button id="btn-bulk-approve" style="background:#FFFFFF; color:#000000; border:1px solid #FFFFFF; padding:6px 16px; font-size:0.85rem; font-weight:900; border-radius:4px; cursor:pointer; text-transform:uppercase; letter-spacing:0.08em; transition:all 0.2s; box-shadow:0 0 20px rgba(255,255,255,0.3);" disabled> Bulk Approve</button>
- <button id="btn-bulk-reject" style="background:#1E1E1E; color:#f87171; border:1px solid rgba(239,68,68,0.5); padding:6px 16px; font-size:0.85rem; font-weight:800; border-radius:4px; cursor:pointer; text-transform:uppercase; letter-spacing:0.08em; transition:all 0.2s;" disabled>Bulk Reject</button>
- </div>
- </div>
- 
- <div class="pending-list" id="pending-list" style="display:flex; flex-direction:column;">
- <div class="loader-container" id="candidate-loader" style="display:flex; flex-direction:column; gap:18px; padding:0;">
- <div class="skeleton" style="height:85px; width:100%; border-radius:8px; background:#1C1C1C;"></div>
- <div class="skeleton" style="height:85px; width:100%; border-radius:8px; background:#1C1C1C;"></div>
- <div class="skeleton" style="height:85px; width:100%; border-radius:8px; background:#1C1C1C;"></div>
- </div>
- </div>
- </div>
- 
- <!-- Diff View Column (Right side) -->
- <div class="diff-console-mad" id="diff-view">
- <div style="display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; height:100%; margin: 120px auto; max-width:520px;">
- <div style="width:64px; height:64px; border-radius:50%; background:#1A1A1A; border:2px solid #555555; display:flex; align-items:center; justify-content:center; margin-bottom:24px; box-shadow:0 0 30px rgba(255,255,255,0.1);">
- <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
- </div>
- <h3 style="font-size:1.4rem; font-weight:800; color:#FFFFFF; text-transform:uppercase; letter-spacing:0.08em; margin-bottom:12px;">Audit Claim Inspection Ready</h3>
- <p style="font-size:1.05rem; color:#AAAAAAAA; line-height:1.6; margin:0;">
- Select a candidate claim from the queue on the left to review proposed diffs, source URL assertions, and adversarial AI critiques before final database execution.
- </p>
- </div>
- </div>
- </div>
- </main>
- </div>
- 
- <!-- Confirm Modal -->
- <div class="modal-overlay" id="password-modal" style="display:none;">
- <div class="modal-content glass-panel">
- <h3 id="modal-title">Confirm Action</h3>
- <p id="modal-desc" style="color: var(--text-secondary); font-size: 0.9rem;">
- Are you sure you want to proceed?
- </p>
- <div style="display: flex; gap: 12px; margin-top: 8px;">
- <button class="btn btn-approve" id="btn-submit-password" style="flex: 1;">Confirm</button>
- <button class="btn btn-reject" id="btn-cancel-password" style="background: transparent; border: 1px solid var(--glass-border);">Cancel</button>
- </div>
- </div>
- </div>
+  <script src="auth.js"></script>
+  <script src="dom.js"></script>
+  <script src="approvals.js"></script>
+  <script>
+    document.addEventListener('DOMContentLoaded', () => { 
+      window.AreosNav.renderNav('approvals'); 
+    });
 
- <script src="auth.js"></script>
- <script src="dom.js"></script>
- <script src="approvals.js"></script>
- <script>document.addEventListener('DOMContentLoaded', () => { window.AreosNav.renderNav('approvals'); });</script>
+    function toggleHelperCard(contentId, chevronId) {
+      const content = document.getElementById(contentId);
+      const chevron = document.getElementById(chevronId);
+      if (content && content.classList.contains('open')) {
+        content.classList.remove('open');
+        if (chevron) chevron.style.transform = 'rotate(-90deg)';
+      } else if (content) {
+        content.classList.add('open');
+        if (chevron) chevron.style.transform = 'rotate(0deg)';
+      }
+    }
+  </script>
 </body>
 </html>
-

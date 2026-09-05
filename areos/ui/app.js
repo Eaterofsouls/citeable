@@ -189,7 +189,7 @@ function renderClaims(claimsToAppend, isLoadMore) {
  ${isContested ? `<div class="priority-indicator" title="Contested Claim">${iconWarning}</div>` : ''}
  <div class="status-badge ${statusClass}"></div>
  <div class="row-statement-preview"></div>
- <button class="btn-pin ${isPinned ? 'pinned' : ''}" style="margin-left:auto; background:none; border:none; cursor:pointer; color:var(--text-secondary); font-size:1.2rem;" onclick="event.stopPropagation(); togglePin('${claim.claim_id}', this)">
+ <button class="btn-pin ${isPinned ? 'pinned' : ''}" style="margin-left:auto; background:none; border:none; cursor:pointer; color:var(--text-secondary); font-size:1.2rem;" aria-label="Pin claim">
  ${isPinned ? '' : iconPinUnfilled}
  </button>
  </div>
@@ -197,6 +197,14 @@ function renderClaims(claimsToAppend, isLoadMore) {
 
  row.querySelector('.status-badge').textContent = claim.status || 'unknown';
  row.querySelector('.row-statement-preview').textContent = claim.statement;
+
+ const pinBtn = row.querySelector('.btn-pin');
+ if (pinBtn) {
+  pinBtn.addEventListener('click', (e) => {
+   e.stopPropagation();
+   togglePin(claim.claim_id, pinBtn);
+  });
+ }
 
  // Drawer click
  row.addEventListener('click', (e) => {
@@ -241,7 +249,8 @@ function openDrawer(claim) {
  
  const formatStatement = (text) => {
      if (!text) return '';
-     return text
+     const escaped = (typeof escapeHtml === 'function' ? escapeHtml(text) : String(text).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;"));
+     return escaped
          .replace(/\*\*(.*?)\*\*/g, '<strong style="color:var(--text-primary); font-weight:600;">$1</strong>')
          .replace(/\*(.*?)\*/g, '<em>$1</em>')
          .replace(/`(.*?)`/g, '<code style="background:#202020; padding:2px 4px; border-radius:3px; font-family:var(--font-mono); font-size:0.9em;">$1</code>');
@@ -259,43 +268,55 @@ function openDrawer(claim) {
 
  let html = `
  <div style="display:flex; justify-content:space-between; align-items:center;">
- <div style="font-family:var(--font-mono); font-size:0.9rem; color:var(--text-secondary);">${claim.claim_id}</div>
- <button class="btn-secondary btn-propose" style="padding:4px 8px; font-size:0.8rem;" onclick="openEditor('${claim.claim_id}');">Propose Edit</button>
+  <div style="font-family:var(--font-mono); font-size:0.9rem; color:var(--text-secondary);">${escapeHtml(claim.claim_id)}</div>
+ <button class="btn-secondary btn-propose" style="padding:4px 8px; font-size:0.8rem;">Propose Edit</button>
  </div>
  
  <div style="margin: 16px 0; font-size:1.1rem; line-height:1.5;">
  ${claim.source_url
  ? (isWebUrl
      ? `<a href="${safeUrl(claim.source_url)}" target="_blank" style="color:var(--text-primary); text-decoration:none;">${formatStatement(claim.statement)}</a>`
-     : `${formatStatement(claim.statement)}<div style="margin-top:6px; font-size:0.8rem; color:var(--text-secondary);">${claim.source_url} (internal reference — not externally viewable)</div>`)
+     : `${formatStatement(claim.statement)}<div style="margin-top:6px; font-size:0.8rem; color:var(--text-secondary);">${escapeHtml(claim.source_url)} (internal reference — not externally viewable)</div>`)
  : formatStatement(claim.statement)}
  </div>
  
- ${claim.superseded_by ? `<div style="color:var(--status-contested); font-size:0.9rem; margin-bottom:16px;">Superseded by: <strong>${claim.superseded_by}</strong></div>` : ''}
+ ${claim.superseded_by ? `<div style="color:var(--status-contested); font-size:0.9rem; margin-bottom:16px;">Superseded by: <strong>${escapeHtml(claim.superseded_by)}</strong></div>` : ''}
  
  <div class="card-meta" style="display:flex; flex-wrap:wrap; gap:16px; margin-bottom:24px;">
  <div class="meta-item" title="Stage" style="display:flex; align-items:center; gap:6px;">
  ${iconFolder}
- <span>${claim.stage_id || 'Unmapped'}</span>
+ <span>${escapeHtml(claim.stage_id || 'Unmapped')}</span>
  </div>
  <div class="meta-item" title="Source Tier" style="display:flex; align-items:center; gap:6px;">
  ${iconTier}
- <span>${claim.source_tier_value || 'Unknown'}</span>
+ <span>${escapeHtml(claim.source_tier_value || 'Unknown')}</span>
  </div>
  <div class="meta-item" title="Confidence" style="display:flex; align-items:center; gap:6px; color:var(--text-secondary);">
- <span>Conf: ${claim.confidence || 'N/A'}</span>
+ <span>Conf: ${escapeHtml(claim.confidence || 'N/A')}</span>
  </div>
  </div>
  
   <div class="evidence-preview-container" style="margin-top: 8px;">
             ${isWebUrl
-              ? `<a href="${safeUrl(claim.source_url)}" target="_blank" rel="noopener noreferrer" class="btn-secondary" style="display:block; text-align:center; text-decoration:none; width:100%; padding:10px; box-sizing:border-box;">Open Source in New Tab ↗</a>`
-              : `<div style="font-size:0.8rem; color:var(--text-secondary); padding:8px 0; border-top:1px solid var(--border);">${claim.source_url ? claim.source_url + ' (internal reference)' : 'No external source on file for this knowledge base claim.'}</div>`
+              ? `<button class="btn-secondary btn-preview-source" style="width:100%; margin-bottom:8px;">View Source ↗</button>
+                 <div class="iframe-wrapper" style="display:none; border:1px solid var(--border-strong); border-radius:var(--radius-sm); overflow:hidden; margin-bottom:8px;"></div>
+                 <a href="${safeUrl(claim.source_url)}" target="_blank" rel="noopener noreferrer" style="display:block; font-size:0.78rem; color:var(--text-secondary); text-align:center; text-decoration:none; padding:4px 0; word-break:break-all;">${escapeHtml(claim.source_url)}</a>`
+              : `<div style="font-size:0.8rem; color:var(--text-secondary); padding:8px 0; border-top:1px solid var(--border);">${claim.source_url ? escapeHtml(claim.source_url) + ' (internal reference)' : 'No external source on file for this knowledge base claim.'}</div>`
             }
   </div>
   `;
  
  content.innerHTML = html;
+
+ const proposeBtn = content.querySelector('.btn-propose');
+ if (proposeBtn) {
+  proposeBtn.addEventListener('click', () => openEditor(claim.claim_id));
+ }
+
+ const previewBtn = content.querySelector('.btn-preview-source');
+ if (previewBtn && isWebUrl) {
+  previewBtn.addEventListener('click', () => toggleSourcePreview(previewBtn, safeUrl(claim.source_url)));
+ }
 }
 
 if (document.getElementById('btn-close-drawer')) {
@@ -305,6 +326,19 @@ if (document.getElementById('btn-close-drawer')) {
  claimsContainer.querySelectorAll('.index-row.focused').forEach(r => r.classList.remove('focused'));
  });
 }
+
+window.toggleSourcePreview = function(btn, url) {
+  const wrapper = btn.nextElementSibling;
+  if (wrapper.style.display === 'none') {
+    wrapper.style.display = 'block';
+    wrapper.innerHTML = `<iframe src="${url}" sandbox="allow-same-origin allow-scripts" style="width:100%; height:320px; border:none; background:#fff; display:block;"></iframe>`;
+    btn.textContent = 'Hide Source';
+  } else {
+    wrapper.style.display = 'none';
+    wrapper.innerHTML = '';
+    btn.textContent = 'View Source ↗';
+  }
+};
 
 // Keyboard Navigation (MF-17)
 claimsContainer.tabIndex = 0;
@@ -385,15 +419,16 @@ editorForm.addEventListener('submit', async (e) => {
  };
 
  try {
- const res = await AreosAPI.fetch(`/claims/ingest`, {
- method: 'POST',
- headers: getAuthHeaders(),
- body: JSON.stringify(payload)
- });
- AreosAPI.notify(`Success! Proposal logged in Run ${res.run_id}`, 'success');
- editorModal.classList.remove('active');
- editorDialog.close();
- fetchClaims(); // refresh to show update or new claim if relevant
+ 		const res = await AreosAPI.fetch(`/claims/ingest`, {
+			method: 'POST',
+			headers: getAuthHeaders(),
+			body: JSON.stringify(payload)
+		});
+		const data = await res.json();
+		AreosAPI.notify(`Success! Proposal logged in Run ${data.run_id || 'OK'}`, 'success');
+		editorModal.classList.remove('active');
+		editorDialog.close();
+		fetchClaims(); // refresh to show update or new claim if relevant
  } catch(err) {
  AreosAPI.notify(err.message, 'error');
  }

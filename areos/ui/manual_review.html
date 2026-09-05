@@ -1,25 +1,20 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
- <meta charset="UTF-8">
- <meta name="viewport" content="width=device-width, initial-scale=1.0">
- <title>Citeable | Manual Review (Moved)</title>
- <meta http-equiv="refresh" content="0; url=index.html">
- <script>
- // manual_review.html has been folded into Citeable Studio (see CHANGELOG.md §3.8) —
- // this page previously duplicated content already shown inside the Studio
- // tabs, using a different data source than the one the Studio flow relies
- // on. It now forwards straight to the equivalent Studio step, preserving
- // any run_id a bookmark or link may have carried.
- var params = new URLSearchParams(window.location.search);
- var runId = params.get('run_id');
- var target = 'index.html?tab=tab-wizard' + (runId ? '&run_id=' + encodeURIComponent(runId) : '');
- window.location.replace(target);
- </script>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Citeable | Manual Review (Moved)</title>
+  <meta http-equiv="refresh" content="0; url=index.html">
+  <script>
+  var params = new URLSearchParams(window.location.search);
+  var runId = params.get('run_id');
+  var target = 'index.html?tab=tab-wizard' + (runId ? '&run_id=' + encodeURIComponent(runId) : '');
+  window.location.replace(target);
+  </script>
 </head>
-<body>
- <p style="font-family: sans-serif; color: #94a3b8; padding: 2rem;">
- This page has moved into <a href="index.html" style="color:#38bdf8;">Citeable Studio</a>. Redirecting...
- </p>
+<body style="background:#F8F9FB; color:#0F172A;">
+  <p style="font-family: sans-serif; color: #475569; padding: 2rem;">
+  This page has moved into <a href="index.html" style="color:#0A66C2;">Citeable Studio</a>. Redirecting...
+  </p>
 </body>
 </html>

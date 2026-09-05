@@ -1,4 +1,6 @@
+import hmac
 import logging
+import os
 import uuid
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -15,21 +17,67 @@ from areos.db.migrate_audit_tables import migrate
 from areos.util.logging_config import _error_id_ctx, setup_logging
 
 # Import routers
-from areos.api.routers import claims, approvals, audit, verdicts, reports, outcomes, prompts, byok, synthesis
+from areos.api.routers import claims, approvals, audit, verdicts, reports, prompts, byok, synthesis, knowledge
 
 logger = logging.getLogger(__name__)
 setup_logging()
 
 
+async def _periodic_backup_loop():
+    """Background task to periodically back up SQLite database to persistent disk."""
+    import asyncio
+    try:
+        from scripts.backup_db import backup_database
+        # Wait 300s after startup so initialization and healthchecks are complete
+        await asyncio.sleep(300)
+        while True:
+            try:
+                backup_database()
+            except Exception as e:
+                logger.warning("Periodic DB backup failed: %s", e)
+            # Run every 12 hours
+            await asyncio.sleep(43200)
+    except asyncio.CancelledError:
+        pass
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    db_path = get_db_path()
     # Ensure all required tables exist on startup. Raises on failure (MF-9).
-    migrate(get_db_path())
+    migrate(db_path)
     logger.info("AREOS API started. DB migrations applied.")
+
+    # Cloud/Fresh-disk auto-seeding: build Knowledge Base if missing or empty
+    try:
+        from areos.db.connection import get_connection
+        conn = get_connection(db_path)
+        kb_row = conn.execute(
+            "SELECT 1 FROM sqlite_master WHERE type='table' AND name='knowledge'"
+        ).fetchone()
+        kb_empty = not kb_row or (conn.execute("SELECT count(*) FROM knowledge").fetchone()[0] == 0)
+        if kb_empty:
+            logger.info("Knowledge base empty or missing. Auto-building from corpus...")
+            from areos.kb.build_kb import build
+            build(db_path)
+            logger.info("Knowledge base build complete.")
+    except Exception as exc:  # noqa: BLE001
+        logger.error("Failed to auto-seed Knowledge Base: %s", exc, exc_info=True)
+
+    import asyncio
+    backup_task = asyncio.create_task(_periodic_backup_loop())
+
     yield
+    backup_task.cancel()
+    try:
+        await backup_task
+    except asyncio.CancelledError:
+        pass
     # MF-11: Close all pooled connections before the process exits.
     close_all_connections()
     logger.info("AREOS API shutdown. Pooled DB connections closed.")
+
+
 
 
 app = FastAPI(
@@ -49,6 +97,31 @@ async def _correlation_id_middleware(request: Request, call_next):
         return response
     finally:
         _error_id_ctx.reset(token)
+
+# ── Internal Docs Auth Guard ─────────────────────────────────────────────
+# Server-side protection for /docs/internal/ paths. Without this, the
+# StaticFiles mount would serve internal engineering documentation to
+# anyone who knows the URL — the client-side sessionStorage check in
+# docs.js is cosmetic only and trivially bypassed.
+_INTERNAL_DOCS_TOKEN = os.environ.get("AREOS_API_TOKEN", "")
+
+@app.middleware("http")
+async def _guard_internal_docs(request: Request, call_next):
+    path = request.url.path
+    if path.startswith("/docs/internal/") or path == "/docs/internal":
+        auth_header = request.headers.get("authorization", "")
+        if not auth_header.startswith("Bearer "):
+            return JSONResponse(
+                {"detail": "Authorization required for internal documentation"},
+                status_code=401,
+            )
+        supplied_token = auth_header.split(" ", 1)[1]
+        if not _INTERNAL_DOCS_TOKEN or not hmac.compare_digest(supplied_token, _INTERNAL_DOCS_TOKEN):
+            return JSONResponse(
+                {"detail": "Invalid or missing API token"},
+                status_code=401,
+            )
+    return await call_next(request)
 
 @app.exception_handler(Exception)
 async def _unhandled_exception_handler(request: Request, exc: Exception):
@@ -87,6 +160,62 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Outermost user middleware: enforce body size limits before Starlette task groups (DEC-05)
+
+
+class _PayloadTooLarge(BaseException):
+    """Internal sentinel exception to cleanly abort downstream ASGI execution when body exceeds size limit."""
+    pass
+
+
+class BodySizeLimitMiddleware:
+    def __init__(self, app, max_size: int = 5_000_000):
+        self.app = app
+        self.max_size = max_size
+
+    async def __call__(self, scope, receive, send):
+        if scope["type"] != "http":
+            await self.app(scope, receive, send)
+            return
+
+        for header, value in scope.get("headers", []):
+            if header.lower() == b"content-length":
+                try:
+                    if int(value) > self.max_size:
+                        response = JSONResponse(
+                            status_code=413,
+                            content={"detail": "Payload too large. Maximum request body is 5 MB."},
+                        )
+                        await response(scope, receive, send)
+                        return
+                except ValueError:
+                    pass
+
+        total_bytes = 0
+
+        async def custom_receive():
+            nonlocal total_bytes
+            message = await receive()
+            if message["type"] == "http.request":
+                body = message.get("body", b"")
+                total_bytes += len(body)
+                if total_bytes > self.max_size:
+                    raise _PayloadTooLarge()
+            return message
+
+        try:
+            await self.app(scope, custom_receive, send)
+        except _PayloadTooLarge:
+            response = JSONResponse(
+                status_code=413,
+                content={"detail": "Payload too large. Maximum request body is 5 MB."},
+            )
+            await response(scope, receive, send)
+            return
+
+# Outermost user middleware: enforce body size limits before Starlette task groups (DEC-05)
+app.add_middleware(BodySizeLimitMiddleware)
 
 # ── Security headers ────────────────────────────────────────────────────────
 # FIX (Readiness Audit, Blocker 5 / Minor #4): the app previously shipped
@@ -128,28 +257,24 @@ async def _security_headers_middleware(request: Request, call_next):
 # max_length on individual fields is application-level only — the ASGI server
 # buffers the full body first. 5 MB is generous for any legitimate AREOS
 # request (the largest expected payload is sample_content at ~50 000 chars ≈ 200 KB).
-@app.middleware("http")
-async def _limit_body_size(request: Request, call_next):
-    content_length = request.headers.get("content-length")
-    if content_length and int(content_length) > 5_000_000:  # 5 MB
-        return JSONResponse(
-            status_code=413,
-            content={"detail": "Payload too large. Maximum request body is 5 MB."},
-        )
-    return await call_next(request)
+
+
 
 # ─────────────────────────────────────────────────────────────────────────────
 # HEALTH
 # ─────────────────────────────────────────────────────────────────────────────
 
 @app.get("/api/health")
-def health_check():
+async def health_check():
     """MF-10: Live health check — verifies DB is reachable, not just process-alive."""
     try:
-        from areos.db.connection import get_connection
-        db_path = get_db_path()
-        conn = get_connection(db_path)
-        conn.execute("SELECT 1")
+        import anyio
+        def _check_db():
+            from areos.db.connection import get_connection
+            db_path = get_db_path()
+            conn = get_connection(db_path)
+            conn.execute("SELECT 1")
+        await anyio.to_thread.run_sync(_check_db)
         return {"status": "ok", "db": "reachable"}
     except Exception as e:
         logger.error("Health check failed: %s", e, exc_info=True)
@@ -164,12 +289,13 @@ app.include_router(approvals.router)
 app.include_router(audit.router)
 app.include_router(verdicts.router)
 app.include_router(reports.router)
-app.include_router(outcomes.router)
+# outcomes.router removed — Outcome Logger deprecated (v4.0)
 app.include_router(prompts.router)
 app.include_router(byok.router)
 app.include_router(synthesis.router)
+app.include_router(knowledge.router)
 
-_DOCS_DIR = Path(__file__).resolve().parents[2] / "docs"
+_DOCS_DIR = Path(__file__).resolve().parents[1] / "ui" / "docs"
 if _DOCS_DIR.exists():
     app.mount("/docs", StaticFiles(directory=str(_DOCS_DIR), html=True), name="docs")
 

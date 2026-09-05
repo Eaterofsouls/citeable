@@ -408,6 +408,24 @@ CREATE TABLE IF NOT EXISTS manual_verdicts (
 CREATE INDEX IF NOT EXISTS idx_manual_verdicts_run ON manual_verdicts (run_id);
 
 -- ========================================================================
+-- Table: manual_observations (T-B01)
+-- Track B: Structured observation storage for the 11-question review system.
+-- Coexists with manual_verdicts for backward compatibility with older runs.
+-- ========================================================================
+CREATE TABLE IF NOT EXISTS manual_observations (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    run_id TEXT NOT NULL,
+    question_id TEXT NOT NULL,
+    structured_data TEXT NOT NULL,
+    severity TEXT NOT NULL,
+    diagnosis_text TEXT,
+    submitted_at TEXT DEFAULT (datetime('now')),
+    UNIQUE(run_id, question_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_manual_observations_run ON manual_observations (run_id);
+
+-- ========================================================================
 -- Table: audit_synthesis
 -- Added: UX audit §5.3 — persists the three-step LLM synthesis result
 -- (previously only existed transiently in the POST /synthesize response,
@@ -463,3 +481,14 @@ SELECT claim_id,
          ELSE 99
        END AS display_rank
 FROM claims;
+
+-- ========================================================================
+-- Table: synthesis_prompts (Phase 2 LLM pipeline)
+-- ========================================================================
+CREATE TABLE IF NOT EXISTS synthesis_prompts (
+    step          TEXT PRIMARY KEY,
+    system_prompt TEXT NOT NULL,
+    updated_at    TEXT,
+    updated_by    TEXT
+);
+

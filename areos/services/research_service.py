@@ -210,7 +210,8 @@ def _fetch_text(url: str, name: str) -> tuple[str, str | None]:
 def _fetch_via_jina(url: str, name: str, api_key: str) -> tuple[str, str | None]:
     """Fetch via Jina AI Reader — returns clean markdown, handles JS-rendered pages."""
     try:
-        r = requests.get(
+        from areos.util.ssrf import safe_get
+        r = safe_get(
             f"https://r.jina.ai/{url}",
             headers={
                 "Authorization": f"Bearer {api_key}",
@@ -225,7 +226,7 @@ def _fetch_via_jina(url: str, name: str, api_key: str) -> tuple[str, str | None]
         if r.status_code == 402:
             return _fetch_via_requests(url, name)
         return "", f"[JINA ERROR] {name} ({url}): HTTP {r.status_code}"
-    except requests.RequestException as e:
+    except Exception as e:
         # Fall back to raw requests on any network error
         return _fetch_via_requests(url, name)
 
@@ -239,7 +240,8 @@ def _fetch_via_requests(url: str, name: str) -> tuple[str, str | None]:
         )
     }
     try:
-        resp = requests.get(url, headers=headers, timeout=FETCH_TIMEOUT)
+        from areos.util.ssrf import safe_get
+        resp = safe_get(url, headers=headers, timeout=FETCH_TIMEOUT)
         resp.raise_for_status()
         content_type = resp.headers.get("Content-Type", "")
         if "html" in content_type:
@@ -250,7 +252,7 @@ def _fetch_via_requests(url: str, name: str) -> tuple[str, str | None]:
         else:
             text = resp.text
         return text[:MAX_CHARS_PER_DOC], None
-    except requests.RequestException as e:
+    except Exception as e:
         return "", f"[FETCH ERROR] {name} ({url}): {e}"
 
 

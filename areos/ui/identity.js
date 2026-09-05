@@ -5,6 +5,7 @@
  */
 
 document.addEventListener("DOMContentLoaded", () => {
+  window.AreosContext = window.AreosContext || {};
   const STORAGE_KEY = "areos_analyst_id";
   const DEFAULT_ID  = "Analyst";
 
@@ -31,48 +32,58 @@ document.addEventListener("DOMContentLoaded", () => {
   // Build modal UI
   const overlay = document.createElement("div");
   overlay.id = "identity-overlay";
-  overlay.style.cssText = "position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.8);z-index:9999;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(4px);";
+  overlay.style.cssText = "position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(15,23,42,0.45);z-index:9999;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(4px);";
 
   const modal = document.createElement("div");
   modal.className = "glass-panel";
-  modal.style.cssText = "padding:32px;background:#1e293b;border-radius:12px;text-align:center;max-width:400px;width:100%;border:1px solid #334155;box-shadow:0 25px 50px -12px rgba(0,0,0,0.5);";
+  modal.style.cssText = "padding:32px 28px;background:#FFFFFF;border-radius:14px;text-align:center;max-width:400px;width:100%;border:1px solid var(--border-default);box-shadow:var(--shadow-xl);";
 
   const h2 = document.createElement("h2");
   h2.textContent = "Welcome to Citeable";
-  h2.style.cssText = "margin-top:0;color:#f8fafc;font-weight:600;";
+  h2.style.cssText = "margin-top:0;color:var(--text-primary);font-weight:700;font-size:1.25rem;";
 
   const p = document.createElement("p");
   p.textContent = "Enter your Analyst ID or name. All manual review actions are logged under this identity.";
-  p.style.cssText = "color:#94a3b8;font-size:14px;margin-bottom:24px;";
+  p.style.cssText = "color:var(--text-secondary);font-size:14px;margin-bottom:20px;line-height:1.5;";
 
   const input = document.createElement("input");
   input.type = "text";
   input.placeholder = "e.g., A-742 or Alice S.";
   input.autocomplete = "name";
-  input.style.cssText = "width:100%;padding:12px;background:#0f172a;border:1px solid #475569;border-radius:8px;color:#f8fafc;font-size:16px;margin-bottom:16px;box-sizing:border-box;outline:none;";
+  input.style.cssText = "width:100%;padding:10px 14px;background:#FFFFFF;border:1.5px solid var(--border-strong);border-radius:6px;color:var(--text-primary);font-size:14px;margin-bottom:16px;box-sizing:border-box;outline:none;";
 
   const btn = document.createElement("button");
   btn.textContent = "Continue";
   btn.className = "btn-primary";
-  btn.style.cssText = "width:100%;padding:12px;font-size:16px;background:#6366f1;color:white;border:none;border-radius:8px;cursor:pointer;font-weight:500;transition:opacity 0.2s;margin-bottom:12px;";
+  btn.style.cssText = "width:100%;padding:10px 16px;font-size:14px;background:var(--brand-primary);color:#FFFFFF;border:1px solid #000000;border-radius:6px;cursor:pointer;font-weight:600;letter-spacing:-0.01em;transition:background-color 0.15s;margin-bottom:12px;";
 
   // Skip link — sets a default ID so automated tools and first-time users
   // can dismiss without friction.
   const skip = document.createElement("a");
   skip.textContent = "Skip for now (use default identity)";
   skip.href = "#";
-  skip.style.cssText = "display:block;color:#64748b;font-size:12px;text-decoration:none;cursor:pointer;margin-top:4px;";
+  skip.style.cssText = "display:block;color:var(--text-tertiary);font-size:13px;text-decoration:underline;cursor:pointer;margin-top:4px;";
   skip.onmouseover = () => { skip.style.color = "#94a3b8"; };
   skip.onmouseout  = () => { skip.style.color = "#64748b"; };
 
   const dismiss = (id) => {
+    if (_autoDismissTimer) {
+      clearTimeout(_autoDismissTimer);
+      _autoDismissTimer = null;
+    }
     const val = (id || input.value.trim() || DEFAULT_ID);
     window.AreosContext.analystId = val;
     localStorage.setItem(STORAGE_KEY, val);
-    document.body.removeChild(overlay);
+    if (document.body.contains(overlay)) {
+      document.body.removeChild(overlay);
+    }
   };
 
   const commit = () => {
+    if (_autoDismissTimer) {
+      clearTimeout(_autoDismissTimer);
+      _autoDismissTimer = null;
+    }
     const val = input.value.trim();
     if (!val) {
       input.style.borderColor = "#ef4444";

@@ -1,96 +1,110 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
- <meta charset="UTF-8" />
- <meta name="viewport" content="width=device-width, initial-scale=1.0" />
- <title>Citeable | Prompts</title>
- <link rel="preconnect" href="https://fonts.googleapis.com" />
- <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
- <link rel="stylesheet" href="index.css" />
- <!-- Inline styles stripped for unified design system -->
- <link rel="icon" type="image/svg+xml" href="favicon.svg">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Citeable | Prompts</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="index.css?v=3" />
+  <link rel="icon" type="image/svg+xml" href="favicon.svg">
 
- <script src="context.js"></script>
- <script src="identity.js"></script>
- <script src="api.js"></script>
- <script src="dom.js"></script>
- <script src="nav.js"></script>
+  <script src="context.js"></script>
+  <script src="identity.js"></script>
+  <script src="api.js"></script>
+  <script src="dom.js"></script>
+  <script src="nav.js"></script>
 </head>
 <body>
- <div class="app-container">
- <aside class="sidebar">
- <div class="logo">
- <div class="logo-icon"><img src="favicon.svg" alt="Citeable Logo" width="24" height="24"></div>
- <h1>Citeable</h1>
- </div>
- <nav id="main-nav"></nav>
- </aside>
+  <div class="app-container">
+    <aside class="sidebar">
+      <div class="logo">
+        <div class="logo-icon"><img src="favicon.svg" alt="Citeable Logo" width="32" height="32"></div>
+        <h1>Citeable</h1>
+      </div>
+      <nav id="main-nav"></nav>
+    </aside>
 
- <main class="main-content">
- <header class="topbar">
- <h2>Governed Prompt Sets (AI Citation Tracking)</h2>
- </header>
+    <main class="main-content">
+      <header class="topbar">
+        <div class="page-title-wrap">
+          <h2>Governed Prompt Sets (AI Citation Tracking)</h2>
+        </div>
+        <div class="topbar-meta">
+          <span class="status-pill info">Sampling Configuration</span>
+        </div>
+      </header>
 
- <div style="display:grid; grid-template-columns:1.2fr 1.5fr; gap:24px; margin-top:10px;">
- 
- <!-- Form Section -->
- <div class="glass-panel" style="padding:24px;">
- <h3 style="margin-bottom:6px; color:#fff; font-size:18px;">Create Prompt Query</h3>
- <p style="color:#64748b; font-size:13px; margin-bottom:20px;">Design governed test prompts for AI engine citation sampling (Perplexity & Gemini grounded search).</p>
- 
- <form id="prompt-form" onsubmit="submitPrompt(event)">
- <div class="form-grid">
- 
- <div class="form-group full-width">
- <label>Prompt Label <span>*</span></label>
- <input type="text" id="p-label" required placeholder="e.g. Primary Brand Query - Feature Comparison" />
- </div>
+      <div class="page-container">
+        <div style="display:grid; grid-template-columns:1.1fr 1.4fr; gap:24px; align-items:start;">
+          
+          <!-- Form Section -->
+          <div class="card">
+            <h3 style="margin-bottom:4px; font-size:1.05rem;">Create Prompt Query</h3>
+            <p style="color:var(--text-secondary); font-size:0.8125rem; margin-bottom:18px;">Design governed test prompts for AI engine citation sampling (Perplexity &amp; Gemini grounded search).</p>
+            
+            <form id="prompt-form" onsubmit="submitPrompt(event)" style="display:flex; flex-direction:column; gap:14px;">
+              <div>
+                <label style="display:block; font-size:0.75rem; font-weight:600; color:var(--text-secondary); margin-bottom:4px;">Prompt Label *</label>
+                <input type="text" id="p-label" class="input" required placeholder="e.g. Primary Brand Query - Feature Comparison" />
+              </div>
 
- <div class="form-group full-width">
- <label>Prompt Query Text <span>*</span></label>
- <textarea id="p-text" required placeholder="What are the leading tools for AI engine AEO/GEO tracking, and how does [Brand] compare against alternatives?"></textarea>
- <div class="hint">Must be human-authored per governance policy C072. Avoid biased leading terms.</div>
- </div>
+              <div>
+                <label style="display:block; font-size:0.75rem; font-weight:600; color:var(--text-secondary); margin-bottom:4px;">Prompt Query Text *</label>
+                <textarea id="p-text" class="input" rows="3" required placeholder="What are the leading tools for AI engine AEO/GEO tracking, and how does [Brand] compare against alternatives?"></textarea>
+                <div style="color:var(--text-tertiary); font-size:0.75rem; margin-top:4px;">Must be human-authored per governance policy C072. Avoid biased leading terms.</div>
+              </div>
 
- <div class="form-group">
- <label>Target Domain</label>
- <input type="text" id="p-domain" placeholder="e.g. areos.io (optional)" />
- </div>
+              <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
+                <div>
+                  <label style="display:block; font-size:0.75rem; font-weight:600; color:var(--text-secondary); margin-bottom:4px;">Target Domain</label>
+                  <input type="text" id="p-domain" class="input" placeholder="e.g. areos.io (optional)" />
+                </div>
+                <div>
+                  <label style="display:block; font-size:0.75rem; font-weight:600; color:var(--text-secondary); margin-bottom:4px;">Funnel Stage</label>
+                  <select id="p-funnel" class="input">
+                    <option value="TOFU">Top of Funnel (TOFU)</option>
+                    <option value="MOFU">Middle of Funnel (MOFU)</option>
+                    <option value="BOFU">Bottom of Funnel (BOFU)</option>
+                    <option value="Post-Purchase">Post-Purchase</option>
+                  </select>
+                </div>
+              </div>
 
- <div class="form-group">
- <label>Funnel Stage</label>
- <select id="p-stage">
- <option value="awareness">Awareness / Discovery</option>
- <option value="consideration">Consideration / Evaluation</option>
- <option value="comparison">Direct Comparison</option>
- <option value="decision">Decision / Conversion</option>
- </select>
- </div>
+              <div>
+                <label style="display:block; font-size:0.75rem; font-weight:600; color:var(--text-secondary); margin-bottom:4px;">Search Intent Category</label>
+                <select id="p-intent" class="input">
+                  <option value="Informational">Informational</option>
+                  <option value="Commercial">Commercial</option>
+                  <option value="Transactional">Transactional</option>
+                  <option value="Navigational">Navigational</option>
+                </select>
+              </div>
 
- </div>
- <button type="submit" class="submit-btn" id="btn-submit">Save Governed Prompt Set</button>
- </form>
- </div>
+              <button type="submit" class="btn-primary" style="margin-top:6px;">Save Governed Prompt Set</button>
+            </form>
+          </div>
 
- <!-- List Section -->
- <div class="glass-panel" style="padding:24px;">
- <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
- <h3 style="color:#fff; font-size:18px; margin:0;">Active Prompt Library</h3>
- <button class="btn-secondary" style="padding:6px 12px; font-size:12px;" onclick="loadPrompts()">Refresh</button>
- </div>
- <div class="prompts-list" id="prompts-list">
- <div style="color:#64748b; font-size:13px;">Loading prompt sets...</div>
- </div>
- </div>
+          <!-- List Section -->
+          <div class="card">
+            <h3 style="margin-bottom:4px; font-size:1.05rem;">Active Governed Query Catalog</h3>
+            <p style="color:var(--text-secondary); font-size:0.8125rem; margin-bottom:16px;">Prompts systematically sampled across diagnostic test sweeps.</p>
+            <div id="prompts-list" style="display:flex; flex-direction:column; gap:10px;">
+              <!-- Loaded via prompts.js -->
+            </div>
+          </div>
 
- </div>
- </main>
- </div>
+        </div>
+      </div>
+    </main>
+  </div>
 
- <div class="toast" id="toast"></div>
- <script src="auth.js"></script>
- <script src="dom.js"></script>
- <script src="prompts.js"></script>
- <script>document.addEventListener('DOMContentLoaded', () => { window.AreosNav.renderNav('prompts'); });</script>
+  <script src="prompts.js"></script>
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      if (window.AreosNav) AreosNav.renderNav('prompts');
+    });
+  </script>
 </body>
 </html>

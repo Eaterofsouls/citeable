@@ -136,6 +136,45 @@ class ValidationResult:
         return sum(1 for i in self.issues if i.severity == "warning")
 
 
+# ── Schema claim extraction (T-102) ──────────────────────────────────────────
+
+def _extract_schema_claims(blocks: list[dict]) -> list[dict]:
+    """Flatten JSON-LD blocks into a list of dicts with keys: schema_type, field, value.
+
+    Only processes dict blocks (skips unparseable strings). Extracts top-level
+    fields with scalar or short-list values for UI display. Nested objects are
+    serialized to their @type or truncated JSON.
+    """
+    claims: list[dict] = []
+    for block in blocks:
+        if not isinstance(block, dict):
+            continue
+        raw_type = block.get("@type", "Unknown")
+        if isinstance(raw_type, list):
+            raw_type = raw_type[0] if raw_type else "Unknown"
+        schema_type = str(raw_type).strip() or "Unknown"
+
+        for key, value in block.items():
+            if key.startswith("@") and key != "@type":
+                continue  # skip @context, @id, etc.
+            # Serialize value for display
+            if isinstance(value, dict):
+                display = value.get("@type", value.get("name", str(value)[:100]))
+            elif isinstance(value, list):
+                if len(value) <= 3:
+                    display = ", ".join(str(v)[:80] for v in value)
+                else:
+                    display = f"{len(value)} items"
+            else:
+                display = str(value)[:200]
+            claims.append({
+                "schema_type": schema_type,
+                "field": key,
+                "value": display,
+            })
+    return claims
+
+
 # ── Core validation logic ─────────────────────────────────────────────────────
 
 def _is_empty(value: Any) -> bool:
@@ -149,18 +188,36 @@ def _is_empty(value: Any) -> bool:
     return False
 
 
-def validate_single(block: dict, index: int = 0) -> ValidationResult:
+def validate_single(block: dict, index: int = 0, depth: int = 0, max_depth: int = 3) -> ValidationResult:
     """
     Validate one JSON-LD block against schema.org rules.
     Returns a ValidationResult with granular issues.
     """
-    # Resolve @type — may be a list or string
-    raw_type = block.get("@type", "")
-    if isinstance(raw_type, list):
-        raw_type = raw_type[0] if raw_type else ""
-    schema_type = raw_type.strip()
+    if depth >= max_depth:
+        return ValidationResult(
+            schema_type="Invalid",
+            index=index,
+            passed=False,
+            issues=[SchemaIssue("warning", "MAX_DEPTH_EXCEEDED", "FAQPage tree exceeded max depth of 3")]
+        )
+    if not isinstance(block, dict):
+        return ValidationResult(
+            schema_type="Invalid",
+            index=index,
+            passed=False,
+            issues=[SchemaIssue("error", "INVALID_STRUCTURE", f"JSON-LD block at index {index} is not an object")]
+        )
 
-    if not schema_type:
+    # Resolve @type — may be a list or string
+    raw_type_val = block.get("@type", [])
+    if isinstance(raw_type_val, str):
+        schema_types = [raw_type_val.strip()]
+    elif isinstance(raw_type_val, list):
+        schema_types = [t.strip() for t in raw_type_val if isinstance(t, str) and t.strip()]
+    else:
+        schema_types = []
+
+    if not schema_types:
         return ValidationResult(
             schema_type="Unknown",
             index=index,
@@ -168,15 +225,26 @@ def validate_single(block: dict, index: int = 0) -> ValidationResult:
             issues=[SchemaIssue("error", "MISSING_TYPE", "@type field is missing or empty")]
         )
 
-    rules = SCHEMA_RULES.get(schema_type)
-    if rules is None:
+    schema_type = schema_types[0]
+
+    rules = {"required": set(), "recommended": set(), "known": set(["@type", "@context", "@id"])}
+    has_rules = False
+    for st in schema_types:
+        r = SCHEMA_RULES.get(st)
+        if r:
+            has_rules = True
+            rules["required"].update(r["required"])
+            rules["recommended"].update(r["recommended"])
+            rules["known"].update(r["known"])
+
+    if not has_rules:
         return ValidationResult(
             schema_type=schema_type,
             index=index,
             passed=True,
             issues=[SchemaIssue(
                 "info", "UNKNOWN_SCHEMA_TYPE",
-                f"Schema type '{schema_type}' has no validation rules defined — manual review recommended"
+                f"Schema types {schema_types} have no validation rules defined — manual review recommended"
             )]
         )
 
@@ -208,17 +276,20 @@ def validate_single(block: dict, index: int = 0) -> ValidationResult:
             ))
 
     # 4. FAQPage-specific: validate nested Question items
-    if schema_type == "FAQPage":
-        main_entity = block.get("mainEntity", [])
+    if "FAQPage" in schema_types:
+        main_entity = block.get("mainEntity") or []
         if isinstance(main_entity, dict):
             main_entity = [main_entity]
-        for qi, question in enumerate(main_entity):
-            q_result = validate_single(question, index=qi)
-            for issue in q_result.issues:
-                issues.append(SchemaIssue(
-                    issue.severity, issue.code,
-                    f"mainEntity[{qi}]: {issue.message}"
-                ))
+        if isinstance(main_entity, list):
+            for qi, question in enumerate(main_entity):
+                if not isinstance(question, dict):
+                    continue
+                q_result = validate_single(question, index=qi, depth=depth + 1, max_depth=max_depth)
+                for issue in q_result.issues:
+                    issues.append(SchemaIssue(
+                        issue.severity, issue.code,
+                        f"mainEntity[{qi}]: {issue.message}"
+                    ))
 
     passed = not any(i.severity == "error" for i in issues)
     return ValidationResult(schema_type=schema_type, index=index, passed=passed, issues=issues)
@@ -230,7 +301,8 @@ def validate_page_schemas(json_ld_blocks: list) -> list[ValidationResult]:
     Accepts the raw output of the existing crawler's json_lds list.
     """
     results = []
-    for idx, block in enumerate(json_ld_blocks):
+    # QA-DEP-004: Cap iteration at 100 blocks to prevent CPU/memory exhaustion
+    for idx, block in enumerate(json_ld_blocks[:100]):
         if isinstance(block, str):
             # Block was unparseable (flagged by the existing crawler already)
             results.append(ValidationResult(
@@ -257,13 +329,28 @@ def validate_page_schemas(json_ld_blocks: list) -> list[ValidationResult]:
         # Handle @graph wrapper
         if isinstance(block, list):
             for sub_idx, sub_block in enumerate(block):
-                results.append(validate_single(sub_block, index=idx * 1000 + sub_idx))
+                if isinstance(sub_block, dict):
+                    results.append(validate_single(sub_block, index=idx * 1000 + sub_idx))
             continue
 
         if "@graph" in block:
-            for sub_idx, sub_block in enumerate(block["@graph"]):
-                results.append(validate_single(sub_block, index=idx * 1000 + sub_idx))
-            continue
+            graph = block["@graph"]
+            if isinstance(graph, dict):
+                graph = [graph]
+            if isinstance(graph, list):
+                for sub_idx, sub_block in enumerate(graph):
+                    if isinstance(sub_block, dict):
+                        results.append(validate_single(sub_block, index=idx * 1000 + sub_idx))
+                continue
+            else:
+                results.append(ValidationResult(
+                    schema_type="Invalid",
+                    index=idx,
+                    passed=False,
+                    issues=[SchemaIssue("error", "INVALID_STRUCTURE",
+                                        f"JSON-LD @graph at index {idx} is not an object or array")]
+                ))
+                continue
 
         results.append(validate_single(block, index=idx))
 

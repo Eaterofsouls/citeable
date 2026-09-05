@@ -8,12 +8,14 @@ services:
     # FIX (Readiness Audit, Blocker 2): Render does not support attaching a
     # persistent disk to a free web service — the `disk:` block below requires
     # at least the `starter` plan, or the SQLite database will not survive a
-    # restart/redeploy/spin-down. Bump this before deploying for real use;
-    # leave as `free` only if you're OK with data being wiped on every restart
-    # (e.g. a throwaway demo).
-    plan: free
+    # restart/redeploy/spin-down. Set to starter for persistent disk retention.
+    plan: starter
     branch: main
     healthCheckPath: /api/health
+    disk:
+      name: areos-data
+      mountPath: /data
+      sizeGB: 1
     envVars:
       - key: PYTHONUNBUFFERED
         value: "1"
@@ -64,6 +66,10 @@ services:
       # Jina AI Reader for clean web-fetching in research_service.py (optional)
       - key: AREOS_JINA_KEY
         sync: false
+      # Optional: Enable Playwright JS rendering diff (C030)
+      - key: AREOS_ENABLE_PLAYWRIGHT
+        value: "0"
       # Set by Render automatically — do not override
       - key: RENDER
         value: "true"
+

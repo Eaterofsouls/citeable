@@ -1,191 +1,190 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
- <meta charset="UTF-8">
- <meta name="viewport" content="width=device-width, initial-scale=1.0">
- <title>Citeable | Claims Browser</title>
- <link rel="preconnect" href="https://fonts.googleapis.com">
- <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
- <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
- <link rel="stylesheet" href="index.css?v=2">
- <link rel="icon" type="image/svg+xml" href="favicon.svg">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Citeable | Claims Browser</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="index.css?v=2">
+  <link rel="icon" type="image/svg+xml" href="favicon.svg">
 
- <script src="context.js"></script>
- <script src="identity.js"></script>
- <script src="api.js"></script>
- <script src="dom.js"></script>
- <script src="nav.js"></script>
+  <script src="context.js"></script>
+  <script src="identity.js"></script>
+  <script src="api.js"></script>
+  <script src="dom.js"></script>
+  <script src="nav.js"></script>
 </head>
 <body>
- <div class="app-container">
- <!-- Sidebar Navigation -->
- <aside class="sidebar">
- <div class="logo">
- <div class="logo-icon"><img src="favicon.svg" alt="Citeable Logo" width="24" height="24"></div>
- <h1>Citeable</h1>
- </div>
- <nav id="main-nav"></nav>
- </aside>
+  <div class="app-container">
+    <!-- Sidebar Navigation -->
+    <aside class="sidebar">
+      <div class="logo">
+        <div class="logo-icon"><img src="favicon.svg" alt="Citeable Logo" width="32" height="32"></div>
+        <h1>Citeable</h1>
+      </div>
+      <nav id="main-nav"></nav>
+    </aside>
 
- <!-- Main Content -->
- <main class="main-content">
- <header class="topbar">
- <h2>Live Claims Registry</h2>
- <div class="stats">
- <button id="btn-add-claim" class="btn-primary" style="padding: 6px 12px; margin-left: 12px; font-size: 0.85rem;">+ Add Claim</button>
- </div>
- </header>
+    <!-- Main Content -->
+    <main class="main-content">
+      <header class="topbar">
+        <h2>Live Claims Registry</h2>
+        <div class="stats">
+          <button id="btn-add-claim" class="btn-primary" style="padding: 6px 12px; margin-left: 12px; font-size: 0.85rem;">+ Add Claim</button>
+        </div>
+      </header>
 
- <!-- Filters Bar -->
- <section class="filters-bar glass-panel">
- <div class="filter-group">
- <label>Search</label>
- <input type="text" id="search-input" class="glass-input" placeholder="Search statements..." style="width: 250px;">
- </div>
- <div class="filter-group" style="align-self: center; display: flex; align-items: center; gap: 8px;">
- <input type="checkbox" id="filter-pinned" style="accent-color: var(--accent); width: 16px; height: 16px;">
- <label for="filter-pinned" style="margin: 0; cursor: pointer;">Pinned Only</label>
- </div>
- <div class="filter-group">
- <label>Audit Phase</label>
- <select id="filter-stage" class="glass-input">
- <option value="">All Phases</option>
- <option value="AP-01">AP-01: Business Scoping & Strategy</option>
- <option value="AP-02">AP-02: Schema & JSON-LD Structure</option>
- <option value="AP-03">AP-03: Content Extractability</option>
- <option value="AP-04">AP-04: Authority & Backlinks</option>
- <option value="AP-05">AP-05: Citation Measurement</option>
- <option value="AP-06">AP-06: Competitive Intelligence</option>
- <option value="AP-07">AP-07: Reporting & Remediation</option>
- <option value="AP-08">AP-08: Legal & Policy Compliance</option>
- <option value="AP-09">AP-09: Tool Landscape Review</option>
- <option value="AP-10">AP-10: Remediation Planning</option>
- </select>
- </div>
- <div class="filter-group">
- <label>Status</label>
- <select id="filter-status" class="glass-input">
- <option value="">All Usable Claims</option>
- <option value="active">Active</option>
- <option value="contested">Contested</option>
- <option value="superseded">Superseded</option>
- </select>
- </div>
- <div class="filter-group">
- <label>Confidence</label>
- <select id="filter-confidence" class="glass-input">
- <option value="">Any Confidence</option>
- <option value="high">High</option>
- <option value="medium">Medium</option>
- <option value="low">Low</option>
- </select>
- </div>
- <div class="filter-group">
- <label>Claim Type</label>
- <select id="filter-type" class="glass-input">
- <option value="">All Types</option>
- <option value="empirical">Empirical</option>
- <option value="policy">Policy</option>
- </select>
- </div>
- <div class="filter-group">
- <label>Scope</label>
- <select id="filter-scope" class="glass-input">
- <option value="">All Scopes</option>
- <option value="retrieval-pipeline">Retrieval Pipeline</option>
- <option value="audit-workflow">Audit Workflow</option>
- <option value="general-knowledge">General Knowledge</option>
- </select>
- </div>
- <button id="btn-reset" class="btn-secondary">Reset</button>
- </section>
+      <!-- Filters Bar -->
+      <section class="filters-bar glass-panel">
+        <div class="filter-group">
+          <label>Search</label>
+          <input type="text" id="search-input" class="glass-input" placeholder="Search statements...">
+        </div>
+        <div class="filter-group checkbox-group" style="display: flex; flex-direction: row; align-items: center; gap: 8px; height: 100%;">
+          <input type="checkbox" id="filter-pinned" style="accent-color: var(--accent); width: 16px; height: 16px;">
+          <label for="filter-pinned" style="margin: 0; cursor: pointer;">Pinned Only</label>
+        </div>
+        <div class="filter-group">
+          <label>Audit Phase</label>
+          <select id="filter-stage" class="glass-input">
+            <option value="">All Phases</option>
+            <option value="AP-01">AP-01: Business Scoping & Strategy</option>
+            <option value="AP-02">AP-02: Schema & JSON-LD Structure</option>
+            <option value="AP-03">AP-03: Content Extractability</option>
+            <option value="AP-04">AP-04: Authority & Backlinks</option>
+            <option value="AP-05">AP-05: Citation Measurement</option>
+            <option value="AP-06">AP-06: Competitive Intelligence</option>
+            <option value="AP-07">AP-07: Reporting & Remediation</option>
+            <option value="AP-08">AP-08: Legal & Policy Compliance</option>
+            <option value="AP-09">AP-09: Tool Landscape Review</option>
+            <option value="AP-10">AP-10: Remediation Planning</option>
+          </select>
+        </div>
+        <div class="filter-group">
+          <label>Status</label>
+          <select id="filter-status" class="glass-input">
+            <option value="">All Usable Claims</option>
+            <option value="active">Active</option>
+            <option value="contested">Contested</option>
+            <option value="superseded">Superseded</option>
+          </select>
+        </div>
+        <div class="filter-group">
+          <label>Confidence</label>
+          <select id="filter-confidence" class="glass-input">
+            <option value="">Any Confidence</option>
+            <option value="high">High</option>
+            <option value="medium">Medium</option>
+            <option value="low">Low</option>
+          </select>
+        </div>
+        <div class="filter-group">
+          <label>Claim Type</label>
+          <select id="filter-type" class="glass-input">
+            <option value="">All Types</option>
+            <option value="empirical">Empirical</option>
+            <option value="policy">Policy</option>
+          </select>
+        </div>
+        <div class="filter-group">
+          <label>Scope</label>
+          <select id="filter-scope" class="glass-input">
+            <option value="">All Scopes</option>
+            <option value="retrieval-pipeline">Retrieval Pipeline</option>
+            <option value="audit-workflow">Audit Workflow</option>
+            <option value="general-knowledge">General Knowledge</option>
+          </select>
+        </div>
+        <button id="btn-reset" class="btn-secondary">Reset</button>
+      </section>
 
- <!-- Claims Layout (Grid + Drawer) -->
- <div class="claims-layout">
- <!-- Claims Grid -->
- <section class="claims-grid" id="claims-container" style="flex: 1; margin: 0;">
- <!-- Loader -->
- <div class="loader-container" style="display:flex; flex-direction:column; gap:16px;">
- <div class="skeleton" style="height:48px; width:100%;"></div>
- <div class="skeleton" style="height:48px; width:100%;"></div>
- <div class="skeleton" style="height:48px; width:100%;"></div>
- </div>
- </section>
- 
- <!-- Right Side Drawer -->
- <aside id="claim-drawer" class="glass-panel claim-drawer" style="display: none;">
- <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
- <h3 style="margin: 0;">Claim Details</h3>
- <button id="btn-close-drawer" style="background: none; border: none; color: var(--text-secondary); cursor: pointer; font-size: 1.2rem;">&times;</button>
- </div>
- <div id="drawer-content"></div>
- </aside>
- </div>
- </main>
- </div>
+      <!-- Claims Layout (Grid + Drawer) -->
+      <div class="claims-layout">
+        <!-- Claims Grid -->
+        <section class="claims-grid" id="claims-container" style="flex: 1; margin: 0;">
+          <!-- Loader -->
+          <div class="loader-container" style="display:flex; flex-direction:column; gap:16px;">
+            <div class="skeleton" style="height:48px; width:100%;"></div>
+            <div class="skeleton" style="height:48px; width:100%;"></div>
+            <div class="skeleton" style="height:48px; width:100%;"></div>
+          </div>
+        </section>
+        
+        <!-- Right Side Drawer -->
+        <aside id="claim-drawer" class="glass-panel claim-drawer" style="display: none;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+            <h3 style="margin: 0; color: var(--text-primary);">Claim Details</h3>
+            <button id="btn-close-drawer" style="background: none; border: none; color: var(--text-secondary); cursor: pointer; font-size: 1.2rem;">&times;</button>
+          </div>
+          <div id="drawer-content"></div>
+        </aside>
+      </div>
+    </main>
+  </div>
 
- <!-- Claim Editor Modal (MF-19) -->
- <div id="editor-modal" class="modal-overlay" style="display:none;">
- <div class="modal-content glass-panel" style="max-width: 600px; width: 100%;">
- <h2 id="editor-title" style="margin-top: 0; color: var(--text);">Propose Edit</h2>
- <form id="editor-form">
- <input type="hidden" name="action" value="UPDATE">
- <input type="hidden" name="claim_id" value="">
- 
- <div style="margin-bottom: 16px;">
- <label style="display:block; margin-bottom: 6px; color: var(--text-secondary); font-size: 0.85rem;">Statement</label>
- <textarea name="statement" class="glass-input" style="width: 100%; height: 80px;" required></textarea>
- </div>
- 
- <div style="margin-bottom: 16px;">
- <label style="display:block; margin-bottom: 6px; color: var(--text-secondary); font-size: 0.85rem;">Source URL</label>
- <input type="url" name="source_url" class="glass-input" style="width: 100%;">
- </div>
- 
- <div style="display: flex; gap: 16px; margin-bottom: 16px;">
- <div style="flex: 1;">
- <label style="display:block; margin-bottom: 6px; color: var(--text-secondary); font-size: 0.85rem;">Confidence</label>
- <select name="confidence" class="glass-input" style="width: 100%;" required>
- <option value="high">High</option>
- <option value="medium">Medium</option>
- <option value="low">Low</option>
- </select>
- </div>
- <div style="flex: 1;">
- <label style="display:block; margin-bottom: 6px; color: var(--text-secondary); font-size: 0.85rem;">Source Tier</label>
- <select name="source_tier" class="glass-input" style="width: 100%;" required>
- <option value="primary">Primary</option>
- <option value="secondary">Secondary</option>
- <option value="tertiary">Tertary</option>
- <option value="unknown">Unknown</option>
- </select>
- </div>
- </div>
- 
- <div style="margin-bottom: 24px;">
- <label style="display:block; margin-bottom: 6px; color: var(--text-secondary); font-size: 0.85rem;">Rationale / Notes (optional)</label>
- <input type="text" name="notes" class="glass-input" style="width: 100%;">
- </div>
- 
- <div style="display: flex; justify-content: flex-end; gap: 12px;">
- <button type="button" class="btn-secondary" id="btn-cancel-editor">Cancel</button>
- <button type="submit" class="btn-primary">Submit Proposal</button>
- </div>
- </form>
- </div>
- 
- <style>
- .modal-overlay.active { display: flex !important; }
- .modal-overlay { position: fixed; top:0; left:0; right:0; bottom:0; background: rgba(0,0,0,0.7); z-index: 10000; align-items: center; justify-content: center; padding: 20px; }
- .index-row.focused { border-left: 3px solid var(--accent); background: rgba(99,102,241,0.05); }
- .priority-indicator { margin-right: 8px; display:flex; align-items:center; }
- .btn-pin.pinned { color: var(--accent) !important; }
- </style>
- 
- <script src="auth.js"></script>
- <script src="dom.js"></script>
- <script src="app.js"></script>
- <script>document.addEventListener('DOMContentLoaded', () => { window.AreosNav.renderNav('claims'); });</script>
+  <!-- Claim Editor Modal (MF-19) -->
+  <div id="editor-modal" class="modal-overlay" style="display:none;">
+    <div class="modal-content glass-panel" style="max-width: 600px; width: 100%;">
+      <h2 id="editor-title" style="margin-top: 0; color: var(--text-primary);">Propose Edit</h2>
+      <form id="editor-form">
+        <input type="hidden" name="action" value="UPDATE">
+        <input type="hidden" name="claim_id" value="">
+        
+        <div style="margin-bottom: 16px;">
+          <label style="display:block; margin-bottom: 6px; color: var(--text-secondary); font-size: 0.85rem;">Statement</label>
+          <textarea name="statement" class="glass-input" style="width: 100%; height: 80px;" required></textarea>
+        </div>
+        
+        <div style="margin-bottom: 16px;">
+          <label style="display:block; margin-bottom: 6px; color: var(--text-secondary); font-size: 0.85rem;">Source URL</label>
+          <input type="url" name="source_url" class="glass-input" style="width: 100%;">
+        </div>
+        
+        <div style="display: flex; gap: 16px; margin-bottom: 16px;">
+          <div style="flex: 1;">
+            <label style="display:block; margin-bottom: 6px; color: var(--text-secondary); font-size: 0.85rem;">Confidence</label>
+            <select name="confidence" class="glass-input" style="width: 100%;" required>
+              <option value="high">High</option>
+              <option value="medium">Medium</option>
+              <option value="low">Low</option>
+            </select>
+          </div>
+          <div style="flex: 1;">
+            <label style="display:block; margin-bottom: 6px; color: var(--text-secondary); font-size: 0.85rem;">Source Tier</label>
+            <select name="source_tier" class="glass-input" style="width: 100%;" required>
+              <option value="primary">Primary</option>
+              <option value="secondary">Secondary</option>
+              <option value="tertiary">Tertiary</option>
+              <option value="unknown">Unknown</option>
+            </select>
+          </div>
+        </div>
+        
+        <div style="margin-bottom: 24px;">
+          <label style="display:block; margin-bottom: 6px; color: var(--text-secondary); font-size: 0.85rem;">Rationale / Notes (optional)</label>
+          <input type="text" name="notes" class="glass-input" style="width: 100%;">
+        </div>
+        
+        <div style="display: flex; justify-content: flex-end; gap: 12px;">
+          <button type="button" class="btn-secondary" id="btn-cancel-editor">Cancel</button>
+          <button type="submit" class="btn-primary">Submit Proposal</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <style>
+    .modal-overlay.active { display: flex !important; }
+    .modal-overlay { position: fixed; top:0; left:0; right:0; bottom:0; background: rgba(15, 23, 42, 0.6); backdrop-filter: blur(4px); z-index: 10000; align-items: center; justify-content: center; padding: 20px; }
+    .index-row.focused { border-left: 4px solid var(--brand-500) !important; background: var(--brand-50) !important; }
+    .priority-indicator { margin-right: 8px; display:flex; align-items:center; }
+    .btn-pin.pinned { color: var(--brand-500) !important; }
+  </style>
+  
+  <script src="auth.js"></script>
+  <script src="app.js"></script>
+  <script>document.addEventListener('DOMContentLoaded', () => { window.AreosNav.renderNav('knowledge'); });</script>
 </body>
 </html>
-

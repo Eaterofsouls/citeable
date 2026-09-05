@@ -43,6 +43,9 @@
 
 from __future__ import annotations
 
+import urllib.parse
+from areos.util.ssrf import resolve_and_validate
+
 import json
 import logging
 import os
@@ -95,10 +98,12 @@ def complete(
     model: str | None = None,
     system: str | None = None,
     client_keys: ClientKeys = None,
+    time_budget_seconds: float = 25.0,
 ) -> str:
     """
     Send `prompt` through the provider waterfall and return the response text.
     Tries each configured provider in order; raises RuntimeError only if ALL fail.
+    Enforces a strict global time budget across provider retries.
 
     Args:
         prompt:      The user-facing prompt text.
@@ -106,12 +111,20 @@ def complete(
         system:      Optional system/context instruction.
         client_keys: Dict of user-supplied API keys from request headers.
                      Client-provided keys take priority over os.environ.
+        time_budget_seconds: Maximum total seconds allowed for the waterfall sweep.
     """
     errors: list[str] = []
+    start_time = time.time()
 
     for provider_fn, label in _build_waterfall(client_keys):
+        if time.time() - start_time >= time_budget_seconds:
+            errors.append(f"Global time budget of {time_budget_seconds}s exceeded during waterfall execution")
+            break
+
         try:
-            result = provider_fn(prompt, model=model, system=system)
+            elapsed = time.time() - start_time
+            provider_timeout = min(30.0, max(1.0, time_budget_seconds - elapsed))
+            result = provider_fn(prompt, model=model, system=system, timeout=provider_timeout)
             if not result or not result.strip():
                 raise _ProviderUnavailable("Empty or refused response from model.")
             return result
@@ -142,14 +155,21 @@ def complete_adversarial(
     model: str | None = None,
     system: str | None = None,
     client_keys: ClientKeys = None,
+    time_budget_seconds: float = 25.0,
 ) -> str:
     """
     Like complete(), but runs the waterfall in REVERSE order for cognitive diversity.
     Used for adversarial critique to ensure a different model from the primary response.
+    Enforces a strict global time budget across provider retries.
     """
     errors: list[str] = []
+    start_time = time.time()
 
     for provider_fn, label in reversed(_build_waterfall(client_keys)):
+        if time.time() - start_time >= time_budget_seconds:
+            errors.append(f"Global time budget of {time_budget_seconds}s exceeded during adversarial waterfall execution")
+            break
+
         try:
             result = provider_fn(prompt, model=model, system=system)
             if not result or not result.strip():
@@ -279,6 +299,7 @@ def _make_request(
     timeout: int = 30,
     max_retries_429: int = 3,
     is_local: bool = False,
+    session: _requests.Session | None = None,
 ) -> dict:
     """
     Shared HTTP POST dispatcher with full error mitigation:
@@ -295,7 +316,8 @@ def _make_request(
     delay = 2
     for attempt in range(max_retries_429):
         try:
-            r = _requests.post(
+            req_post = session.post if session else _requests.post
+            r = req_post(
                 url,
                 headers=headers,
                 json=payload,
@@ -384,8 +406,8 @@ def _gemini_call(api_key: str, prompt: str, *, model: str | None, system: str | 
 
     resolved = model or os.environ.get("AREOS_GEMINI_MODEL_1", _GEMINI_DEFAULT_MODEL)
     data = _make_request(
-        url=f"{_GEMINI_BASE}/{resolved}:generateContent?key={api_key}",
-        headers={"Content-Type": "application/json"},
+        url=f"{_GEMINI_BASE}/{resolved}:generateContent",
+        headers={"Content-Type": "application/json", "x-goog-api-key": api_key},
         payload={"contents": contents, "generationConfig": {"temperature": 0.2}},
         label="Gemini",
     )
@@ -413,7 +435,7 @@ def _gemini_call(api_key: str, prompt: str, *, model: str | None, system: str | 
 # ---------------------------------------------------------------------------
 
 _GROQ_BASE = "https://api.groq.com/openai/v1/chat/completions"
-_GROQ_DEFAULT_MODEL = "llama-3.3-70b-versatile"
+_GROQ_DEFAULT_MODEL = "qwen/qwen3.8-27b"
 
 
 def _groq_call(api_key: str, prompt: str, *, model: str | None, system: str | None) -> str:
@@ -615,6 +637,12 @@ _AZURE_API_VERSION = "2025-04-01-preview"  # Updated Aug 2026: 2024-02-01 is leg
 def _azure_call(api_key: str, api_base: str, prompt: str, *, model: str | None, system: str | None) -> str:
     if not api_base:
         raise _NotConfigured  # Azure requires base URL — skip if missing
+    parsed = urllib.parse.urlparse(api_base)
+    hostname = parsed.hostname or api_base
+    try:
+        ip = resolve_and_validate(hostname)
+    except Exception as e:
+        raise _ProviderUnavailable(f"[Azure-OpenAI] SSRF blocked destination '{hostname}': {e}")
     messages = []
     if system:
         messages.append({"role": "system", "content": system})
@@ -628,11 +656,25 @@ def _azure_call(api_key: str, api_base: str, prompt: str, *, model: str | None, 
     else:
         url = f"{api_base.rstrip('/')}/openai/v1/chat/completions"
 
+    parsed_url = urllib.parse.urlsplit(url)
+    formatted_ip = f"[{ip}]" if ":" in ip else ip
+    netloc = f"{formatted_ip}:{parsed_url.port}" if parsed_url.port else formatted_ip
+    ip_url = parsed_url._replace(netloc=netloc).geturl()
+
+    from areos.util.ssrf import TargetIPAdapter
+    session = _requests.Session()
+    adapter = TargetIPAdapter(target_ip=ip, original_host=hostname)
+    session.mount("http://", adapter)
+    session.mount("https://", adapter)
+    
+    headers = {"api-key": api_key, "Content-Type": "application/json", "Host": hostname}
+
     data = _make_request(
-        url=url,
-        headers={"api-key": api_key, "Content-Type": "application/json"},
+        url=ip_url,
+        headers=headers,
         payload={"messages": messages, "temperature": 0.2},
         label="Azure-OpenAI",
+        session=session,
     )
     choices = data.get("choices", [])
     if not choices:
@@ -650,22 +692,40 @@ _CUSTOM_DEFAULT_MODEL = "llama3"
 def _custom_call(api_key: str, api_base: str, prompt: str, *, model: str | None, system: str | None) -> str:
     if not api_base:
         raise _NotConfigured
+    parsed = urllib.parse.urlparse(api_base)
+    hostname = parsed.hostname or api_base
+    try:
+        ip = resolve_and_validate(hostname)
+    except Exception as e:
+        raise _ProviderUnavailable(f"[Custom/Ollama] SSRF blocked destination '{hostname}': {e}")
     messages = []
     if system:
         messages.append({"role": "system", "content": system})
     messages.append({"role": "user", "content": prompt})
 
-    headers = {"Content-Type": "application/json"}
+    headers = {"Content-Type": "application/json", "Host": hostname}
     if api_key:
         headers["Authorization"] = f"Bearer {api_key}"
 
     url = f"{api_base.rstrip('/')}/v1/chat/completions"
+    parsed_url = urllib.parse.urlsplit(url)
+    formatted_ip = f"[{ip}]" if ":" in ip else ip
+    netloc = f"{formatted_ip}:{parsed_url.port}" if parsed_url.port else formatted_ip
+    ip_url = parsed_url._replace(netloc=netloc).geturl()
+
+    from areos.util.ssrf import TargetIPAdapter
+    session = _requests.Session()
+    adapter = TargetIPAdapter(target_ip=ip, original_host=hostname)
+    session.mount("http://", adapter)
+    session.mount("https://", adapter)
+
     data = _make_request(
-        url=url,
+        url=ip_url,
         headers=headers,
         payload={"model": model or _CUSTOM_DEFAULT_MODEL, "messages": messages, "temperature": 0.2},
         label="Custom/Ollama",
         is_local=True,  # Short 5s timeout for local daemon
+        session=session,
     )
     choices = data.get("choices", [])
     if not choices:

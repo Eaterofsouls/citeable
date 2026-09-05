@@ -25,9 +25,11 @@ from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
-# Thread-local connection cache: _local.conns is a dict[str, sqlite3.Connection]
 # keyed by resolved absolute db_path string (MF-13).
 _local = threading.local()
+
+_all_conns: list[sqlite3.Connection] = []
+_all_conns_lock = threading.Lock()
 
 
 def get_db_path() -> str:
@@ -121,21 +123,23 @@ def _open_connection(db_str: str) -> sqlite3.Connection:
         db_str,
         threading.current_thread().name,
     )
+    with _all_conns_lock:
+        _all_conns.append(conn)
     return conn
 
 
 def close_all_connections() -> None:
-    """
-    Close and discard all thread-local connections for the current thread.
-    Called by the MF-11 shutdown hook and test teardown fixtures.
-    """
+    """Close all open connections across all threads from the central registry."""
+    with _all_conns_lock:
+        for conn in _all_conns:
+            try:
+                conn.close()
+                logger.debug("Closed pooled DB connection from central registry")
+            except Exception as e:
+                logger.warning("Error closing pooled connection: %s", e)
+        _all_conns.clear()
+
     conns = getattr(_local, "conns", {})
-    for path, conn in list(conns.items()):
-        try:
-            conn.close()
-            logger.debug("Closed pooled DB connection: %s", path)
-        except Exception as e:
-            logger.warning("Error closing pooled connection %s: %s", path, e)
     conns.clear()
 
 
