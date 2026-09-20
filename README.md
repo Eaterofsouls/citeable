@@ -126,3 +126,12 @@ Architecture notes, migration strategy, and other reference docs live under `doc
 ## License
 
 Copyright 2024-2026 Daksh Chauhan. Licensed under the Apache License, Version 2.0 — see [LICENSE](LICENSE) for the full text.
+
+---
+
+## Author
+
+**Daksh Chauhan**  
+- **Website:** [buildwithdaksh.com](https://buildwithdaksh.com)  
+- **Email:** [me@buildwithdaksh.com](mailto:me@buildwithdaksh.com)
+
