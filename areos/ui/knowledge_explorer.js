@@ -19,6 +19,7 @@ const drawerDialog = makeDialogAccessible(document.getElementById('knowledge-dra
  onClose: () => {
  document.getElementById('knowledge-drawer').style.display = 'none';
  knowledgeContainer.querySelectorAll('.index-row.focused').forEach(r => r.classList.remove('focused'));
+ document.querySelector('.claims-layout')?.classList.remove('drawer-open');
  drawerDialog.close();
  },
 });
@@ -222,6 +223,8 @@ async function loadAndOpenDrawer(record) {
  if (!drawer || !content) return;
  
  drawer.style.display = 'block';
+ drawer.scrollTop = 0;
+ document.querySelector('.claims-layout')?.classList.add('drawer-open');
  drawerDialog.open();
  content.innerHTML = `<div class="loader-container"><div class="spinner"></div></div>`;
 
@@ -376,6 +379,7 @@ document.addEventListener('DOMContentLoaded', () => {
  document.getElementById('btn-close-drawer').addEventListener('click', () => {
  document.getElementById('knowledge-drawer').style.display = 'none';
  knowledgeContainer.querySelectorAll('.index-row.focused').forEach(r => r.classList.remove('focused'));
+ document.querySelector('.claims-layout')?.classList.remove('drawer-open');
  drawerDialog.close();
  });
 });

@@ -803,6 +803,11 @@ a:hover {
   gap: 24px;
   width: 100%;
   min-width: 0;
+  transition: padding-right var(--duration-snappy) var(--ease-damped);
+}
+
+.claims-layout.drawer-open {
+  padding-right: 464px;
 }
 
 .claims-grid {
@@ -840,17 +845,21 @@ a:hover {
 
 .claim-drawer {
   width: 440px;
+  max-width: calc(100vw - var(--sidebar-width) - 48px);
   flex-shrink: 0;
   background: var(--surface-panel);
   border: 1px solid var(--border-default);
   border-radius: var(--radius-md);
   padding: 24px;
   box-shadow: var(--shadow-lg);
-  align-self: flex-start;
-  position: sticky;
-  top: calc(var(--topbar-height) + 24px);
-  max-height: calc(100vh - 120px);
+  position: fixed;
+  top: calc(var(--topbar-height) + 16px);
+  right: 24px;
+  height: calc(100vh - var(--topbar-height) - 32px);
+  max-height: calc(100vh - var(--topbar-height) - 32px);
   overflow-y: auto;
+  z-index: 60;
+  box-sizing: border-box;
 }
 
 /* ==========================================================================
@@ -1572,16 +1581,30 @@ tr:hover td {
   .claims-layout {
     flex-direction: column;
   }
+  .claims-layout.drawer-open {
+    padding-right: 0 !important;
+  }
   .claim-drawer {
     width: 100% !important;
+    max-width: 100% !important;
     position: static !important;
+    height: auto !important;
+    max-height: none !important;
+    margin-top: 16px;
+    box-shadow: var(--shadow-md) !important;
   }
 }
 
 @media (max-width: 768px) {
+  .claims-layout.drawer-open {
+    padding-right: 0 !important;
+  }
   .claim-drawer {
     position: static !important;
     width: 100% !important;
+    max-width: 100% !important;
+    height: auto !important;
+    max-height: none !important;
     box-shadow: none !important;
   }
 }

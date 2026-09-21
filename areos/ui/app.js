@@ -32,6 +32,7 @@ const drawerDialog = makeDialogAccessible(document.getElementById('claim-drawer'
  onClose: () => {
  document.getElementById('claim-drawer').style.display = 'none';
  claimsContainer.querySelectorAll('.index-row.focused').forEach(r => r.classList.remove('focused'));
+ document.querySelector('.claims-layout')?.classList.remove('drawer-open');
  drawerDialog.close();
  },
 });
@@ -245,6 +246,8 @@ function openDrawer(claim) {
  if (!drawer || !content) return;
  
  drawer.style.display = 'block';
+ drawer.scrollTop = 0;
+ document.querySelector('.claims-layout')?.classList.add('drawer-open');
  drawerDialog.open();
  
  const formatStatement = (text) => {
@@ -324,6 +327,7 @@ if (document.getElementById('btn-close-drawer')) {
  drawerDialog.close();
  document.getElementById('claim-drawer').style.display = 'none';
  claimsContainer.querySelectorAll('.index-row.focused').forEach(r => r.classList.remove('focused'));
+ document.querySelector('.claims-layout')?.classList.remove('drawer-open');
  });
 }
 
