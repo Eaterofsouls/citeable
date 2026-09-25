@@ -126,7 +126,7 @@
           <!-- Key Addition Form -->
           <div style="background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 8px; padding: 20px; margin-bottom: 24px;">
             <h3 style="color: #0F172A; font-size: 0.95rem; font-weight: 700; margin: 0 0 14px 0; text-transform: uppercase; letter-spacing: 0.05em;">Add New AI Provider Key</h3>
-            <div style="display: grid; grid-template-columns: minmax(220px, 1fr) 2fr auto; gap: 12px; align-items: stretch;">
+            <div class="byok-add-form-grid" style="display: grid; grid-template-columns: minmax(220px, 1fr) 2fr auto; gap: 12px; align-items: stretch;">
               <div>
                 <select id="byok-select-provider" class="input" style="width: 100%; height: 44px; padding: 8px 12px; background: #FFFFFF; border: 1px solid #CBD5E1; color: #0F172A; border-radius: 6px; font-weight: 600; font-size: 0.9rem;">
                   ${Object.entries(PROVIDER_INFO).map(([key, info]) => `<option value="${key}">${info.name}</option>`).join('')}
@@ -349,7 +349,7 @@
         }
 
         rowsHtml += `
-          <div style="display:grid; grid-template-columns: minmax(180px, 1.5fr) minmax(140px, 1.2fr) minmax(140px, 1fr) auto; gap:16px; align-items:center; padding:14px 18px; border-bottom:1px solid #E2E8F0; background:#FFFFFF;">
+          <div class="byok-key-row" style="display:grid; grid-template-columns: minmax(180px, 1.5fr) minmax(140px, 1.2fr) minmax(140px, 1fr) auto; gap:16px; align-items:center; padding:14px 18px; border-bottom:1px solid #E2E8F0; background:#FFFFFF;">
             <div>
               <div style="color:#0F172A; font-weight:700; font-size:0.92rem;">
                 ${info.name}

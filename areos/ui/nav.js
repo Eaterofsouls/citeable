@@ -342,8 +342,8 @@ window.AreosNav = {
 
     if (!document.getElementById("mobile-menu-btn")) {
       const hamburgerHtml = `
-        <button id="mobile-menu-btn" style="display:none; background:none; border:none; color:var(--text-primary); cursor:pointer; padding:8px; margin-right:12px; align-self:flex-start;">
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
+        <button id="mobile-menu-btn" aria-label="Toggle navigation menu" style="display:none; background:none; border:none; color:var(--text-primary); cursor:pointer; padding:8px 8px 8px 0; margin-right:8px; align-self:center;">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
         </button>
       `;
       if (topbar) {
@@ -354,22 +354,28 @@ window.AreosNav = {
           mainContent.insertAdjacentHTML('afterbegin', hamburgerHtml);
         }
       }
-      
-      const style = document.createElement('style');
-      style.textContent = `
-        @media (max-width: 900px) {
-          #mobile-menu-btn { display: block !important; }
-          .sidebar { position: fixed !important; left: -280px; transition: left 0.25s ease; z-index: 100000; box-shadow: var(--shadow-xl); }
-          .sidebar.open { left: 0 !important; }
-        }
-      `;
-      document.head.appendChild(style);
+
+      let backdrop = document.getElementById("sidebar-backdrop");
+      if (!backdrop) {
+        backdrop = document.createElement("div");
+        backdrop.id = "sidebar-backdrop";
+        backdrop.className = "sidebar-backdrop";
+        document.body.appendChild(backdrop);
+        backdrop.addEventListener("click", () => {
+          const s = document.querySelector('.sidebar');
+          if (s) s.classList.remove('open');
+          backdrop.classList.remove('open');
+        });
+      }
 
       const btn = document.getElementById("mobile-menu-btn");
       if (btn) {
         btn.addEventListener('click', () => {
           const s = document.querySelector('.sidebar');
-          if (s) s.classList.toggle('open');
+          if (s) {
+            const isOpen = s.classList.toggle('open');
+            if (backdrop) backdrop.classList.toggle('open', isOpen);
+          }
         });
       }
     }

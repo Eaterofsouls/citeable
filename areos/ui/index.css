@@ -2538,3 +2538,211 @@ p, span, h1, h2, h3, h4, h5, h6, li, a, td, th {
   }
 }
 
+/* ==========================================================================
+   Multi-Screen Mobile & Responsive Layout Enhancements
+   ========================================================================== */
+
+/* Sidebar Backdrop */
+.sidebar-backdrop {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: var(--surface-overlay);
+  backdrop-filter: blur(2px);
+  z-index: 99990;
+  opacity: 0;
+  transition: opacity var(--duration-snappy);
+}
+.sidebar-backdrop.open {
+  display: block;
+  opacity: 1;
+}
+
+/* Approvals Console Layout */
+.approval-layout {
+  display: grid;
+  grid-template-columns: 1fr 1.2fr;
+  gap: 24px;
+  align-items: start;
+}
+
+/* Prompts Library Layout */
+.prompts-layout {
+  display: grid;
+  grid-template-columns: 1.1fr 1.4fr;
+  gap: 24px;
+  align-items: start;
+}
+
+/* Case Study & Editorial Container */
+.case-study-card {
+  padding: 36px 44px;
+}
+
+/* Pipeline Stage Live Monitor */
+.pipeline-stage {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  border-radius: var(--radius-sm);
+  background: var(--surface-sunken);
+  border: 1px solid var(--border-default);
+  margin-bottom: 8px;
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  color: var(--text-secondary);
+  transition: all var(--duration-snappy);
+}
+.pipeline-stage.active {
+  background: var(--brand-50);
+  border-color: var(--brand-100);
+  color: var(--brand-600);
+  font-weight: 600;
+}
+.pipeline-stage.completed {
+  background: var(--status-success-bg);
+  border-color: var(--status-success-border);
+  color: var(--status-success-text);
+}
+.stage-icon {
+  width: 18px;
+  height: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+/* Tablet & Intermediate Viewports (<= 900px) */
+@media (max-width: 900px) {
+  #mobile-menu-btn {
+    display: flex !important;
+    align-items: center;
+    justify-content: center;
+  }
+  .sidebar {
+    position: fixed !important;
+    left: -280px;
+    top: 0;
+    bottom: 0;
+    height: 100vh !important;
+    transition: left var(--duration-base) var(--ease-damped);
+    z-index: 100000;
+    box-shadow: var(--shadow-xl);
+    -webkit-overflow-scrolling: touch;
+    overflow-y: auto;
+  }
+  .sidebar.open {
+    left: 0 !important;
+  }
+  .approval-layout {
+    grid-template-columns: 1fr !important;
+  }
+  .diff-console-mad {
+    position: static !important;
+    max-height: none !important;
+    margin-top: 16px;
+  }
+  .prompts-layout {
+    grid-template-columns: 1fr !important;
+  }
+  .taxonomy-grid {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+  .claim-drawer {
+    width: 100% !important;
+    max-width: 100% !important;
+    position: static !important;
+    height: auto !important;
+    max-height: none !important;
+    margin-top: 16px;
+  }
+}
+
+/* Mobile Screens (<= 768px) */
+@media (max-width: 768px) {
+  .case-study-card {
+    padding: 20px 16px !important;
+  }
+  .case-study-card h1 {
+    font-size: 1.45rem !important;
+  }
+  .docs-page-container {
+    padding: 12px 14px 28px 14px !important;
+  }
+  .modal-content {
+    width: calc(100vw - 24px) !important;
+    max-width: calc(100vw - 24px) !important;
+    padding: 18px !important;
+    margin: 12px auto !important;
+  }
+  .byok-key-row {
+    grid-template-columns: 1fr !important;
+    gap: 8px !important;
+    padding: 12px 14px !important;
+  }
+  .byok-key-row > div:last-child {
+    justify-content: flex-start !important;
+  }
+  .byok-add-form-grid {
+    grid-template-columns: 1fr !important;
+  }
+  .rec-header {
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    gap: 10px !important;
+  }
+  .rec-header > div:first-child {
+    flex: 1 1 auto !important;
+    width: 100% !important;
+  }
+}
+
+/* Compact Mobile (<= 640px) */
+@media (max-width: 640px) {
+  .studio-hero {
+    padding: 24px 16px !important;
+  }
+  .studio-hero h1 {
+    font-size: 1.45rem !important;
+  }
+  .studio-hero p {
+    font-size: var(--text-sm) !important;
+    margin-bottom: 20px !important;
+  }
+  .filters-bar {
+    grid-template-columns: 1fr !important;
+    padding: 14px 16px !important;
+  }
+  .filter-group[style*="grid-column"] {
+    grid-column: span 1 !important;
+  }
+  .score-card, .stat-pill {
+    padding: 16px 14px !important;
+    min-height: auto !important;
+  }
+  .prompts-subgrid {
+    grid-template-columns: 1fr !important;
+  }
+  .bulk-actions-bar {
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    gap: 10px !important;
+  }
+}
+
+/* Ultra-Compact Phones (<= 480px) */
+@media (max-width: 480px) {
+  .taxonomy-grid {
+    grid-template-columns: 1fr !important;
+  }
+  .topbar {
+    padding: 8px 12px !important;
+  }
+  .topbar h2, .topbar h1 {
+    font-size: 1.1rem !important;
+  }
+}
+
+
