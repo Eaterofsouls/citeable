@@ -156,6 +156,11 @@ MANUAL_CARD_GUIDANCE = {
         "what_to_look_for": "Analyze the framing of brand citations in generative answers. Are AI engines describing the brand as 'expensive', 'outdated', or secondary to a rival?",  # noqa: E501
         "how_to_fill": "If sentiment is accurate and authoritative, select 'pass'. If generative answers contain negative or diminishing framing, select 'fail' and describe the misaligned topic in notes."  # noqa: E501
     },
+    "C082": {
+        "title": "Digital-PR / Third-Party Citation Gap",
+        "what_to_look_for": "Identify which third-party websites (review platforms, trade media, aggregators) are being cited instead of your brand, and determine what structural or authority elements they provide that your pages lack.",  # noqa: E501
+        "how_to_fill": "Select 'pass' if brand dominates third-party citations. Select 'warn' or 'fail' if third parties outrank or omit the brand, and note target PR publications to pitch."  # noqa: E501
+    },
     "C090": {
         "title": "Final Root Cause Diagnosis Narrative",
         "what_to_look_for": "Ensure the overall audit report provides a coherent narrative linking technical failures (e.g. low DR or missing llms.txt) to real business outcomes.",  # noqa: E501

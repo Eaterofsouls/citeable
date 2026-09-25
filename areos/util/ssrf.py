@@ -49,9 +49,14 @@ class TargetIPAdapter(HTTPAdapter):
         )
 
 
+NAT64_PREFIX = ipaddress.ip_network("64:ff9b::/96")
+
+
 def _validate_ip(ip: ipaddress.IPv4Address | ipaddress.IPv6Address, domain: str) -> None:
     if getattr(ip, "ipv4_mapped", None):
         ip = ip.ipv4_mapped
+    elif isinstance(ip, ipaddress.IPv6Address) and ip in NAT64_PREFIX:
+        ip = ipaddress.IPv4Address(ip.packed[-4:])
     if ip.is_multicast or ip.is_reserved or ip.is_unspecified:
         raise ValueError(f"Domain resolves to a restricted address: {ip}")
     if any(ip in net for net in SSRF_DENYLIST):

@@ -78,23 +78,33 @@ window.GuidedReview = (function() {
     • <strong>FAIL:</strong> Issue severely disrupts Generative AI trust evaluation or prevents citation.`;
   }
 
-  // Per-card guidance, keyed by the real card_id \u2014 rewritten after the
-  // UX audit found that two different cards (e.g. C073 vs C082, C058 vs
-  // C061) were showing byte-identical text because guidance was generated
-  // from 5 generic keyword-matched families instead of the actual 14
-  // instruction cards in areos/instruction_cards/*.md. Each entry below is
-  // a simplified, layman-language adaptation of that card's real content
-  // \u2014 not an invented generic template \u2014 so two different cards now say
-  // two different things. `example`, where present, is filled in with the
-  // real domain at render time and shows literal query text for
-  // ChatGPT/Perplexity/Google AI Mode rather than an abstract instruction.
+  const CLAIM_TO_QUESTION = {
+    "C052": "B2_CONTENT_ANSWERABILITY",
+    "C053": "B1_SCHEMA_HONESTY",
+    "C054": "B1_SCHEMA_HONESTY",
+    "C056": "C2_CONTENT_TRUSTWORTHINESS",
+    "C058": "B2_CONTENT_ANSWERABILITY",
+    "C061": "B2_CONTENT_ANSWERABILITY",
+    "C062": "C2_CONTENT_TRUSTWORTHINESS",
+    "C072": "A1_PROMPT_VALIDATION",
+    "C073": "C4_CITATION_GAP",
+    "C074": "C1_BRAND_ACCURACY",
+    "C077": "C1_BRAND_ACCURACY",
+    "C078": "C2_CONTENT_TRUSTWORTHINESS",
+    "C079": "C5_SPEAKABLE",
+    "C082": "C4_CITATION_GAP",
+    "C090": "D2_ROOT_CAUSE_DIAGNOSIS"
+  };
+
+  // Per-card guidance, keyed by real card_id and Track B question_id
   const CARD_GUIDANCE = {
+    // Track B Question IDs
     A1_PROMPT_VALIDATION: {
       question: "Do the test prompts accurately represent how your target audience would ask AI about your brand/product?",
       why: "Validates if the queries match real user intent.",
       steps: ["Review the test prompts provided in the audit."],
       structured_output: {},
-      maps_to_claims: ["C073"]
+      maps_to_claims: ["C072", "C073"]
     },
     B1_SCHEMA_HONESTY: {
       question: "Compare the JSON-LD claims below with the visible page content. Are all schema claims truthful and verifiable on the page?",
@@ -108,7 +118,7 @@ window.GuidedReview = (function() {
       why: "Ensures content is effectively accessible.",
       steps: ["Read extracted text to check for context completeness."],
       structured_output: {},
-      maps_to_claims: ["C052"]
+      maps_to_claims: ["C052", "C058", "C061"]
     },
     B3_CLOAKING_INTENT: {
       question: "The automated scan detected differences between browser and bot versions of your page. Is this intentional or a technical issue?",
@@ -123,14 +133,14 @@ window.GuidedReview = (function() {
       why: "Identifies incorrect LLM beliefs about the brand.",
       steps: ["Review facts in the generated answers."],
       structured_output: {},
-      maps_to_claims: ["C077"]
+      maps_to_claims: ["C074", "C077"]
     },
     C2_CONTENT_TRUSTWORTHINESS: {
       question: "Does the page demonstrate first-hand expertise, authoritative sourcing, and editorial trustworthiness (E-E-A-T)?",
       why: "Determines E-E-A-T signals.",
       steps: ["Evaluate page content for authority markers."],
       structured_output: {},
-      maps_to_claims: ["C078"]
+      maps_to_claims: ["C056", "C062", "C078"]
     },
     C3_CITATION_FRAMING: {
       question: "Review how your brand is framed in AI citations. Is the sentiment accurate and the context appropriate?",
@@ -145,7 +155,7 @@ window.GuidedReview = (function() {
       why: "Reveals competitive content advantages.",
       steps: ["Compare your content against cited competitors."],
       structured_output: {},
-      maps_to_claims: ["C073"],
+      maps_to_claims: ["C073", "C082"],
       conditional: true
     },
     C5_SPEAKABLE: {
@@ -170,12 +180,157 @@ window.GuidedReview = (function() {
       steps: ["Summarize the audit findings."],
       structured_output: {},
       maps_to_claims: ["C090"]
+    },
+
+    // Specific 14 Check Code Instructions
+    C052: {
+      question: "Are critical JavaScript or CSS assets blocked by crawler directives or CDN challenges?",
+      why: "If AI rendering bots cannot load scripts or stylesheets, your page may appear completely blank or broken to RAG extractors.",
+      steps: [
+        "Inspect robots.txt to ensure CSS and JS endpoints are not disallowed.",
+        "Verify that core page content renders in raw HTML without requiring client-side JS execution."
+      ],
+      structured_output: {},
+      maps_to_claims: ["C052"]
+    },
+    C053: {
+      question: "Compare the JSON-LD schema with the visible page content. Are all claims truthful and verifiable?",
+      why: "AI engines and search algorithms penalize sites that claim features, ratings, or facts in schema that do not appear on the visible page.",
+      steps: [
+        "Inspect schema blocks (Organization, Product, FAQ, Article).",
+        "Compare schema properties directly with on-page text to ensure 100% semantic honesty."
+      ],
+      structured_output: {},
+      maps_to_claims: ["C053", "C054"]
+    },
+    C056: {
+      question: "Is your brand and product entity clearly disambiguated from similarly named concepts or competitors?",
+      why: "LLMs easily conflate brands with common nouns or similar company names, leading to hallucinated or misattributed answers.",
+      steps: [
+        "Verify schema includes sameAs links to official Wikidata, LinkedIn, or Crunchbase profiles.",
+        "Ensure introductory page paragraphs clearly define the entity category and distinct brand identity."
+      ],
+      structured_output: {},
+      maps_to_claims: ["C056"]
+    },
+    C058: {
+      question: "Is critical product or brand information trapped inside images, charts, or video without text fallbacks?",
+      why: "AI models primarily parse textual DOM elements; text flattened inside graphic banners or videos is invisible to retrieval bots.",
+      steps: [
+        "Review key diagrams, infographics, and pricing charts.",
+        "Ensure all critical data points have corresponding HTML text, captions, or descriptive alt text."
+      ],
+      structured_output: {},
+      maps_to_claims: ["C058"]
+    },
+    C061: {
+      question: "Is the page DOM layout organized so AI scrapers can extract core content without distraction?",
+      why: "Deep DOM nesting, interstitials, cookie banners, and excessive boilerplate dilute token density in LLM context windows.",
+      steps: [
+        "Check that main informational content resides inside semantic tags (<main>, <article>).",
+        "Verify that popups and boilerplate banners do not push primary answer text down the page."
+      ],
+      structured_output: {},
+      maps_to_claims: ["C061"]
+    },
+    C062: {
+      question: "Does the page demonstrate credible E-E-A-T (Experience, Expertise, Authoritativeness, Trustworthiness)?",
+      why: "Generative engines favor sources with verified author credentials, transparent editorial standards, and authoritative citations.",
+      steps: [
+        "Inspect author bylines, expert bios, and publication dates.",
+        "Verify clear links to about pages, corporate disclosures, and verifiable methodology."
+      ],
+      structured_output: {},
+      maps_to_claims: ["C062"]
+    },
+    C072: {
+      question: "Do the test prompts accurately reflect how prospective buyers query AI assistants about your market?",
+      why: "Testing visibility on artificial or narrow prompts produces misleading audit scores.",
+      steps: [
+        "Review the prompt set used in this audit.",
+        "Confirm the queries represent realistic conversational queries across discovery, comparison, and evaluation."
+      ],
+      structured_output: {},
+      maps_to_claims: ["C072"]
+    },
+    C073: {
+      question: "Why was your brand cited or omitted in AI engine responses (Causal Attribution)?",
+      why: "AI providers do not expose ranking algorithms; diagnosing whether Access, Content, or Authority caused omission is essential to prioritize fixes.",
+      steps: [
+        "Review automated findings: did crawler access fail, schema fail, or extractability score drop?",
+        "Compare against cited competitors to determine whether they hold content or domain authority advantages.",
+        "Record the primary failure layer (Access, Content, or Authority) in your notes."
+      ],
+      structured_output: {},
+      maps_to_claims: ["C073"]
+    },
+    C074: {
+      question: "Did AI engines hallucinate features, pricing, or capabilities when answering about your brand?",
+      why: "Hallucinated answers mislead prospective customers and damage market perception.",
+      steps: [
+        "Read the generated AI answers carefully.",
+        "Flag any inaccurate product attributes, fake pricing, or fabricated partnership claims."
+      ],
+      structured_output: {},
+      maps_to_claims: ["C074"]
+    },
+    C077: {
+      question: "How is your brand framed in AI responses? Is the sentiment accurate, fair, and authoritative?",
+      why: "Even when cited, negative or secondary framing (e.g. 'expensive alternative', 'outdated') depresses conversion.",
+      steps: [
+        "Examine the tone, adjectives, and competitive positioning used by the AI engine.",
+        "Document any unfair framing or outdated market perceptions in your notes."
+      ],
+      structured_output: {},
+      maps_to_claims: ["C077"]
+    },
+    C078: {
+      question: "Does the AI engine generate a zero-click answer that satisfies user intent without sending traffic to your site?",
+      why: "Direct zero-click answers replace website visits unless your brand is established as the definitive authority.",
+      steps: [
+        "Evaluate if the AI summary answers the query completely without encouraging click-through.",
+        "Check if structured schema or actionable takeaways encourage navigation to your domain."
+      ],
+      structured_output: {},
+      maps_to_claims: ["C078"]
+    },
+    C079: {
+      question: "Is content structured and marked up for voice assistants to read aloud cleanly (Speakable Schema)?",
+      why: "Voice assistants require concise, conversational 2-3 sentence answers without markdown or table noise.",
+      steps: [
+        "Inspect SpeakableSpecification markup or lead summary paragraphs.",
+        "Read the passage aloud to confirm natural syntax and conversational flow."
+      ],
+      structured_output: {},
+      maps_to_claims: ["C079"]
+    },
+    C082: {
+      question: "Which third-party sources (review platforms, trade media, aggregators) are winning citations instead of your brand?",
+      why: "AI engines often prioritize third-party consensus (G2, Trustpilot, trade media, Wikipedia) over self-published corporate claims.",
+      steps: [
+        "Review the third-party domains cited in AI answers where your domain was omitted.",
+        "Identify what makes their coverage authoritative (comparative tables, user reviews, neutral tone).",
+        "Formulate a digital PR strategy to secure brand inclusion on winning third-party platforms."
+      ],
+      structured_output: {},
+      maps_to_claims: ["C082"]
+    },
+    C090: {
+      question: "Based on all findings and citation data, what is your synthesized Root Cause Diagnosis?",
+      why: "Connecting isolated findings (low DR, schema issues, crawler rules) into a unified narrative guides executive remediation.",
+      steps: [
+        "Synthesize technical audit findings with real-time AI citation performance.",
+        "Identify whether the primary barrier is Crawl Access, Content Quality, or Off-Page Authority.",
+        "Write a 2-3 sentence root cause diagnosis to guide the remediation roadmap."
+      ],
+      structured_output: {},
+      maps_to_claims: ["C090"]
     }
   };
 
   const FALLBACK_GUIDANCE = {
     question: "Does this check hold up when you look at the actual page?",
-    why: "This is a check our automated scan flagged for a human to confirm \u2014 it's the kind of judgment call a script can't make reliably on its own.",
+    why: "This is a check our automated scan flagged for a human to confirm — it's the kind of judgment call a script can't make reliably on its own.",
     steps: [
       "Open the page or setting this check refers to (see the reference below).",
       "Compare what you see against what the check is asking about.",
@@ -183,12 +338,24 @@ window.GuidedReview = (function() {
     ]
   };
 
-  // Rewritten per UX audit \u00a75.5 so each card reads like an interview
-  // question, not a system-log dump. steps[] contains ONLY the how-to-check
-  // procedure; PASS/WARN/FAIL definitions live on the buttons themselves
-  // (see renderInlineWizard), not duplicated in prose.
   function getSimpleGuidance(card) {
-    return CARD_GUIDANCE[card.card_id] || FALLBACK_GUIDANCE;
+    if (!card) return FALLBACK_GUIDANCE;
+    const cid = card.card_id;
+    if (cid && CARD_GUIDANCE[cid]) {
+      return CARD_GUIDANCE[cid];
+    }
+    const mapped = cid ? CLAIM_TO_QUESTION[cid] : null;
+    if (mapped && CARD_GUIDANCE[mapped]) {
+      return CARD_GUIDANCE[mapped];
+    }
+    if (card.what_to_look_for && card.title && card.title !== "Expert Human Inspection Required") {
+      return {
+        question: card.title.endsWith("?") ? card.title : `${card.title}?`,
+        why: card.what_to_look_for,
+        steps: [card.how_to_fill || "Inspect on-page evidence and record observations."]
+      };
+    }
+    return FALLBACK_GUIDANCE;
   }
 
   let guidedDialog = null;
@@ -209,11 +376,12 @@ window.GuidedReview = (function() {
   async function submitInlineVerdict(cardId, verdict, opts) {
     const notesEl = document.getElementById(`notes-${cardId}`);
     const notes = notesEl && notesEl.value.trim() ? notesEl.value.trim() : `Human qualitative verification recorded as ${verdict.toUpperCase()}`;
-    const runId = opts.runId || window.currentRunId || "";
+    const runId = (opts && opts.runId) || window.currentRunId || "";
     const severity = verdict === 'pass' ? 'info' : (verdict === 'warn' ? 'warning' : 'error');
 
-    const questionDef = CARD_GUIDANCE[cardId] || {};
-    const maps_to_claims = questionDef.maps_to_claims || [];
+    const mappedQid = CLAIM_TO_QUESTION[cardId] || cardId;
+    const questionDef = CARD_GUIDANCE[cardId] || CARD_GUIDANCE[mappedQid] || {};
+    const maps_to_claims = questionDef.maps_to_claims || (cardId.startsWith("C") ? [cardId] : []);
 
     try {
       if (runId && typeof AreosAPI !== "undefined") {
@@ -222,7 +390,7 @@ window.GuidedReview = (function() {
           method: "POST",
           headers: headers,
           body: JSON.stringify({
-            question_id: cardId,
+            question_id: mappedQid,
             maps_to_claims: maps_to_claims,
             structured_data: {},
             severity: severity,
@@ -283,14 +451,15 @@ window.GuidedReview = (function() {
       
       let prepopulatedHtml = "";
       const auditResult = (window.AreosContext && window.AreosContext.auditResult) || {};
-      if (wiz.card_id === "B1_SCHEMA_HONESTY" && auditResult.schema_claims) {
-        prepopulatedHtml = `<div class="gr-card-prepopulate" style="background: rgba(30,41,59,0.5); padding: 10px; margin-bottom: 10px; font-family: monospace; white-space: pre-wrap; font-size: 0.85rem;"><strong>Pre-populated Data (Schema Claims):</strong>\n${escapeHtml(typeof auditResult.schema_claims === 'string' ? auditResult.schema_claims : JSON.stringify(auditResult.schema_claims, null, 2))}</div>`;
-      } else if (wiz.card_id === "B2_CONTENT_ANSWERABILITY" && auditResult.extracted_lead_text) {
-        prepopulatedHtml = `<div class="gr-card-prepopulate" style="background: rgba(30,41,59,0.5); padding: 10px; margin-bottom: 10px; font-family: monospace; white-space: pre-wrap; font-size: 0.85rem;"><strong>Pre-populated Data (Extracted Lead Text):</strong>\n${escapeHtml(auditResult.extracted_lead_text)}</div>`;
-      } else if (wiz.card_id === "C1_BRAND_ACCURACY" && auditResult.citation_result && auditResult.citation_result.full_responses) {
-        prepopulatedHtml = `<div class="gr-card-prepopulate" style="background: rgba(30,41,59,0.5); padding: 10px; margin-bottom: 10px; font-family: monospace; white-space: pre-wrap; font-size: 0.85rem;"><strong>Pre-populated Data (Full Responses):</strong>\n${escapeHtml(typeof auditResult.citation_result.full_responses === 'string' ? auditResult.citation_result.full_responses : JSON.stringify(auditResult.citation_result.full_responses, null, 2))}</div>`;
-      } else if (wiz.card_id === "C4_CITATION_GAP" && auditResult.citation_analytics && auditResult.citation_analytics.competitor_domains) {
-        prepopulatedHtml = `<div class="gr-card-prepopulate" style="background: rgba(30,41,59,0.5); padding: 10px; margin-bottom: 10px; font-family: monospace; white-space: pre-wrap; font-size: 0.85rem;"><strong>Pre-populated Data (Competitor Domains):</strong>\n${escapeHtml(typeof auditResult.citation_analytics.competitor_domains === 'string' ? auditResult.citation_analytics.competitor_domains : JSON.stringify(auditResult.citation_analytics.competitor_domains, null, 2))}</div>`;
+      const effectiveQid = CLAIM_TO_QUESTION[wiz.card_id] || wiz.card_id;
+      if ((effectiveQid === "B1_SCHEMA_HONESTY" || wiz.card_id === "C053") && auditResult.schema_claims) {
+        prepopulatedHtml = `<div class="gr-card-prepopulate"><strong>Pre-populated Data (Schema Claims):</strong>\n${escapeHtml(typeof auditResult.schema_claims === 'string' ? auditResult.schema_claims : JSON.stringify(auditResult.schema_claims, null, 2))}</div>`;
+      } else if ((effectiveQid === "B2_CONTENT_ANSWERABILITY" || wiz.card_id === "C052") && auditResult.extracted_lead_text) {
+        prepopulatedHtml = `<div class="gr-card-prepopulate"><strong>Pre-populated Data (Extracted Lead Text):</strong>\n${escapeHtml(auditResult.extracted_lead_text)}</div>`;
+      } else if ((effectiveQid === "C1_BRAND_ACCURACY" || wiz.card_id === "C077" || wiz.card_id === "C074") && auditResult.citation_result && auditResult.citation_result.full_responses) {
+        prepopulatedHtml = `<div class="gr-card-prepopulate"><strong>Pre-populated Data (Full Responses):</strong>\n${escapeHtml(typeof auditResult.citation_result.full_responses === 'string' ? auditResult.citation_result.full_responses : JSON.stringify(auditResult.citation_result.full_responses, null, 2))}</div>`;
+      } else if ((effectiveQid === "C4_CITATION_GAP" || wiz.card_id === "C073" || wiz.card_id === "C082") && auditResult.citation_analytics && auditResult.citation_analytics.competitor_domains) {
+        prepopulatedHtml = `<div class="gr-card-prepopulate"><strong>Pre-populated Data (Competitor Domains):</strong>\n${escapeHtml(typeof auditResult.citation_analytics.competitor_domains === 'string' ? auditResult.citation_analytics.competitor_domains : JSON.stringify(auditResult.citation_analytics.competitor_domains, null, 2))}</div>`;
       }
 
       const exampleHtml = guide.example
@@ -323,17 +492,17 @@ window.GuidedReview = (function() {
 
         ${exampleHtml}
 
-        ${siteUrl ? `<a class="gr-view-page-btn" href="${siteUrl}" target="_blank" rel="noopener">\uD83D\uDC40 View the site we're asking about</a>` : ""}
+        ${siteUrl ? `<a class="gr-view-page-btn" href="${siteUrl}" target="_blank" rel="noopener">👀 View the site we're asking about</a>` : ""}
 
-        <input type="text" class="verdict-notes" id="notes-${wiz.card_id}" placeholder="Add a note (optional)..." style="width: 100%; background: rgba(15,23,42,0.8); border: 1px solid rgba(255,255,255,0.1); padding: 0.7rem 0.9rem; border-radius: 6px; color: white; font-size: 0.9rem; margin-bottom: 0.9rem;">
+        <input type="text" class="verdict-notes" id="notes-${wiz.card_id}" placeholder="Add an observation note (optional)...">
 
         <div class="gr-verdict-row">
-          <button class="btn-verdict gr-verdict-btn yes" data-card-id="${wiz.card_id}" data-verdict="pass">\u2713 Pass</button>
-          <button class="btn-verdict gr-verdict-btn partly" data-card-id="${wiz.card_id}" data-verdict="warn">\u26A0 Warn</button>
-          <button class="btn-verdict gr-verdict-btn no" data-card-id="${wiz.card_id}" data-verdict="fail">\u2717 Fail</button>
+          <button class="btn-verdict gr-verdict-btn yes" data-card-id="${wiz.card_id}" data-verdict="pass">✓ Pass</button>
+          <button class="btn-verdict gr-verdict-btn partly" data-card-id="${wiz.card_id}" data-verdict="warn">⚠ Warn</button>
+          <button class="btn-verdict gr-verdict-btn no" data-card-id="${wiz.card_id}" data-verdict="fail">✗ Fail</button>
         </div>
 
-        <div class="gr-card-footnote">Check ${escapeHtml(wiz.card_id || "")} \u00b7 ${checkRef}</div>
+        <div class="gr-card-footnote">Check ${escapeHtml(wiz.card_id || "")} · ${checkRef}</div>
       `;
       const passBtn = wizCard.querySelector(".yes");
       const warnBtn = wizCard.querySelector(".partly");
@@ -346,29 +515,35 @@ window.GuidedReview = (function() {
   }
 
   function isQuestionVisible(questionId) {
+    const qid = CLAIM_TO_QUESTION[questionId] || questionId;
     const mode = window.AreosContext && window.AreosContext.reviewMode ? window.AreosContext.reviewMode : 'full';
     if (mode === 'express') {
-      return ['B2_CONTENT_ANSWERABILITY', 'C1_BRAND_ACCURACY', 'C2_CONTENT_TRUSTWORTHINESS', 'D2_ROOT_CAUSE_DIAGNOSIS'].includes(questionId);
+      return ['B2_CONTENT_ANSWERABILITY', 'C1_BRAND_ACCURACY', 'C2_CONTENT_TRUSTWORTHINESS', 'D2_ROOT_CAUSE_DIAGNOSIS'].includes(qid);
     }
     
+    // If it's a backend triggered claim card (e.g. C073, C082, C090), it was already triggered by report.py
+    if (typeof questionId === "string" && questionId.startsWith("C0")) {
+      return true;
+    }
+
     const auditResult = (window.AreosContext && window.AreosContext.auditResult) || {};
     
-    if (questionId === 'B3_CLOAKING_INTENT') {
+    if (qid === 'B3_CLOAKING_INTENT') {
       const findings = auditResult.findings || [];
       return findings.includes('CLOAKING_DETECTED') || findings.includes('CLOAKING_MINOR');
     }
-    if (questionId === 'C3_CITATION_FRAMING') {
+    if (qid === 'C3_CITATION_FRAMING') {
       return (auditResult.cited_count || 0) > 0;
     }
-    if (questionId === 'C4_CITATION_GAP') {
+    if (qid === 'C4_CITATION_GAP') {
       const cited_count = auditResult.cited_count || 0;
       const total_prompts = auditResult.total_prompts || 0;
       return cited_count < total_prompts;
     }
-    if (questionId === 'C5_SPEAKABLE') {
+    if (qid === 'C5_SPEAKABLE') {
       return auditResult.speakable_found === true;
     }
-    if (questionId === 'D1_LLMS_TXT_REVIEW') {
+    if (qid === 'D1_LLMS_TXT_REVIEW') {
       return auditResult.llms_exists === true;
     }
     
