@@ -319,6 +319,12 @@ function displayStudioResults(data, domain) {
   const funnelLabel = document.getElementById("res-funnel-label");
   if (funnelLabel) funnelLabel.textContent = `Full Spectrum Diagnostic Audit`;
 
+  const dlRemBtn = document.getElementById("btn-download-remediation");
+  if (dlRemBtn && data.run_id) {
+    dlRemBtn.href = `${window.AreosContext?.apiBase || '/api/v1'}/audit/runs/${encodeURIComponent(data.run_id)}/remediation/download`;
+    dlRemBtn.style.display = "inline-flex";
+  }
+
  // 1. Executive Scorecard
  const score = data.executive_scorecard.overall_score;
  const sc    = data.executive_scorecard;
@@ -717,6 +723,11 @@ function syncFinalReportButton(pct) {
 }
 
 function downloadFinalReport() {
+  const runId = (currentAuditData && currentAuditData.run_id) || _activeRunId;
+  if (runId) {
+    window.location.href = `${window.AreosContext?.apiBase || '/api/v1'}/audit/runs/${encodeURIComponent(runId)}/report/download`;
+    return;
+  }
   const narrativeEl = document.getElementById('synth-narrative-body');
   const narrative = narrativeEl ? narrativeEl.textContent.trim() : '';
   if (!narrative) return AreosAPI.notify('Final report not ready yet.');
@@ -1149,6 +1160,13 @@ function renderSynthesisTab(data) {
   const narrativeCard = document.getElementById('synth-narrative-card');
   narrativeCard.style.display = 'block';
   document.getElementById('synth-narrative-body').textContent = synth.narrative || '';
+
+  const dlSynthBtn = document.getElementById('btn-download-synth-report');
+  if (dlSynthBtn && (data.run_id || _activeRunId)) {
+    const rid = data.run_id || _activeRunId;
+    dlSynthBtn.href = `${window.AreosContext?.apiBase || '/api/v1'}/audit/runs/${encodeURIComponent(rid)}/report/download`;
+    dlSynthBtn.style.display = 'inline-flex';
+  }
 
   // Draft (auditable, collapsed)
   if (synth.draft) {

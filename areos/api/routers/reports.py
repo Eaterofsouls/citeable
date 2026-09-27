@@ -4,6 +4,7 @@ from pathlib import Path
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException
+from fastapi.responses import Response
 from pydantic import BaseModel
 
 from areos.api.dependencies import get_db, get_db_path, verify_admin
@@ -41,8 +42,9 @@ class RemediationPlanResponse(BaseModel):
     qa_rejected: list[dict[str, Any]]
     plan_markdown: str
 
-@router.get("/audit/runs/{run_id}/report", response_model=ReportResponse)
-def get_final_report(run_id: str, conn=Depends(get_db)):
+
+def _build_final_report_data(run_id: str, conn) -> tuple[dict, int, str]:
+    """Shared row lookup and markdown compilation for report endpoints."""
     row = conn.execute("SELECT * FROM audit_runs WHERE run_id = ?", (run_id,)).fetchone()
     if not row:
         raise HTTPException(status_code=404, detail="Audit run not found")
@@ -67,29 +69,17 @@ def get_final_report(run_id: str, conn=Depends(get_db)):
     base_report_md = generate_gap_report(summary, CARDS_DIR)
     final_markdown = assemble_markdown_report(base_report_md, verdicts_list)
 
-    # FIX (Readiness Audit, Minor #1 / Major #1): this was a bare
-    # conn.execute()+conn.commit() inside a GET handler — a status-mutating
-    # side effect hiding in a nominally read-only route, and (per the
-    # project's own architecture rule in db/context.py) a write happening
-    # outside write_as(), so the changelog would record this write with
-    # actor=NULL/reason=NULL. Route it through write_as() for correct
-    # attribution; the GET-with-a-side-effect API design itself is left as
-    # documented behavior (regenerating the report is what marks a run
-    # "report_generated") rather than restructured in this pass.
-    with write_as(conn, actor="api:get_final_report", reason=f"Report viewed/regenerated for {run_id}"):  # noqa: E501
+    # Route status mutation through write_as() for correct changelog attribution
+    with write_as(conn, actor="api:get_final_report", reason=f"Report viewed/regenerated for {run_id}"):
         conn.execute(
             "UPDATE audit_runs SET status = ? WHERE run_id = ?", ("report_generated", run_id)
         )
 
-    return {
-        "run_id": run_id,
-        "target_domain": run["target_domain"],
-        "manual_verdicts_count": len(verdicts_list),
-        "report_markdown": final_markdown,
-    }
+    return run, len(verdicts_list), final_markdown
 
-@router.get("/audit/runs/{run_id}/remediation", response_model=RemediationPlanResponse)
-def get_remediation_plan(run_id: str, conn=Depends(get_db)):
+
+def _build_remediation_plan_data(run_id: str, conn) -> tuple[dict, Any]:
+    """Shared row lookup and plan synthesis for remediation endpoints."""
     row = conn.execute("SELECT * FROM audit_runs WHERE run_id = ?", (run_id,)).fetchone()
     if not row:
         raise HTTPException(status_code=404, detail="Audit run not found")
@@ -121,8 +111,8 @@ def get_remediation_plan(run_id: str, conn=Depends(get_db)):
             )
         )
 
-    db_path = get_db_path() # Required by synthesise, could adapt to pass conn later
-    
+    db_path = get_db_path()
+
     plan = synthesise(
         run_id=run_id,
         target_domain=run["target_domain"],
@@ -135,6 +125,34 @@ def get_remediation_plan(run_id: str, conn=Depends(get_db)):
     plan.recommendations = qa_result.passed
     plan.qa_rejected = qa_result.rejected
 
+    return run, plan
+
+
+@router.get("/audit/runs/{run_id}/report", response_model=ReportResponse)
+def get_final_report(run_id: str, conn=Depends(get_db)):
+    run, verdicts_count, final_markdown = _build_final_report_data(run_id, conn)
+    return {
+        "run_id": run_id,
+        "target_domain": run["target_domain"],
+        "manual_verdicts_count": verdicts_count,
+        "report_markdown": final_markdown,
+    }
+
+
+@router.get("/audit/runs/{run_id}/report/download")
+def download_final_report(run_id: str, conn=Depends(get_db)):
+    run, _, final_markdown = _build_final_report_data(run_id, conn)
+    filename = f"areos-report-{run_id}.md"
+    return Response(
+        content=final_markdown,
+        media_type="text/markdown",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+
+
+@router.get("/audit/runs/{run_id}/remediation", response_model=RemediationPlanResponse)
+def get_remediation_plan(run_id: str, conn=Depends(get_db)):
+    run, plan = _build_remediation_plan_data(run_id, conn)
     return {
         "run_id": run_id,
         "target_domain": run["target_domain"],
@@ -145,3 +163,15 @@ def get_remediation_plan(run_id: str, conn=Depends(get_db)):
         "qa_rejected": plan.qa_rejected,
         "plan_markdown": plan.format_markdown(),
     }
+
+
+@router.get("/audit/runs/{run_id}/remediation/download")
+def download_remediation_plan(run_id: str, conn=Depends(get_db)):
+    run, plan = _build_remediation_plan_data(run_id, conn)
+    filename = f"areos-remediation-{run_id}.md"
+    return Response(
+        content=plan.format_markdown(),
+        media_type="text/markdown",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+

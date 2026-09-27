@@ -116,6 +116,10 @@
                   <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
                   <span>Export Automated Findings (.md)</span>
                 </button>
+                <a class="btn-secondary btn-export" id="btn-download-remediation" style="display:none; text-decoration:none;" href="#" download>
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                  <span>Download Plan (.md)</span>
+                </a>
                 <button class="btn-primary" id="btn-download-final-report" style="display:none;" onclick="downloadFinalReport()">
                   <span>Download Final Report</span>
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
@@ -325,7 +329,10 @@
           <div class="card" id="synth-narrative-card" style="display:none;">
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; padding-bottom:12px; border-bottom:1px solid var(--border-default);">
               <h3 style="margin:0; color:var(--text-primary); font-size:1.05rem;">Grounded Executive Synthesis</h3>
-              <button id="btn-copy-narrative" class="btn-secondary" style="padding:6px 14px; font-size:0.8125rem;" onclick="copySynthNarrative()">Copy Narrative</button>
+              <div style="display:flex; gap:8px; align-items:center;">
+                <a id="btn-download-synth-report" class="btn-secondary" style="display:none; padding:6px 14px; font-size:0.8125rem; text-decoration:none;" href="#" download>Download Report (.md)</a>
+                <button id="btn-copy-narrative" class="btn-secondary" style="padding:6px 14px; font-size:0.8125rem;" onclick="copySynthNarrative()">Copy Narrative</button>
+              </div>
             </div>
             <div id="synth-narrative-body" class="markdown-body" style="padding:0; border:none; box-shadow:none;"></div>
           </div>

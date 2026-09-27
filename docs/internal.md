@@ -450,9 +450,9 @@ To comply with auditability mandates, Citeable implements a hard-delete restrict
 [INTERNAL ONLY] The canonical `schema.sql` is drastically out of sync with the live database. Live migrations occur at runtime via `migrate_audit_tables.py`, dynamically patching the DB by executing commands like `ALTER TABLE sources ADD COLUMN approved_count`, and creating missing tables like `audit_runs`, `manual_verdicts`, `kb_meta`, and `synthesis_prompts`. Developers relying purely on `schema.sql` will build against an inaccurate representation of the knowledge base.
 ## 07 — API Reference
 
-**Purpose:** Provides the complete technical contract for all 29 API endpoints, detailing authentication boundaries, rate limits, request/response structures, and known structural gaps.
+**Purpose:** Provides the complete technical contract for all 31 API endpoints, detailing authentication boundaries, rate limits, request/response structures, and known structural gaps.
 
-**TL;DR:** 29 total endpoints. 12 have typed `response_model` definitions; 17 do not. 8 enforce Bearer admin auth (`verify_admin`), 1 enforces run token auth (`run_token`), and 20 are publicly exposed (including critical audit execution endpoints). 
+**TL;DR:** 31 total endpoints. 12 have typed `response_model` definitions; 19 do not. 8 enforce Bearer admin auth (`verify_admin`), 1 enforces run token auth (`run_token`), and 22 are publicly exposed (including critical audit execution endpoints). 
 
 **Read this if:** You are an integrator building on Citeable, a security engineer auditing the attack surface, or a backend developer patching missing contracts.
 
@@ -483,7 +483,7 @@ When an endpoint requires authentication, it leverages `dependencies.verify_admi
 
 #### 6.2 Live Endpoint Inventory
 
-Live introspection of all 29 endpoints registered in `areos.api.main:app`:
+Live introspection of all 31 endpoints registered in `areos.api.main:app`:
 
 | Method | Endpoint | Auth | Rate-Limited | Response Model | Description |
 |---|---|---|---|---|---|
@@ -499,7 +499,9 @@ Live introspection of all 29 endpoints registered in `areos.api.main:app`:
 | `GET` | `/api/v1/audit/runs/{run_id}/full-report` | No | No | None | Generates the complete consolidated audit report. |
 | `POST` | `/api/v1/audit/runs/{run_id}/observations` | No | No | None | Stores raw audit observations for a run. |
 | `GET` | `/api/v1/audit/runs/{run_id}/remediation` | No | No | `RemediationPlanResponse` | Retrieves the prioritized remediation plan. |
+| `GET` | `/api/v1/audit/runs/{run_id}/remediation/download` | No | No | None |  |
 | `GET` | `/api/v1/audit/runs/{run_id}/report` | No | No | `ReportResponse` | Retrieves the final audit report for a run. |
+| `GET` | `/api/v1/audit/runs/{run_id}/report/download` | No | No | None |  |
 | `POST` | `/api/v1/audit/runs/{run_id}/synthesize` | No | Yes | None | Triggers 3-step LLM narrative synthesis. |
 | `POST` | `/api/v1/audit/runs/{run_id}/verdicts` | **Yes** (`run_token`) | No | None | Submits manual review verdicts (authenticated via run token). |
 | `POST` | `/api/v1/byok/verify` | No | Yes | `dict` | Validates Bring-Your-Own-Key credentials by pinging upstream LLM providers. |
