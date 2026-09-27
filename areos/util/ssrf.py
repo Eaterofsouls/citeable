@@ -121,11 +121,7 @@ def safe_get(url: str, timeout: float = 4, max_redirects: int = 5, max_bytes: in
             req_headers = dict(kwargs.pop("headers", None) or {})
             req_headers.setdefault("Host", parsed.hostname)
 
-            is_mocked = getattr(requests.get, "_mock_return_value", None) is not None or "Mock" in requests.get.__class__.__name__
-            if is_mocked:
-                resp = requests.get(ip_url, headers=req_headers, timeout=timeout, allow_redirects=False, stream=True, **kwargs)
-            else:
-                resp = session.get(ip_url, headers=req_headers, timeout=timeout, allow_redirects=False, stream=True, **kwargs)
+            resp = session.get(ip_url, headers=req_headers, timeout=timeout, allow_redirects=False, stream=True, **kwargs)
 
             if resp.is_redirect and resp.headers.get("Location"):
                 history.append(resp)

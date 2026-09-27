@@ -55,7 +55,7 @@ class TestQ3SafeGetSizeLimit:
     """Test safe_get response size limiting (QA-H04 / D-QA-009)."""
 
     def test_safe_get_enforces_5mb_limit(self):
-        with patch("requests.get") as mock_get:
+        with patch("requests.Session.get") as mock_get:
             mock_resp = requests.Response()
             mock_resp.status_code = 200
             mock_resp.close = lambda: None
@@ -66,7 +66,7 @@ class TestQ3SafeGetSizeLimit:
                 safe_get("http://example.com/huge-file.html")
 
     def test_safe_get_normal_response_passes(self):
-        with patch("requests.get") as mock_get:
+        with patch("requests.Session.get") as mock_get:
             mock_resp = requests.Response()
             mock_resp.status_code = 200
             mock_resp.encoding = "utf-8"
@@ -77,7 +77,7 @@ class TestQ3SafeGetSizeLimit:
             assert resp.text == "<html><body><h1>Hello</h1></body></html>"
 
     def test_safe_get_empty_response(self):
-        with patch("requests.get") as mock_get:
+        with patch("requests.Session.get") as mock_get:
             mock_resp = requests.Response()
             mock_resp.status_code = 200
             mock_resp.encoding = "utf-8"
