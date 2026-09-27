@@ -988,13 +988,27 @@ def get_sources_for_claim(conn: sqlite3.Connection, claim_id: str) -> list[dict]
     """
     rows = conn.execute(
         """
-        SELECT s.source_id, s.name, s.domain, s.url, s.trust_tier,
-               s.source_type, s.verified, s.verified_date, s.notes,
-               cs.primary_source, cs.note AS link_note
-        FROM claim_sources cs
-        JOIN sources s ON cs.source_id = s.source_id
-        WHERE cs.claim_id = ?
-        ORDER BY s.trust_tier ASC, cs.primary_source DESC
+        SELECT 
+            ks.sid AS source_id,
+            ks.sid,
+            COALESCE(ks.title, ks.publisher, ks.url) AS name,
+            ks.title,
+            ks.publisher,
+            ks.url,
+            ks.authority AS trust_tier,
+            ks.authority,
+            ks.pub_date,
+            ks.excerpt,
+            ks.notes,
+            CASE WHEN ke.weight = 'primary' THEN 1 ELSE 0 END AS primary_source,
+            ke.weight,
+            ke.relationship,
+            ke.note AS link_note,
+            ke.note
+        FROM kb_evidence ke
+        JOIN kb_sources ks ON ke.sid = ks.sid
+        WHERE ke.kid = ?
+        ORDER BY ks.authority ASC, primary_source DESC
         """,
         (claim_id,),
     ).fetchall()
@@ -1007,6 +1021,38 @@ def get_ranked_sources(conn: sqlite3.Connection,
     Returns all sources ranked by trust tier.
     Optionally filter to a specific tier (e.g. 'T1').
     """
+    has_kb_sources = bool(
+        conn.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='kb_sources'").fetchone()
+    )
+    if has_kb_sources:
+        if tier_filter:
+            rows = conn.execute(
+                """
+                SELECT 
+                    sid AS source_id, sid,
+                    COALESCE(title, publisher, url) AS name, title, publisher, url,
+                    authority AS trust_tier, authority,
+                    pub_date, excerpt, notes
+                FROM kb_sources
+                WHERE authority = ?
+                ORDER BY authority ASC
+                """,
+                (tier_filter,),
+            ).fetchall()
+        else:
+            rows = conn.execute(
+                """
+                SELECT 
+                    sid AS source_id, sid,
+                    COALESCE(title, publisher, url) AS name, title, publisher, url,
+                    authority AS trust_tier, authority,
+                    pub_date, excerpt, notes
+                FROM kb_sources
+                ORDER BY authority ASC
+                """
+            ).fetchall()
+        return [dict(r) for r in rows]
+
     if tier_filter:
         rows = conn.execute(
             "SELECT * FROM sources WHERE trust_tier = ? ORDER BY trust_tier, verified DESC",

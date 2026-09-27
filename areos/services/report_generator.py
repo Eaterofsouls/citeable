@@ -27,8 +27,11 @@ from areos.db.connection import get_connection, get_db_path
 
 def get_report_data(conn: sqlite3.Connection):
     """Fetches all phases, claims, and sources."""
-    # 1. Get Audit Phases
-    phases = conn.execute("SELECT audit_phase_id, name, description FROM audit_phase ORDER BY phase_order").fetchall()
+    # 1. Get Audit Phases (if table exists)
+    has_audit_phase = bool(
+        conn.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='audit_phase'").fetchone()
+    )
+    phases = conn.execute("SELECT audit_phase_id, name, description FROM audit_phase ORDER BY phase_order").fetchall() if has_audit_phase else []
     
     report_data = []
     
@@ -48,11 +51,27 @@ def get_report_data(conn: sqlite3.Connection):
         placeholders = ",".join("?" * len(claim_ids))
         all_sources = conn.execute(
             f"""
-            SELECT cs.claim_id, s.source_id, s.name, s.url, s.trust_tier, cs.primary_source, cs.note 
-            FROM claim_sources cs
-            JOIN sources s ON cs.source_id = s.source_id
-            WHERE cs.claim_id IN ({placeholders})
-            ORDER BY s.trust_tier ASC, cs.primary_source DESC
+            SELECT 
+                ke.kid AS claim_id,
+                ks.sid AS source_id,
+                ks.sid,
+                COALESCE(ks.title, ks.publisher, ks.url) AS name,
+                ks.title,
+                ks.publisher,
+                ks.url,
+                ks.authority AS trust_tier,
+                ks.authority,
+                ks.pub_date,
+                ks.excerpt,
+                ks.notes,
+                CASE WHEN ke.weight = 'primary' THEN 1 ELSE 0 END AS primary_source,
+                ke.note,
+                ke.weight,
+                ke.relationship
+            FROM kb_evidence ke
+            JOIN kb_sources ks ON ke.sid = ks.sid
+            WHERE ke.kid IN ({placeholders})
+            ORDER BY ks.authority ASC, primary_source DESC
             """, tuple(claim_ids)
         ).fetchall()
         
