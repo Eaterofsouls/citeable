@@ -42,6 +42,47 @@ class TestR1SSRFAndSecurity:
                 with pytest.raises(ValueError, match="exceeds"):
                     safe_get("http://example.com", max_bytes=1500)
 
+    def test_ssrf_rejects_octal_loopback(self):
+        """Verify resolve_and_validate raises ValueError for octal-encoded loopback (0177.0.0.1)."""
+        with pytest.raises(ValueError):
+            resolve_and_validate("0177.0.0.1")
+
+    def test_ssrf_rejects_hex_loopbacks(self):
+        """Verify resolve_and_validate raises ValueError for hex-encoded loopbacks (0x7f.0.0.1 and 0x7f000001)."""
+        for hex_ip in ["0x7f.0.0.1", "0x7f000001"]:
+            with pytest.raises(ValueError):
+                resolve_and_validate(hex_ip)
+
+    def test_ssrf_rejects_ipv6_loopback(self):
+        """Verify resolve_and_validate raises ValueError for IPv6 loopback (::1)."""
+        with pytest.raises(ValueError):
+            resolve_and_validate("::1")
+
+    def test_ssrf_rejects_ipv6_mapped_ipv4_private(self):
+        """Verify resolve_and_validate raises ValueError for IPv6-mapped IPv4 private address (::ffff:127.0.0.1)."""
+        with pytest.raises(ValueError):
+            resolve_and_validate("::ffff:127.0.0.1")
+
+    def test_ssrf_redirect_chain_blocks_before_second_hop(self):
+        """Verify redirect chain with private target raises before following the second hop."""
+        import areos.util.ssrf as ssrf_mod
+        r1 = requests.Response()
+        r1.status_code = 302
+        r1.headers["Location"] = "http://127.0.0.1/admin"
+
+        orig_resolve = ssrf_mod.resolve_and_validate
+
+        def mock_resolve(domain):
+            if domain == "public.example.com":
+                return "93.184.216.34"
+            return orig_resolve(domain)
+
+        with patch("requests.Session.get", return_value=r1) as mock_get:
+            with patch("areos.util.ssrf.resolve_and_validate", side_effect=mock_resolve):
+                with pytest.raises(ValueError, match="restricted address"):
+                    safe_get("http://public.example.com/start")
+                assert mock_get.call_count == 1
+
 
 class TestR1SitemapBounds:
     """Tests for sitemap URL count capping."""
