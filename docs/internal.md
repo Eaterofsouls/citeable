@@ -450,9 +450,9 @@ To comply with auditability mandates, Citeable implements a hard-delete restrict
 [INTERNAL ONLY] The canonical `schema.sql` is drastically out of sync with the live database. Live migrations occur at runtime via `migrate_audit_tables.py`, dynamically patching the DB by executing commands like `ALTER TABLE sources ADD COLUMN approved_count`, and creating missing tables like `audit_runs`, `manual_verdicts`, `kb_meta`, and `synthesis_prompts`. Developers relying purely on `schema.sql` will build against an inaccurate representation of the knowledge base.
 ## 07 — API Reference
 
-**Purpose:** Provides the complete technical contract for all 24 API endpoints, detailing authentication boundaries, rate limits, request/response structures, and known structural gaps.
+**Purpose:** Provides the complete technical contract for all 29 API endpoints, detailing authentication boundaries, rate limits, request/response structures, and known structural gaps.
 
-**TL;DR:** 24 total endpoints. 10 have typed `response_model` definitions; 14 do not. 10 enforce Bearer auth; 14 are publicly exposed (including critical audit execution endpoints). 
+**TL;DR:** 29 total endpoints. 12 have typed `response_model` definitions; 17 do not. 8 enforce Bearer admin auth (`verify_admin`), 1 enforces run token auth (`run_token`), and 20 are publicly exposed (including critical audit execution endpoints). 
 
 **Read this if:** You are an integrator building on Citeable, a security engineer auditing the attack surface, or a backend developer patching missing contracts.
 
@@ -481,73 +481,41 @@ When an endpoint requires authentication, it leverages `dependencies.verify_admi
 
 ---
 
-#### 6.2 Core System Endpoints (Health & Roots)
+#### 6.2 Live Endpoint Inventory
+
+Live introspection of all 29 endpoints registered in `areos.api.main:app`:
 
 | Method | Endpoint | Auth | Rate-Limited | Response Model | Description |
 |---|---|---|---|---|---|
-| `GET` | `/api/health` | No | No | `dict` | Probe endpoint. Executes a raw `SELECT 1` against the live SQLite DB to verify disk mount and DB health. |
-| `GET` | `/` | No | No | Redirect | HTTP 307 redirect to the frontend UI root. |
-
----
-
-#### 6.3 Knowledge Base Endpoints (Claims & Prompts)
-
-The Knowledge Base is declarative. These endpoints expose the current ontology and prompt library.
-
-| Method | Endpoint | Auth | Rate-Limited | Response Model | Description |
-|---|---|---|---|---|---|
-| `GET` | `/api/v1/claims` | **No** | No | `ClaimResponse` | Returns all active claims, joined with source tiers. |
-| `POST` | `/api/v1/claims/ingest` | **Yes** | No | ⚠️ None | Ingests new raw claims. Lacks a typed output contract. |
-| `GET` | `/api/v1/prompts` | **No** | No | `PromptListResponse` | Retrieves all live LLM prompts. |
-| `POST` | `/api/v1/prompts` | **Yes** | No | ⚠️ None | Inserts a new citation sampling prompt. |
-| `DELETE` | `/api/v1/prompts/{prompt_id}` | **Yes** | No | ⚠️ None | Deletes a prompt. Hard delete (deviates from general WAL append-only philosophy). |
-
----
-
-#### 6.4 Audit Execution Endpoints
-
-These endpoints orchestrate the core crawling and evaluation engine. 
-
-| Method | Endpoint | Auth | Rate-Limited | Response Model | Description |
-|---|---|---|---|---|---|
-| `POST` | `/api/v1/audit/orchestrate` | **No** | Yes (3/min) | ⚠️ None | Triggers the 11-step audit pipeline for a domain. **Critical Security Gap:** Completely unauthenticated despite extreme resource consumption. |
-| `GET` | `/api/v1/audit/authority/{domain}` | **No** ⚠️ | Yes | `AuthorityAuditResponse` | Fetches Open PageRank metrics. Code comment claims this is protected, but `verify_admin` is absent from the dependency graph. |
-| `POST` | `/api/v1/byok/verify` | **No** | Yes | ⚠️ None | Validates Bring-Your-Own-Key credentials by pinging upstream LLM providers. |
-
----
-
-#### 6.5 Run Management & Reporting Endpoints
-
-Results of audits are saved as "runs" and later synthesised.
-
-| Method | Endpoint | Auth | Rate-Limited | Response Model | Description |
-|---|---|---|---|---|---|
-| `POST` | `/api/v1/audit/runs` | **No** | No | ⚠️ None | Manually initialize a run (used by CLI tools and orchestrator). |
-| `GET` | `/api/v1/audit/runs` | **No** | No | `AuditRunListResponse` | Lists historical audit runs. Exposed publicly. |
-| `GET` | `/api/v1/audit/runs/{run_id}` | **No** | No | `AuditRunDetailResponse` | Fetches raw technical details of a specific run. |
-| `GET` | `/api/v1/audit/runs/{run_id}/report` | **No** | No | `ReportResponse` | Generates the finalised, structured JSON report of the audit. |
-| `GET` | `/api/v1/audit/runs/{run_id}/full` | **No** | No | ⚠️ None | Added in the UX/architecture remediation pass (see `CHANGELOG.md` §5.3). Single rehydration endpoint returning `{ remediation_plan, manual_review_wizard, llm_synthesis, raw_findings, completeness }` for a stored run — `completeness` (`total_wizard_cards`, `completed_wizard_cards`, `status`) is derived live from `manual_verdicts` + `audit_synthesis`, not read from the legacy `audit_runs.status` column. `llm_synthesis` is read back from the new `audit_synthesis` table if `POST /synthesize` has previously persisted a result for this run; otherwise it reports `llm_synthesis_used: false`. This is what the retired `manual_review.html` / `remediation.html` / `outcome.html` redirect stubs resolve through, and what any `?run_id=` deep link rehydrates from. Known gap: `executive_scorecard` sub-fields that depend on live network calls at scan time (crawler/llms.txt/citation status) are not reconstructed — only `overall_score` (persisted at scan time) is returned. |
-| `GET` | `/api/v1/audit/runs/{run_id}/remediation` | **No** | No | `RemediationPlanResponse` | Returns the enriched remediation plan, bridging claims with hardcoded `ACTION_SNIPPETS`. |
-| `POST` | `/api/v1/audit/runs/{run_id}/synthesize` | **No** | Yes | ⚠️ None | Triggers the AI synthesis engine to contextualize findings. Unauthenticated payload sink. As of the UX/architecture remediation pass, a successful result (`llm_synthesis_used: true`) is now also persisted to the `audit_synthesis` table (upsert on `run_id`) so it survives a page reload — see `GET .../full` above. Persistence failure is logged and swallowed rather than failing the request; the caller still gets their result this session either way. |
-
----
-
-#### 6.6 Human-in-the-Loop & Governance Endpoints
-
-These endpoints support the Manual Review Wizard and knowledge curation.
-
-| Method | Endpoint | Auth | Rate-Limited | Response Model | Description |
-|---|---|---|---|---|---|
-| `GET` | `/api/v1/approvals` | **Yes** | No | `PendingApprovalsResponse` | Retrieves pending KB modifications awaiting human sign-off. |
-| `POST` | `/api/v1/approvals/{run_id}/{candidate_id}` | **Yes** | No | ⚠️ None | Commits a human approval. Triggers changelog emission. |
-| `POST` | `/api/v1/audit/runs/{run_id}/verdicts` | **No** ⚠️ | No | ⚠️ None | Submits human verdicts for contested heuristic scores. **Security Gap:** This modifies database state but has no authentication dependency. |
-| `GET` | `/api/v1/outcomes` | **Yes** | No | `OutcomeListResponse` | ~~Retrieves logged real-world outcomes of applied remediations.~~ **Deprecated** — Outcome Logger feature removed in favour of automatic run-to-run comparison (planned). Endpoint retained for backwards compatibility but returns empty results. |
-| `POST` | `/api/v1/audit/runs/{run_id}/outcomes` | **Yes** | No | ⚠️ None | ~~Logs a new real-world outcome linked to a specific run.~~ **Deprecated** — see GET above. |
-| `GET` | `/api/v1/synthesis/prompts` | **Yes** | No | ⚠️ None | Returns current internal AI synthesis prompts. |
-| `PUT` | `/api/v1/synthesis/prompts/{step}` | **Yes** | No | ⚠️ None | Mutates a specific synthesis prompt step. |
-| `POST` | `/api/v1/synthesis/prompts/reset/{step}` | **Yes** | No | ⚠️ None | Reverts a synthesis prompt step to its system default. |
-
----
+| `GET` | `/api/health` | No | No | None | Probe endpoint. Verifies database connectivity and readiness. |
+| `GET` | `/api/v1/approvals` | **Yes** (`verify_admin`) | No | `PendingApprovalsResponse` | Retrieves pending candidate claims awaiting human review. |
+| `POST` | `/api/v1/approvals/{run_id}/{candidate_id}` | **Yes** (`verify_admin`) | No | None | Commits human approval/rejection of a candidate claim. |
+| `GET` | `/api/v1/audit/authority/{target_domain}` | No | Yes | `AuthorityAuditResponse` | Evaluates domain authority and backlink metrics. |
+| `POST` | `/api/v1/audit/orchestrate` | No | Yes | None | Triggers the full automated audit pipeline for a domain. |
+| `GET` | `/api/v1/audit/runs` | No | No | `AuditRunListResponse` | Lists historical audit runs. |
+| `POST` | `/api/v1/audit/runs` | No | No | None | Initializes an audit run record. |
+| `GET` | `/api/v1/audit/runs/{run_id}` | No | No | `AuditRunDetailResponse` | Fetches technical execution details of a specific run. |
+| `GET` | `/api/v1/audit/runs/{run_id}/full` | No | No | None | Rehydration endpoint returning complete run state, wizard, and synthesis. |
+| `GET` | `/api/v1/audit/runs/{run_id}/full-report` | No | No | None | Generates the complete consolidated audit report. |
+| `POST` | `/api/v1/audit/runs/{run_id}/observations` | No | No | None | Stores raw audit observations for a run. |
+| `GET` | `/api/v1/audit/runs/{run_id}/remediation` | No | No | `RemediationPlanResponse` | Retrieves the prioritized remediation plan. |
+| `GET` | `/api/v1/audit/runs/{run_id}/report` | No | No | `ReportResponse` | Retrieves the final audit report for a run. |
+| `POST` | `/api/v1/audit/runs/{run_id}/synthesize` | No | Yes | None | Triggers 3-step LLM narrative synthesis. |
+| `POST` | `/api/v1/audit/runs/{run_id}/verdicts` | **Yes** (`run_token`) | No | None | Submits manual review verdicts (authenticated via run token). |
+| `POST` | `/api/v1/byok/verify` | No | Yes | `dict` | Validates Bring-Your-Own-Key credentials by pinging upstream LLM providers. |
+| `GET` | `/api/v1/claims` | No | No | `ClaimResponse` | Returns active knowledge claims joined with sources. |
+| `POST` | `/api/v1/claims/ingest` | **Yes** (`verify_admin`) | No | None | Ingests new raw claims into knowledge base. |
+| `GET` | `/api/v1/knowledge` | No | No | `KnowledgeListResponse` | Queries curated knowledge records with optional filters. |
+| `GET` | `/api/v1/knowledge/check-code/{check_code}` | No | No | None | Resolves check codes to knowledge base claims. |
+| `GET` | `/api/v1/knowledge/stats` | No | No | `KBStatsResponse` | Returns aggregate statistics of knowledge base records. |
+| `GET` | `/api/v1/knowledge/{kid}` | No | No | `KnowledgeDetail` | Fetches a single knowledge record by KID. |
+| `GET` | `/api/v1/knowledge/{kid}/evidence` | No | No | None | Fetches evidence supporting a specific knowledge record. |
+| `GET` | `/api/v1/prompts` | No | No | `PromptListResponse` | Lists citation sampling prompt sets. |
+| `POST` | `/api/v1/prompts` | **Yes** (`verify_admin`) | No | None | Creates a new citation sampling prompt. |
+| `DELETE` | `/api/v1/prompts/{prompt_id}` | **Yes** (`verify_admin`) | No | None | Deletes a citation sampling prompt. |
+| `GET` | `/api/v1/synthesis/prompts` | **Yes** (`verify_admin`) | No | None | Returns current internal AI synthesis prompts. |
+| `POST` | `/api/v1/synthesis/prompts/reset/{step}` | **Yes** (`verify_admin`) | No | None | Reverts a synthesis prompt step to its system default. |
+| `PUT` | `/api/v1/synthesis/prompts/{step}` | **Yes** (`verify_admin`) | No | None | Mutates a specific synthesis prompt step. |
 
 #### 6.7 Known Contract Deviations & API Gaps
 
@@ -555,8 +523,7 @@ The API layer contains significant accumulated technical debt:
 1. **Missing typed contracts:** 14 out of 24 endpoints return unstructured generic JSON without a Pydantic `response_model`, breaking OpenAPI schematic generation.
 2. **Missing Auth on Mutating Endpoints:** 
    - `POST /api/v1/audit/orchestrate`
-   - `POST /api/v1/audit/runs/{run_id}/verdicts`
-   - Both mutate database state and incur massive LLM costs, but lack `verify_admin` dependencies.
+   - `POST /api/v1/audit/orchestrate` mutates database state and incurs LLM costs without authentication. (`POST .../verdicts` is protected by `run_token` ownership verification as of Task 5).
 3. **Comment vs Code Reality:** `GET /api/v1/audit/authority/{domain}` has a comment stating `// now requires admin token`, but the Python router dependency is missing.
 4. **Hardcoded Arrays:** The remediation outputs depend on `ACTION_SNIPPETS` and `MANUAL_CARD_GUIDANCE`, which are hardcoded Python dicts rather than dynamic API-driven ontology objects.
 
