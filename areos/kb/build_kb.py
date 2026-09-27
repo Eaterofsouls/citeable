@@ -101,13 +101,14 @@ def handle_claims_view(conn):
     cur.execute("SELECT type FROM sqlite_master WHERE name='claims'")
     row = cur.fetchone()
     if row:
-        if row['type'] == 'table':
-            logger.info("Renaming existing 'claims' table to 'claims_legacy'")
-            cur.execute("DROP TABLE IF EXISTS claims_legacy")
-            cur.execute("ALTER TABLE claims RENAME TO claims_legacy")
-        elif row['type'] == 'view':
+        if row['type'] == 'view':
             logger.info("Dropping existing 'claims' view")
             cur.execute("DROP VIEW claims")
+        # Task 8 note: The table rename branch (which previously executed
+        # `DROP TABLE IF EXISTS claims_legacy` and renamed claims to claims_legacy)
+        # was removed because Task 7 eliminated the legacy claims table definition
+        # from schema.sql. A real claims table will never be created by migrations
+        # going forward; legacy claims data was permanently archived as claims_v1_archive.
             
     view_sql = """
     CREATE VIEW IF NOT EXISTS claims AS
