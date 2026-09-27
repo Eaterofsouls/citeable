@@ -630,6 +630,7 @@ The testing architecture is split and misconfigured:
 ▸ 8.2 API Authentication
 ▸ 8.3 Request Payload Defenses
 ▸ 8.4 HTTP Security Headers & Browser Protections
+▸ 8.5 CORS Design Intent
 
 #### 8.1 Network Security (SSRF Guard & Redirect Limits)
 Citeable fetches target data and must prevent Server-Side Request Forgery (SSRF) when reaching out to domain URLs (e.g., `robots.txt`, `llms.txt`).
@@ -638,9 +639,9 @@ Citeable fetches target data and must prevent Server-Side Request Forgery (SSRF)
 - **Known Limitation:** The system currently performs a fresh DNS lookup at connect time for each hop via `requests`/`urllib3`. It does not yet perform connection-level IP pinning, leaving a narrow DNS-rebinding race condition open.
 
 #### 8.2 API Authentication
-- **Mechanism:** Protected API routes verify the admin token (`Citeable_API_TOKEN`) using a constant-time `hmac.compare_digest` check in `areos/api/dependencies.py:verify_admin`.
+- **Mechanism:** Protected API routes verify the admin token (`AREOS_API_TOKEN`) using a constant-time `hmac.compare_digest` check in `areos/api/dependencies.py:verify_admin`.
 - **Bearer Token:** The UI sends the token via the `Authorization: Bearer <token>` header (read from `sessionStorage`). No JWT or cookie-based sessions are used.
-- **Known Gap:** Out of 24 endpoints, 14 are unprotected (no auth required), including core endpoints like `POST /api/v1/audit/orchestrate`. Additionally, `GET /api/v1/audit/authority/{domain}` has a comment stating it requires an admin token, but the `verify_admin` dependency is missing from the route.
+- **Known Gap:** Out of 29 endpoints, 20 are unprotected (no auth required), including core endpoints like `POST /api/v1/audit/orchestrate`. (`POST .../verdicts` is protected by `run_token` ownership verification as of Task 5). Additionally, `GET /api/v1/audit/authority/{domain}` has a comment stating it requires an admin token, but the `verify_admin` dependency is missing from the route.
 
 #### 8.3 Request Payload Defenses
 - **5MB Body Limit:** The `_limit_body_size` middleware in `areos/api/main.py` intercepts requests before Pydantic parsing. It reads the `content-length` header and immediately returns a `413 Payload Too Large` if it exceeds 5 MB. This protects against server memory exhaustion from malicious large payloads.
@@ -649,6 +650,9 @@ Citeable fetches target data and must prevent Server-Side Request Forgery (SSRF)
 The `_security_headers_middleware` enforces defense-in-depth UI protections:
 - **Headers Added:** `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`, `Referrer-Policy: strict-origin-when-cross-origin`.
 - **Content Security Policy (CSP):** The `Content-Security-Policy` limits script/style sources. **Limitation:** Several UI pages rely on inline `<script>` blocks, forcing `script-src 'unsafe-inline'`. This means the CSP does not fully block inline script injections (like the recently patched `approvals.js` stored XSS vulnerability).
+
+#### 8.5 CORS Design Intent
+The `CORSMiddleware` allowlist (`localhost:8000`, `127.0.0.1:8000`, `localhost:3000`, `127.0.0.1:3000`) is a local-development convenience with no production security role. In production, the shipped UI is served same-origin (mounted at `/` and `/ui` on this same FastAPI application), so browsers never require a cross-origin CORS grant to communicate with the API. The allowlist has zero security effect on the production path. If a genuinely separate, cross-origin frontend is ever stood up against this API, its exact origin should be added explicitly (e.g. via an environment variable) rather than relying on this local-dev list.
 
 ---
 
