@@ -52,6 +52,13 @@ class TestT301LayerDeductions:
         result = compute_layered_score(findings)
         assert result.overall_score >= SCORE_FLOOR
 
+    def test_score_ceiling_enforcement(self):
+        """Score must never exceed SCORE_CEILING (98) even with zero deductions."""
+        from areos.auditors.scoring import compute_layered_score, SCORE_CEILING
+        result = compute_layered_score([])  # no findings at all
+        assert result.overall_score == 98
+        assert result.overall_score <= SCORE_CEILING
+
 
 # ── T-302: ACCESS_GATE ───────────────────────────────────────────────────────
 
