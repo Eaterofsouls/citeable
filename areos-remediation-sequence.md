@@ -516,6 +516,106 @@ the UI is served same-origin.
 
 ---
 
+### Task 14 — Add the missing score-ceiling test (dropped from the original sequence by mistake)
+
+**Files:** `tests/test_phase3_kb_scoring.py`
+
+**Before:**
+```bash
+grep -n "def test_.*ceiling\|SCORE_CEILING" tests/test_phase3_kb_scoring.py
+```
+Confirm this returns nothing in the test file (only the floor and the two/four
+access-gate caps are currently tested; `SCORE_CEILING = 98` in
+`areos/auditors/scoring.py` has no direct assertion anywhere).
+
+**Action:** Add `test_score_ceiling_enforcement` to the same test class that
+holds `test_score_floor_enforcement` and the gate tests:
+```python
+def test_score_ceiling_enforcement(self):
+    result = compute_layered_score([])  # no findings at all
+    assert result.overall_score == 98
+```
+If `compute_layered_score([])` currently returns something other than 98
+(e.g. 100, if the ceiling clamp isn't actually reached because the layer sum
+without findings caps out below 100 for some other reason), do not adjust
+the test to match — investigate why a zero-finding run doesn't hit 98 and
+fix `scoring.py`, since "no domain is ever scored as mathematically
+perfect" is the documented design intent behind `SCORE_CEILING` in the first
+place.
+
+**Checkpoint:**
+```bash
+pytest tests/test_phase3_kb_scoring.py -q -v
+pytest tests/ -q
+```
+
+---
+
+### Task 15 — Add a report export/download endpoint (markdown; no new dependencies)
+
+**Files:** `areos/api/routers/reports.py`
+
+**Why now:** `GET /audit/runs/{run_id}/report` already returns
+`report_markdown` as a JSON string field — the content exists, there's just
+no way for a person to get it as a standalone file. Given the confirmed
+decision to stay on ephemeral SQLite (Task 0 addendum), a run's only copy of
+its report can disappear on the next cold start with no warning. This
+endpoint is the cheapest available mitigation: it requires zero new
+dependencies (no PDF library is in `requirements.txt` today, and this task
+does not add one) and zero schema changes.
+
+**Before:**
+```bash
+grep -n "Content-Disposition\|StreamingResponse\|FileResponse" areos/api/routers/reports.py
+```
+Confirm this returns nothing — there is currently no download-style response
+anywhere in this router.
+
+**Action:**
+1. Add a new endpoint, reusing the exact same lookup logic already in
+   `get_final_report()` (same `SELECT * FROM audit_runs WHERE run_id = ?`,
+   same 404-if-missing check — do not duplicate that query with a copy that
+   could drift; factor the shared lookup into a small helper both routes
+   call if it isn't already separable cleanly):
+   ```python
+   from fastapi.responses import Response
+
+   @router.get("/audit/runs/{run_id}/report/download")
+   def download_final_report(run_id: str, conn=Depends(get_db)):
+       # reuse the same row lookup / 404 handling as get_final_report()
+       ...
+       filename = f"areos-report-{run_id}.md"
+       return Response(
+           content=report_markdown,
+           media_type="text/markdown",
+           headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+       )
+   ```
+2. Add the same treatment for the remediation plan
+   (`GET /audit/runs/{run_id}/remediation/download`, reusing
+   `plan_markdown`), since a client is just as likely to want to keep that
+   as the report itself.
+3. Do **not** add a PDF option in this task. If a PDF export is wanted
+   later, that's a separate task requiring a new dependency
+   (`weasyprint`/`reportlab` or similar) and should go through its own
+   Before/Action/Checkpoint cycle, not be folded into this one.
+4. Surface this in the UI: wherever the existing report/remediation view is
+   rendered, add a visible "Download" link pointing at the new endpoint(s).
+   Check the frontend code that currently calls
+   `/audit/runs/{run_id}/report` to find the right place to add this.
+
+**Checkpoint:** Add a test asserting: (a) the download endpoint returns
+`200` with `Content-Type: text/markdown` and a `Content-Disposition` header
+containing the expected filename, for a run that exists; (b) it returns
+`404` for a run that doesn't, matching `get_final_report()`'s existing
+behavior exactly (same status code, not a different error shape).
+```bash
+pytest tests/ -q -k "report or download"
+pytest tests/ -q
+```
+
+---
+
 ## Final Gate — run once, after every task above is committed
 
 ```bash

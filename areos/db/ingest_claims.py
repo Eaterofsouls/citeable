@@ -111,6 +111,45 @@ def ingest(db_path: Path | str | None = None, source_path: Path | str | None = N
     migrate(db_path)
     conn = get_connection(db_path)
 
+    # Legacy seed loader support: ensure standalone claims table & changelog trigger exist
+    conn.execute(
+        """
+        CREATE TABLE IF NOT EXISTS claims (
+            claim_id TEXT PRIMARY KEY,
+            stage_id TEXT,
+            claim_scope TEXT,
+            claim_type TEXT,
+            statement TEXT NOT NULL,
+            status TEXT NOT NULL DEFAULT 'active',
+            confidence TEXT,
+            source_url TEXT,
+            source_tier_vocab TEXT,
+            source_tier_value TEXT,
+            source_date TEXT,
+            last_verified TEXT,
+            superseded_by TEXT
+        )
+        """
+    )
+    conn.execute(
+        """
+        CREATE TRIGGER IF NOT EXISTS trg_claims_after_insert
+        AFTER INSERT ON claims
+        FOR EACH ROW
+        BEGIN
+            INSERT INTO changelog (entity_table, entity_id, operation, actor, reason, before_json, after_json, changed_at)
+            VALUES (
+                'claims', NEW.claim_id, 'INSERT',
+                (SELECT actor FROM _txn_context WHERE id = 1),
+                (SELECT reason FROM _txn_context WHERE id = 1),
+                NULL,
+                json_object('statement', NEW.statement),
+                datetime('now')
+            );
+        END;
+        """
+    )
+
     summary: dict[str, Any] = {
         "claims_seen": 0,
         "claims_inserted": 0,

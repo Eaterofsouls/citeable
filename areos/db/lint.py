@@ -38,7 +38,7 @@ LEGAL_SOURCE_TIER_COMBINATIONS = {
     ("study_b", "T4"),
     ("study_b", "T5"),
     # FIX (Claims<->Sources Integrity Pass, Finding 2 / Blocker 2): sources.trust_tier's
-    # own CHECK constraint (areos/db/schema/artifacts.py) has always
+    # own CHECK constraint (schema.sql) has always
     # permitted T1..T7, but this list stopped at T5 — a gap, not a
     # documented governance decision anywhere in the Bible/ADRs. Once
     # claims.source_tier_value is correctly derived from a linked source's

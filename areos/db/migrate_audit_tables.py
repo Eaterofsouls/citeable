@@ -1,19 +1,8 @@
 # areos/db/migrate_audit_tables.py
 #
-# Applies the consolidated schema (SEC-11) against the target database.
-# This is an idempotent-apply strategy using CREATE TABLE IF NOT EXISTS —
-# see docs/architecture/migrations.md for the documented limitations.
-#
-# Source of truth for DDL: areos/db/schema/mixins.py + areos/db/schema/artifacts.py
-# Generated SQL file:      areos/db/schema.sql (kept in sync with the root schema.sql)
-#
-# FIX (Readiness Audit, Blocker 1): this file previously read a second,
-# drifted copy of the schema (produced by the now-deprecated generate_ddl.py)
-# that was missing the _txn_context/changelog tables and triggers write_as()
-# depends on. There must be exactly one generator. To regenerate schema.sql
-# after changing mixins.py or artifacts.py:
-#   python generate_schema.py            # writes the canonical root schema.sql
-#   cp schema.sql areos/db/schema.sql    # keep this copy in sync
+# Applies the consolidated operational schema against the target database.
+# This file is hand-maintained; see tests/test_schema_matches_live_db.py
+# for the parity check that keeps it honest.
 
 import sqlite3
 import sys
@@ -46,7 +35,7 @@ def _split_sql_statements(sql: str) -> list[str]:
 
 def migrate(db_path: Path | str | None = None) -> None:
     """
-    Apply the generated schema.sql against the target DB.
+    Apply schema.sql against the target DB.
     Raises on failure — callers must NOT swallow this (MF-9).
     """
     if db_path is None:
@@ -54,30 +43,14 @@ def migrate(db_path: Path | str | None = None) -> None:
 
     if not _SCHEMA_SQL.exists():
         raise FileNotFoundError(
-            f"schema.sql not found at {_SCHEMA_SQL}. "
-            "Run: python -m areos.db.schema.generate_ddl"
+            f"schema.sql not found at {_SCHEMA_SQL}."
         )
 
     conn = get_connection(db_path)
     sql = _SCHEMA_SQL.read_text(encoding="utf-8")
 
-    # QA-C04 / D-QA-004 / D-QA2-010 / DEC-11: If claims is already a VIEW, skip table/index/trigger/FK statements for claims
-    claims_row = conn.execute("SELECT type FROM sqlite_master WHERE name='claims'").fetchone()
-    is_claims_view = bool(claims_row and claims_row[0] == 'view')
-
     statements = _split_sql_statements(sql)
     for stmt in statements:
-        norm = stmt.strip().upper()
-        if is_claims_view:
-            if norm.startswith("CREATE TABLE IF NOT EXISTS CLAIMS") or norm.startswith("CREATE TABLE CLAIMS"):
-                continue
-            if norm.startswith("CREATE INDEX") and " ON CLAIMS" in norm:
-                continue
-            if norm.startswith("CREATE TRIGGER") and " ON CLAIMS" in norm:
-                continue
-            import re
-            stmt = re.sub(r'REFERENCES\s+claims\s*\([^)]+\)(?:\s+ON\s+DELETE\s+\w+)?(?:\s+ON\s+UPDATE\s+\w+)?', '', stmt, flags=re.IGNORECASE)
-
         conn.execute(stmt)
     conn.commit()
 
