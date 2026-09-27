@@ -8,6 +8,7 @@
 from __future__ import annotations
 
 import json
+import os
 import re
 import time
 import uuid
@@ -35,8 +36,17 @@ def _fetch_robots_txt(domain: str) -> str | None:
     return None
 
 from areos.auditors.authority_auditor import audit_domain_authority
-from areos.auditors.citation_sampler import TOS_CAVEAT, load_active_prompt_set, sample_citations
+from areos.auditors.citation_sampler import (
+    TOS_CAVEAT,
+    CitationObservation,
+    CitationSampleResult,
+    load_active_prompt_set,
+    sample_citations,
+)
 from areos.auditors.content_format_auditor import audit_page_format
+
+CITATION_SAMPLE_PROMPT_COUNT = 2
+CITATION_SAMPLE_ENGINES = ["perplexity", "gemini"]
 from areos.auditors.robots_checker import parse_llms_txt, parse_robots_txt
 from areos.auditors.schema_validator import validate_page_schemas
 from areos.auditors.synthesis_engine import synthesise
@@ -259,6 +269,67 @@ def _validate_schema_from_html(page_html: str, page_url: str) -> tuple[list[dict
             findings.append({"code": issue.code, "severity": issue.severity, "message": f"[{result.schema_type}] {issue.message}", "page_url": page_url})  # noqa: E501
     return (findings, json_ld_blocks, schema_claims)
 
+
+
+def run_citation_sampling_loop(
+    clean_domain: str,
+    prompts: list[str],
+    client_keys: dict | None = None,
+    circuit_breaker: dict[str, int] | None = None,
+) -> CitationSampleResult:
+    """Execute citation sampling across CITATION_SAMPLE_ENGINES if keys are present."""
+    ck = client_keys or {}
+    sampled_prompts = prompts[:CITATION_SAMPLE_PROMPT_COUNT]
+    results: list[CitationSampleResult] = []
+
+    for engine in CITATION_SAMPLE_ENGINES:
+        if engine == "perplexity":
+            has_key = bool(ck.get("perplexity") or os.environ.get("PERPLEXITY_API_KEY"))
+        elif engine == "gemini":
+            has_key = bool(ck.get("google") or ck.get("gemini") or os.environ.get("AREOS_GEMINI_KEY_1"))
+        else:
+            has_key = False
+
+        if has_key:
+            res = sample_citations(
+                target_domain=clean_domain,
+                prompt_set=sampled_prompts,
+                engine=engine,
+                n_runs=1,
+                delay_seconds=0.0,
+                client_keys=ck,
+                circuit_breaker=circuit_breaker,
+            )
+            results.append(res)
+
+    if not results:
+        return CitationSampleResult(
+            target_domain=clean_domain,
+            prompt_set=sampled_prompts,
+            engine="none",
+            n_runs=0,
+            observations=[],
+            tos_caveat=TOS_CAVEAT([]),
+        )
+
+    engines_run = [r.engine for r in results]
+    merged_obs: list[CitationObservation] = []
+    run_idx = 0
+    for r in results:
+        for obs in r.observations:
+            obs.run_index = run_idx
+            merged_obs.append(obs)
+            run_idx += 1
+
+    total_runs = sum(r.n_runs for r in results)
+    return CitationSampleResult(
+        target_domain=clean_domain,
+        prompt_set=sampled_prompts,
+        engine=", ".join(engines_run),
+        n_runs=total_runs,
+        observations=merged_obs,
+        tos_caveat=TOS_CAVEAT(engines_run),
+    )
 
 
 def run_orchestrated_audit(
@@ -587,7 +658,12 @@ def run_orchestrated_audit(
             f"What are the documented specifications and features of {clean_domain}?"
         ]
     
-    sample_res = sample_citations(target_domain=clean_domain, prompt_set=prompts[:2], n_runs=1, delay_seconds=0.0, client_keys=client_keys, circuit_breaker=circuit_breaker)  # noqa: E501
+    sample_res = run_citation_sampling_loop(
+        clean_domain=clean_domain,
+        prompts=prompts,
+        client_keys=client_keys,
+        circuit_breaker=circuit_breaker,
+    )
     citation_obs = sample_res.observations
     cited_runs = sum(1 for obs in citation_obs if len(obs.cited_urls) > 0)
     total_runs = len(citation_obs) if citation_obs else 1
@@ -787,5 +863,5 @@ def run_orchestrated_audit(
         "llm_synthesis": llm_synthesis or {"llm_synthesis_used": False, "reason": "No synthesis ran"},
         "manual_review_wizard": wizard_cards or [],
         "raw_findings": findings,
-        "tos_caveat": TOS_CAVEAT or ""
+        "tos_caveat": sample_res.tos_caveat or ""
     }

@@ -62,6 +62,65 @@ def test_circuit_breaker_open_skips_call():
         assert "Circuit breaker open" in res.observations[0].error
 
 
+def test_citation_sampler_both_keys_present_queries_both():
+    """Checkpoint (a): when both provider keys are present, both engines are queried and caveat names both."""
+    from areos.auditors.audit_orchestrator import run_citation_sampling_loop
+
+    client_keys = {"perplexity": "test-pplx-key", "google": "test-gemini-key"}
+    prompts = ["prompt 1", "prompt 2"]
+
+    with patch("areos.auditors.citation_sampler._query_perplexity", return_value=(["https://example.com"], "pplx snippet", "pplx full")) as mock_pplx:
+        with patch("areos.auditors.citation_sampler._query_gemini_grounded", return_value=(["https://example.com"], "gemini snippet", "gemini full")) as mock_gemini:
+            res = run_citation_sampling_loop("example.com", prompts, client_keys=client_keys)
+            assert mock_pplx.call_count == 2
+            assert mock_gemini.call_count == 2
+            assert "Perplexity sonar API" in res.tos_caveat
+            assert "Google Gemini grounded search API" in res.tos_caveat
+            assert len(res.observations) == 4
+            assert res.engine == "perplexity, gemini"
+
+
+def test_citation_sampler_only_one_key_queries_single_engine():
+    """Checkpoint (b): when only one key is present, only that engine is queried and caveat names only that engine."""
+    from areos.auditors.audit_orchestrator import run_citation_sampling_loop
+
+    # Perplexity only
+    ck_pplx = {"perplexity": "test-pplx-key"}
+    with patch("areos.auditors.citation_sampler._query_perplexity", return_value=(["https://example.com"], "s", "f")) as mock_pplx:
+        with patch("areos.auditors.citation_sampler._query_gemini_grounded") as mock_gemini:
+            res = run_citation_sampling_loop("example.com", ["p1"], client_keys=ck_pplx)
+            assert mock_pplx.call_count == 1
+            mock_gemini.assert_not_called()
+            assert "Perplexity sonar API" in res.tos_caveat
+            assert "Google Gemini grounded search API" not in res.tos_caveat
+            assert res.engine == "perplexity"
+
+    # Gemini only
+    ck_gemini = {"google": "test-gemini-key"}
+    with patch("areos.auditors.citation_sampler._query_perplexity") as mock_pplx:
+        with patch("areos.auditors.citation_sampler._query_gemini_grounded", return_value=(["https://example.com"], "s", "f")) as mock_gemini:
+            res = run_citation_sampling_loop("example.com", ["p1"], client_keys=ck_gemini)
+            assert mock_gemini.call_count == 1
+            mock_pplx.assert_not_called()
+            assert "Google Gemini grounded search API" in res.tos_caveat
+            assert "Perplexity sonar API" not in res.tos_caveat
+            assert res.engine == "gemini"
+
+
+def test_citation_sampler_neither_key_present_returns_unlabeled_warning_caveat():
+    """Checkpoint (c): when neither key is present, returns result whose caveat states no live sampling occurred."""
+    from areos.auditors.audit_orchestrator import run_citation_sampling_loop
+
+    with patch("areos.auditors.citation_sampler._query_perplexity") as mock_pplx:
+        with patch("areos.auditors.citation_sampler._query_gemini_grounded") as mock_gemini:
+            res = run_citation_sampling_loop("example.com", ["p1", "p2"], client_keys={})
+            mock_pplx.assert_not_called()
+            mock_gemini.assert_not_called()
+            assert len(res.observations) == 0
+            assert "No live citation sampling occurred" in res.tos_caveat
+            assert res.engine == "none"
+
+
 def test_schema_validator_caps_json_ld_blocks_at_100():
     """Verify page with 250 JSON-LD blocks only parses the first 100 blocks."""
     blocks = [{"@type": "Organization", "name": f"Org {i}"} for i in range(250)]

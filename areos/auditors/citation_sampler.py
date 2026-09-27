@@ -35,17 +35,44 @@ import requests
 from areos.util.ssrf import safe_get
 from dataclasses import dataclass, field
 
-# ── Mandatory ToS caveat string ───────────────────────────────────────────────
-# This string MUST appear in any output surface that presents citation results.
-TOS_CAVEAT = (
-    "[METHODOLOGY NOTE] These citation results represent OBSERVED FREQUENCY only "
-    "(cited in N/M sampled runs), not a guaranteed or reproducible measurement. "
-    "AI engine outputs are probabilistic and vary across runs. "
-    "Sampling was performed via the Perplexity sonar API and/or Google Gemini "
-    "grounded search API — both programmatic APIs with compliant ToS. "
-    "Google AI Overviews, ChatGPT browsing, and Bing Copilot are NOT sampled "
-    "by this tool due to absence of a compliant API or ToS restrictions."
-)
+def get_tos_caveat(engines: list[str] | str | None = None) -> str:
+    """Return the mandatory ToS caveat string customized for the engines queried."""
+    if isinstance(engines, str):
+        engines = [e.strip() for e in engines.split(",") if e.strip()]
+    normalized = [e.lower().strip() for e in (engines or []) if e.strip() and e.strip() != "none"]
+    if not normalized:
+        return (
+            "[METHODOLOGY NOTE] No live citation sampling occurred because no supported AI engine API keys "
+            "(Perplexity or Gemini) were configured. "
+            "Google AI Overviews, ChatGPT browsing, and Bing Copilot are NOT sampled "
+            "by this tool due to absence of a compliant API or ToS restrictions."
+        )
+
+    engine_names = []
+    if "perplexity" in normalized:
+        engine_names.append("the Perplexity sonar API")
+    if "gemini" in normalized:
+        engine_names.append("the Google Gemini grounded search API")
+    for e in normalized:
+        if e not in ("perplexity", "gemini"):
+            engine_names.append(f"the {e} API")
+
+    if len(engine_names) == 1:
+        sampling_phrase = f"Sampling was performed via {engine_names[0]} — a programmatic API with compliant ToS."
+    else:
+        sampling_phrase = f"Sampling was performed via {' and '.join(engine_names)} — programmatic APIs with compliant ToS."
+
+    return (
+        "[METHODOLOGY NOTE] These citation results represent OBSERVED FREQUENCY only "
+        "(cited in N/M sampled runs), not a guaranteed or reproducible measurement. "
+        "AI engine outputs are probabilistic and vary across runs. "
+        f"{sampling_phrase} "
+        "Google AI Overviews, ChatGPT browsing, and Bing Copilot are NOT sampled "
+        "by this tool due to absence of a compliant API or ToS restrictions."
+    )
+
+
+TOS_CAVEAT = get_tos_caveat
 
 
 # ── Data structures ───────────────────────────────────────────────────────────
@@ -69,7 +96,12 @@ class CitationSampleResult:
     engine: str
     n_runs: int
     observations: list[CitationObservation] = field(default_factory=list)
-    tos_caveat: str = TOS_CAVEAT
+    tos_caveat: str = ""
+
+    def __post_init__(self):
+        if not self.tos_caveat:
+            engines = [e.strip() for e in self.engine.split(",") if e.strip() and e.strip() != "none"] if self.engine else []
+            self.tos_caveat = TOS_CAVEAT(engines)
 
     @property
     def citation_count(self) -> int:
@@ -108,7 +140,7 @@ class CitationSampleResult:
                     lines.append(f"    → {url}")
             if obs.error:
                 lines.append(f"    ⚠ error: {obs.error}")
-        lines += ["", TOS_CAVEAT]
+        lines += ["", self.tos_caveat]
         return "\n".join(lines)
 
 
@@ -256,13 +288,14 @@ def sample_citations(
     if engine == "perplexity":
         key = api_key or ck.get("perplexity") or os.environ.get("PERPLEXITY_API_KEY", "")
     else:
-        key = api_key or ck.get("google") or os.environ.get("AREOS_GEMINI_KEY_1", "")
+        key = api_key or ck.get("google") or ck.get("gemini") or os.environ.get("AREOS_GEMINI_KEY_1", "")
 
     result = CitationSampleResult(
         target_domain=target_domain,
         prompt_set=prompt_set,
         engine=engine,
         n_runs=n_runs * len(prompt_set),
+        tos_caveat=TOS_CAVEAT([engine]) if key else TOS_CAVEAT([]),
     )
 
     run_index = 0
