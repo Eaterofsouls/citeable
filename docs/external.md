@@ -498,32 +498,61 @@ carry no deduction. The full deduction table currently in effect:
 | Check code | Layer | Deduction |
 |---|---|---|
 | `CRAWLER_FULLY_BLOCKED` | Access | −20 |
+| `CLOAKING_DETECTED` | Access | −10 |
+| `JS_CRITICAL_CONTENT_GATED` | Access | −10 |
+| `PAGE_FETCH_FAILED` | Access | −10 |
+| `AI_BOT_BLOCKED_HTTP` | Access | −8 |
+| `META_NOINDEX` | Access | −8 |
 | `NOSNIPPET_BLOCKING_AI` | Access | −8 |
-| `LLMS_TXT_MISSING` | Access | −6 |
+| `REDIRECT_CHAIN_EXCESSIVE` | Access | −8 |
+| `AUDIT_PHASE_CRASHED` | Access | −5 |
+| `CLOAKING_FETCH_FAILED` | Access | −5 |
+| `CLOAKING_SUSPECTED` | Access | −5 |
 | `CRAWLER_PARTIAL` | Access | −5 |
-| `GPTBOT_MISSING` | Access | −3 |
-| `GOOGLE_EXTENDED_MISSING` | Access | −3 |
-| `LLMS_TXT_MISSING_H1` | Access | −2 |
-| `LLMS_TXT_MISSING_SECTION` | Access | −2 |
-| `LLMS_TXT_NO_LINKS` | Access | −2 |
-| `LLMS_TXT_EMPTY_CONTENT` | Access | −2 |
+| `REDIRECT_CHAIN_LONG` | Access | −3 |
+| `SITEMAP_MISSING` | Access | −3 |
+| `SITEMAP_EMPTY` | Access | −2 |
+| `SITEMAP_PAGES_UNREACHABLE` | Access | −2 |
 | `INVALID_CRAWL_DELAY` | Access | −1 |
+| `SITEMAP_NOT_IN_ROBOTS` | Access | −1 |
 | `SCHEMA_MISSING` | Schema | −10 |
 | `MISSING_TYPE` | Schema | −8 |
 | `JSON_PARSE_FAILURE` | Schema | −7 |
+| `ENTITY_NAME_MISSING` | Schema | −5 |
 | `MISSING_REQUIRED_FIELD` | Schema | −5 |
+| `MULTI_PAGE_SCHEMA_GAPS` | Schema | −5 |
+| `CANONICAL_MISMATCH` | Schema | −4 |
+| `COMPETITOR_SCHEMA_ADVANTAGE` | Schema | −3 |
 | `MISSING_RECOMMENDED_FIELD` | Schema | −3 |
+| `REDIRECT_DOMAIN_CHANGE` | Schema | −3 |
+| `SAMEAS_DEAD_LINK` | Schema | −3 |
+| `CANONICAL_MISSING` | Schema | −2 |
+| `SAMEAS_MISSING` | Schema | −2 |
 | `UNKNOWN_FIELD` | Schema | −2 |
 | `UNKNOWN_SCHEMA_TYPE` | Schema | −2 |
+| `WIKIDATA_MISSING` | Schema | −2 |
+| `SAMEAS_INCOMPLETE` | Schema | −1 |
 | `EXTRACTABILITY_NONE` | Content | −20 |
 | `EXTRACTABILITY_LOW` | Content | −12 |
+| `ALL_CONTENT_IN_MEDIA` | Content | −8 |
 | `EXTRACTABILITY_MEDIUM` | Content | −6 |
+| `MULTI_PAGE_THIN_CONTENT` | Content | −5 |
 | `ANSWER_NOT_NEAR_TOP` | Content | −4 |
 | `ANSWER_NOT_SELF_CONTAINED` | Content | −4 |
+| `CONTENT_STALE` | Content | −4 |
+| `IFRAME_HEAVY` | Content | −4 |
+| `NEAR_DUPLICATE_PAGES` | Content | −4 |
 | `ANSWER_NOT_FACTUALLY_SPECIFIC` | Content | −3 |
+| `COMPETITOR_CONTENT_ADVANTAGE` | Content | −3 |
+| `IMAGES_MISSING_ALT` | Content | −3 |
+| `CONTENT_AGING` | Content | −2 |
+| `DATE_MISSING` | Content | −2 |
 | `NO_LIST_OR_TABLE` | Content | −2 |
+| `SITEMAP_NO_LASTMOD` | Content | −2 |
+| `VIDEO_NO_TRANSCRIPT` | Content | −2 |
 | `CITATION_NOT_OBSERVED` | Citation | −30 |
-| `AUTHORITY_DR_LOW` | Authority | −6 |
+| `CITATION_RATE_LOW` | Citation | −15 |
+| `SHARE_OF_VOICE_LOW` | Citation | −10 |
 | `REFERRING_DOMAINS_CRITICAL` | Authority | −5 |
 | `WIKIPEDIA_ENTITY_MISSING` | Authority | −5 |
 | `BRAND_MENTIONS_STAGNANT` | Authority | −3 |
@@ -541,7 +570,7 @@ Access is treated as a *prerequisite*, not merely one layer among five.
 If AI crawlers cannot reach the site at all, the other four layers'
 scores are structurally meaningless — a perfectly-marked-up page that no
 crawler can fetch has near-zero real-world AI readiness, regardless of
-how well it would score on paper. To encode this, two specific findings
+how well it would score on paper. To encode this, four specific findings
 apply a hard ceiling to the *overall* score, independent of the layered
 total:
 
@@ -549,6 +578,8 @@ total:
 |---|---|
 | `CRAWLER_FULLY_BLOCKED` (a major AI crawler is fully disallowed) | 25 |
 | `CRAWLER_PARTIAL` (some AI crawlers are restricted) | 65 |
+| `CLOAKING_DETECTED` (cloaked content detected between bots and users) | 35 |
+| `META_NOINDEX` (page carries noindex directive blocking indexing) | 15 |
 
 The gate is a **ceiling**, not an additional deduction: it only changes
 the outcome when the layered total would otherwise land *above* the cap.
