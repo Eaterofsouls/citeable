@@ -211,7 +211,7 @@ The system tracks 217 knowledge claims and 38 audit runs (live count as of this 
 Citeable is driven by its declarative knowledge base:
 1. Auditors emit specific `check_codes` (e.g., `ROBOTS_TXT_MISSING`).
 2. `findings_to_claims.py` maps these codes to `claim_id`s in the database. **Discrepancy:** The `is_client_evidence` filter was removed here to fix a genesis loader conflict.
-3. The QA Gate (`qa_gate.py`) filters the mapped claims, rejecting those marked as deprecated or superseded. **Discrepancy:** A legacy bypass for claims C052–C090 remains active despite the governance specification strictly mandating its removal.
+3. The QA Gate (`qa_gate.py`) filters the mapped claims, rejecting those marked as deprecated or superseded.
 4. Validated claims are enriched with confidence scores, source tiers (T1–T4), and remediation text before inclusion in the final plan.
 
 ### 2.4 External Dependencies & Zero-SDK Philosophy
@@ -606,7 +606,6 @@ The codebase contains numerous undocumented design choices and deviations from t
 - **Stage Logging Gap (AP-03):** While Stage 3 (Schema/JSON-LD evaluation) executes perfectly, the DB write array in `audit_orchestrator.py` hardcodes `audited_stages = ["AP-01", "AP-02", "AP-04", "AP-05", "AP-06"]`. AP-03 is lost to the database.
 - **Claim Type Bloat:** The Knowledge Governance Spec (§1.1) mandates exactly 5 claim types (`empirical, operational, policy, heuristic, outcome`). The live database contains **16** distinct types (e.g., `ai-citation-effect`, `tooling_existence`) because `genesis_loader.py` bypassed the linter.
 - **Citation Sampling Caps:** Regardless of how many prompt variants are provided via the UI, `citation_sampler.py` slices the array: `prompts[:2]`. It silently truncates execution to a maximum of 2 calls.
-- **Deprecated QA Bypasses:** Code block L71-83 in `qa_gate.py` still contains a bypass for claims C052–C090. The governance spec (§1.5) explicitly mandated the removal of this bypass.
 
 #### 7.5 Testing Posture & Coverage Anomalies
 
