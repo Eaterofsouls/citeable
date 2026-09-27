@@ -384,6 +384,7 @@ CREATE TABLE IF NOT EXISTS audit_runs (
     automated_findings TEXT NOT NULL,
     status TEXT DEFAULT 'automated_complete',
     overall_score INTEGER,
+    run_token TEXT,
     created_at TEXT DEFAULT (datetime('now')),
     approved_count INTEGER DEFAULT 0,
     rejected_count INTEGER DEFAULT 0

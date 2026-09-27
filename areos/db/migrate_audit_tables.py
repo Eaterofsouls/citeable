@@ -100,6 +100,14 @@ def migrate(db_path: Path | str | None = None) -> None:
             "ALTER TABLE audit_runs ADD COLUMN overall_score INTEGER"
         )
 
+    # Task 5: ensure run_token column exists on audit_runs
+    try:
+        conn.execute("SELECT run_token FROM audit_runs LIMIT 1")
+    except Exception:
+        conn.execute(
+            "ALTER TABLE audit_runs ADD COLUMN run_token TEXT"
+        )
+
     # Ensure kb_meta exists (areos/db/kb_version.py depends on it but no
     # schema generator currently defines it — this is dead code today, but
     # will hard-crash the moment anything calls increment_kb_version()).

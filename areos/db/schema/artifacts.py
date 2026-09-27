@@ -251,6 +251,7 @@ TABLES = {
             ("status",              "TEXT",    "DEFAULT 'automated_complete'"),
             # SEC-24: persist computed score so B6 can use a real delta instead of Math.random()
             ("overall_score",       "INTEGER", ""),
+            ("run_token",           "TEXT",    ""),
             ("created_at",          "TEXT",    "DEFAULT (datetime('now'))"),
             ("approved_count",      "INTEGER", "DEFAULT 0"),
             ("rejected_count",      "INTEGER", "DEFAULT 0"),

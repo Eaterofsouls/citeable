@@ -1,5 +1,6 @@
 import json
 import logging
+import secrets
 import time
 import uuid
 from collections import defaultdict
@@ -106,18 +107,20 @@ def create_audit_run(
 
     def handler():
         run_id = str(uuid.uuid4())[:8]
+        run_token = secrets.token_urlsafe(24)
         run_date = utc_today_iso()
         # FIX (Readiness Audit, Major #1): this used to write directly via
         # conn.execute()+conn.commit(), bypassing write_as() and leaving the
         # changelog entry for every new audit run with actor=NULL/reason=NULL.
         with write_as(conn, actor="api:create_audit_run", reason=f"New audit run for {payload.target_domain}"):  # noqa: E501
             conn.execute(
-                "INSERT INTO audit_runs (run_id, target_domain, run_date, audited_stages, automated_findings, status) VALUES (?,?,?,?,?,?)",  # noqa: E501
+                "INSERT INTO audit_runs (run_id, target_domain, run_date, audited_stages, automated_findings, status, run_token) VALUES (?,?,?,?,?,?,?)",  # noqa: E501
                 (
                     run_id, payload.target_domain, run_date,
                     json.dumps(payload.audited_stages),
                     json.dumps(payload.automated_findings),
                     "automated_complete",
+                    run_token,
                 ),
             )
 
@@ -133,6 +136,7 @@ def create_audit_run(
 
         return 200, {
             "run_id": run_id,
+            "run_token": run_token,
             "triggered_cards": [
                 {
                     "card_id": c.card_id,
@@ -211,7 +215,7 @@ def get_audit_run(run_id: str, conn=Depends(get_db)):
         )
 
     return {
-        "run": {k: v for k, v in run.items() if k not in ("automated_findings",)},
+        "run": {k: v for k, v in run.items() if k not in ("automated_findings", "run_token")},
         "automated_findings": findings,
         "triggered_cards": cards_out,
     }

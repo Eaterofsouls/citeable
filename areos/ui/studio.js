@@ -143,6 +143,13 @@ document.addEventListener("DOMContentLoaded", () => {
  currentAuditData = data;
  window.AreosContext = window.AreosContext || {};
  window.AreosContext.auditResult = data;
+ if (data.run_id) {
+ _activeRunId = data.run_id;
+ window.AreosContext.activeRunId = data.run_id;
+ if (data.run_token) {
+ window.AreosContext.activeRunToken = data.run_token;
+ }
+ }
  
  setTimeout(() => {
  completeAllStages();
@@ -1041,6 +1048,7 @@ function renderSynthesisTab(data) {
 
   // Store run_id for later synthesis trigger
   if (data.run_id) _activeRunId = data.run_id;
+  if (data.run_token && window.AreosContext) window.AreosContext.activeRunToken = data.run_token;
 
   const icon  = document.getElementById('synth-status-icon');
   const title = document.getElementById('synth-status-title');

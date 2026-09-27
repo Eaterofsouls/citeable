@@ -10,6 +10,7 @@ from __future__ import annotations
 import json
 import os
 import re
+import secrets
 import time
 import uuid
 from collections import defaultdict
@@ -737,10 +738,11 @@ def run_orchestrated_audit(
     # FIX (Readiness Audit, Major #1): this used to write directly via
     # conn.execute()+conn.commit(), bypassing write_as() and leaving this
     # run's changelog entry with actor=NULL/reason=NULL.
+    run_token = secrets.token_urlsafe(24)
     conn = get_connection(db_path)
     with write_as(conn, actor="orchestrator:run_orchestrated_audit", reason=f"Automated audit run for {clean_domain}"):  # noqa: E501
         conn.execute(
-            "INSERT INTO audit_runs (run_id, target_domain, run_date, audited_stages, automated_findings, status, overall_score) VALUES (?,?,?,?,?,?,?)",  # noqa: E501
+            "INSERT INTO audit_runs (run_id, target_domain, run_date, audited_stages, automated_findings, status, overall_score, run_token) VALUES (?,?,?,?,?,?,?,?)",  # noqa: E501
             (
                 run_id,
                 clean_domain,
@@ -749,6 +751,7 @@ def run_orchestrated_audit(
                 json.dumps(findings),
                 "automated_complete",
                 _overall_score_pre,
+                run_token,
             )
         )
 
@@ -840,6 +843,7 @@ def run_orchestrated_audit(
     return {
         "status": "success",
         "run_id": run_id,
+        "run_token": run_token,
         "run_date": run_date,
         "target_domain": clean_domain,
         "executive_scorecard": {

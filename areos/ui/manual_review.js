@@ -241,9 +241,17 @@ async function submitVerdict(cardId) {
  btn.textContent = 'Submitting...';
 
  try {
+ const headers = authHeaders();
+ const runToken = (window.AreosContext && window.AreosContext.activeRunToken)
+ || (new URLSearchParams(window.location.search)).get('run_token')
+ || (new URLSearchParams(window.location.search)).get('token')
+ || localStorage.getItem('areos_active_run_token');
+ if (runToken) {
+ headers['X-Run-Token'] = runToken;
+ }
  const res = await AreosAPI.fetch(`${API}/api/v1/audit/runs/${currentRunId}/verdicts`, {
  method: 'POST',
- headers: authHeaders(),
+ headers: headers,
  body: JSON.stringify({
  card_id: cardId,
  page_url: pageUrl,

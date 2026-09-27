@@ -10,6 +10,7 @@ window.AreosContext = {
  activeRoute: window.location.pathname,
  lastDomain: localStorage.getItem("areos_last_domain") || "",
  activeRunId: localStorage.getItem("areos_active_run_id") || null,
+ activeRunToken: localStorage.getItem("areos_active_run_token") || null,
  },
 
  get analystId() { return this._state.analystId; },
@@ -31,5 +32,12 @@ window.AreosContext = {
  this._state.activeRunId = val;
  if (val) localStorage.setItem("areos_active_run_id", val);
  else localStorage.removeItem("areos_active_run_id");
+ },
+
+ get activeRunToken() { return this._state.activeRunToken; },
+ set activeRunToken(val) {
+ this._state.activeRunToken = val;
+ if (val) localStorage.setItem("areos_active_run_token", val);
+ else localStorage.removeItem("areos_active_run_token");
  }
 };

@@ -1,10 +1,11 @@
+import hmac
 import logging
 from typing import Literal
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, Header, HTTPException, Query
 from pydantic import BaseModel
 
-from areos.api.dependencies import get_db, verify_admin
+from areos.api.dependencies import get_db
 from areos.db.context import write_as
 
 logger = logging.getLogger(__name__)
@@ -22,11 +23,22 @@ class ManualVerdictPayload(BaseModel):
 def submit_verdict(
     run_id: str,
     payload: ManualVerdictPayload,
-    conn=Depends(get_db)
+    x_run_token: str | None = Header(None, alias="X-Run-Token"),
+    token: str | None = Query(None),
+    run_token: str | None = Query(None),
+    conn=Depends(get_db),
 ):
-    row = conn.execute("SELECT run_id FROM audit_runs WHERE run_id = ?", (run_id,)).fetchone()
+    provided_token = x_run_token or token or run_token
+    if not provided_token:
+        raise HTTPException(status_code=401, detail="Run token required")
+
+    row = conn.execute("SELECT run_id, run_token FROM audit_runs WHERE run_id = ?", (run_id,)).fetchone()
     if not row:
         raise HTTPException(status_code=404, detail="Audit run not found")
+
+    expected_token = row["run_token"] if hasattr(row, "keys") else row[1]
+    if not expected_token or not hmac.compare_digest(provided_token, expected_token):
+        raise HTTPException(status_code=403, detail="Invalid run token")
 
     # FIX (Readiness Audit, Major #1): this wrote directly via conn.execute()
     # + conn.commit(), bypassing write_as() — forbidden per db/context.py's
