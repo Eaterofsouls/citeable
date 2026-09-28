@@ -331,6 +331,22 @@ function displayStudioResults(data, domain) {
   const funnelLabel = document.getElementById("res-funnel-label");
   if (funnelLabel) funnelLabel.textContent = `Full Spectrum Diagnostic Audit`;
 
+  // Historical reload notice banner
+  const existingBanner = document.getElementById("res-historical-banner");
+  if (data.is_historical_reload) {
+    if (!existingBanner) {
+      const banner = document.createElement("div");
+      banner.id = "res-historical-banner";
+      banner.style.cssText = "margin-bottom:1.2rem;padding:0.75rem 1rem;background:var(--brand-50);border:1px solid var(--brand-100);border-radius:8px;font-size:0.82rem;color:var(--text-secondary);display:flex;align-items:center;gap:8px;";
+      banner.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--brand-500)" stroke-width="2" style="flex-shrink:0;"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+      <span><strong>Viewing a saved result.</strong> Live crawler and citation telemetry are captured only during the scan itself &mdash; re-run the audit from Step 1 to regenerate live diagnostics.</span>`;
+      const resContainer = document.getElementById("studio-results");
+      if (resContainer) resContainer.prepend(banner);
+    }
+  } else if (existingBanner) {
+    existingBanner.remove();
+  }
+
   const dlRemBtn = document.getElementById("btn-download-remediation");
   if (dlRemBtn && data.run_id) {
     dlRemBtn.href = `${window.AreosContext?.apiBase || '/api/v1'}/audit/runs/${encodeURIComponent(data.run_id)}/remediation/download`;
@@ -367,29 +383,41 @@ function displayStudioResults(data, domain) {
   subScoreEl.style.cssText = "margin-top:1.2rem;display:flex;flex-direction:column;gap:0.55rem;";
   scoreEl.parentElement.appendChild(subScoreEl);
  }
- subScoreEl.innerHTML = layerOrder.map(layer => {
-  const ls  = subScores[layer.id] || { score: 0, max: 0, pct: 0, deductions: [] };
-  const pct = ls.max > 0 ? Math.round(ls.score / ls.max * 100) : 0;
-  const barColor = pct >= 80 ? "var(--status-success)" : pct >= 50 ? "var(--status-warning)" : "var(--status-danger)";
-  const deductionTip = (ls.deductions || []).map(d =>
-   `${d.code}: ${d.points}pts`
-  ).join(" | ") || "No deductions";
-  return `
-  <div title="${deductionTip}" style="cursor:default;">
-   <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:3px;">
-    <span style="font-size:0.78rem;color:var(--text-secondary);font-family:'JetBrains Mono',monospace;display:flex;align-items:center;gap:5px;">
-     ${layer.icon} ${layer.label.toUpperCase()}
-    </span>
-    <span style="font-size:0.78rem;font-weight:700;color:var(--text-primary);font-family:'JetBrains Mono',monospace;">
-     ${ls.score}/${ls.max}
-    </span>
-   </div>
-   <div style="background:var(--border-default);border-radius:4px;height:6px;overflow:hidden;">
-    <div style="width:${pct}%;height:100%;background:${barColor};border-radius:4px;
-                transition:width 0.8s cubic-bezier(0.4,0,0.2,1);"></div>
-   </div>
-  </div>`;
- }).join("");
+
+ if (data.is_historical_reload && Object.keys(subScores).length === 0) {
+  subScoreEl.innerHTML = `
+    <div style="margin-top:0.6rem;padding:0.75rem 0.9rem;background:var(--surface-sunken);border:1px solid var(--border-subtle);border-radius:6px;font-size:0.78rem;color:var(--text-tertiary);line-height:1.45;">
+      <div style="display:flex;align-items:center;gap:6px;font-weight:600;color:var(--text-secondary);margin-bottom:3px;">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+        <span>Layer breakdown not stored</span>
+      </div>
+      Sub-score metrics are computed dynamically at scan time. Re-run an audit from Step 1 to generate live layer breakdown telemetry.
+    </div>`;
+ } else {
+  subScoreEl.innerHTML = layerOrder.map(layer => {
+   const ls  = subScores[layer.id] || { score: 0, max: 0, pct: 0, deductions: [] };
+   const pct = ls.max > 0 ? Math.round(ls.score / ls.max * 100) : 0;
+   const barColor = pct >= 80 ? "var(--status-success)" : pct >= 50 ? "var(--status-warning)" : "var(--status-danger)";
+   const deductionTip = (ls.deductions || []).map(d =>
+    `${d.code}: ${d.points}pts`
+   ).join(" | ") || "No deductions";
+   return `
+   <div title="${deductionTip}" style="cursor:default;">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:3px;">
+     <span style="font-size:0.78rem;color:var(--text-secondary);font-family:'JetBrains Mono',monospace;display:flex;align-items:center;gap:5px;">
+      ${layer.icon} ${layer.label.toUpperCase()}
+     </span>
+     <span style="font-size:0.78rem;font-weight:700;color:var(--text-primary);font-family:'JetBrains Mono',monospace;">
+      ${ls.score}/${ls.max}
+     </span>
+    </div>
+    <div style="background:var(--border-default);border-radius:4px;height:6px;overflow:hidden;">
+     <div style="width:${pct}%;height:100%;background:${barColor};border-radius:4px;
+                 transition:width 0.8s cubic-bezier(0.4,0,0.2,1);"></div>
+    </div>
+   </div>`;
+  }).join("");
+ }
 
  // Gate warning
  if (sc.access_gate_applied) {
@@ -780,6 +808,7 @@ async function loadRunById(runId) {
     const data = {
       run_id: full.run_id,
       target_domain: full.target_domain,
+      is_historical_reload: true,
       executive_scorecard: {
         overall_score: full.overall_score ?? 0,
         sub_scores: {},
