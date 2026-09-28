@@ -190,7 +190,7 @@ function renderRecCard(rec, num) {
  else if (priorityNum <= 9) { prioLabel = 'HIGH'; prioColor = 'var(--status-contested)'; }
  else if (priorityNum <= 11) { prioLabel = 'MEDIUM'; prioColor = 'var(--brand-400)'; }
  
- const prioBadge = el('span', prioLabel, {style: `background: ${prioColor}20; color: ${prioColor}; border: 1px solid ${prioColor}50; padding: 2px 8px; border-radius: var(--radius-full); font-size: 0.75rem; font-weight: bold; margin-left: 8px;`});
+ const prioBadge = el('span', `Remediation Priority: ${prioLabel}`, {style: `background: ${prioColor}20; color: ${prioColor}; border: 1px solid ${prioColor}50; padding: 2px 8px; border-radius: var(--radius-full); font-size: 0.75rem; font-weight: bold; margin-left: 8px;`});
 
  // Evidence Quality Badge (mock from claim API if not present, but for now we show a placeholder if missing)
  // Actually, we don't have claim.source_tier directly on rec, but we can display "Evidence"
