@@ -466,3 +466,9 @@
 {"at": "2026-09-28", "session": "session_15", "op": "UPDATE", "kid": "KT-194", "note": "Updated statement with Vercel/MERJ 2024 measurement; added supporting evidence SRC-115 and contextualizing evidence SRC-116, SRC-117."}
 {"at": "2026-09-28", "session": "session_15", "op": "UPDATE", "kid": "KT-110", "note": "Updated statement regarding syndication canonicalization; added supporting evidence SRC-118 and relabeled SRC-093 to supports."}
 {"at": "2026-09-28", "session": "session_15", "op": "UPDATE", "kid": "KT-116", "note": "Updated statement on neural matching; added supporting evidence SRC-119, SRC-120, SRC-121."}
+{"at": "2026-09-28", "session": "session_15", "op": "DELETE", "kid": "KT-105", "note": "Removed junk source SRC-067 (Wikipedia instruction cycle) and associated evidence row EV-133."}
+{"at": "2026-09-28", "session": "session_15", "op": "DELETE", "kid": "KT-194", "note": "Removed junk source SRC-068 (Scratchapixel 3D rendering) and associated evidence row EV-134."}
+{"at": "2026-09-28", "session": "session_15", "op": "DELETE", "kid": "KT-195", "note": "Removed junk source SRC-070 (Dice.com login) and associated evidence row EV-136."}
+{"at": "2026-09-28", "session": "session_15", "op": "DELETE", "kid": "KT-196", "note": "Removed junk source SRC-070 (Dice.com login) and associated evidence row EV-3011."}
+{"at": "2026-09-28", "session": "session_15", "op": "DELETE", "kid": "KT-110", "note": "Removed junk source SRC-073 (Wikipedia number 9) and associated evidence row EV-139."}
+{"at": "2026-09-28", "session": "session_15", "op": "DELETE", "kid": "KT-116", "note": "Removed junk source SRC-080 (Google generic homepage) and associated evidence row EV-146."}
