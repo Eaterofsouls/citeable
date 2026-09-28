@@ -197,7 +197,7 @@ const HELP_HTML = `
         <!-- Step 0 -->
         <div class="help-step active" data-step="0">
           <h3>Welcome to the Audit Studio</h3>
-          <p>Citeable is a tool to test if your website can be read and cited by AI engines like ChatGPT and Gemini. This isn't traditional SEO — we test actual generative AI retrieval.</p>
+          <p>Citeable is a tool to test if your website can be read and cited by AI search engines like Perplexity and Gemini. This isn't traditional SEO — we test actual generative AI retrieval.</p>
           <div class="help-img-placeholder">
             <img src="assets/help-dashboard.png" alt="Screenshot: The main Dashboard" style="width:100%; height:100%; object-fit:cover; border-radius:inherit;" onerror="this.parentElement.innerHTML='[ Screenshot Loading... ]'">
           </div>
