@@ -541,7 +541,7 @@ window.GuidedReview = (function() {
       let cls = "";
       if (isDone) cls += " is-done";
       if (isCurrent) cls += " is-current";
-      return `<button type="button" class="gr-dot-btn${cls}" onclick="window.GuidedReview.goToInlineStep(${i})" title="Question ${i + 1} of ${cards.length}: ${isDone ? 'Evaluated' : 'Unanswered'}" aria-label="Question ${i + 1} of ${cards.length}"></button>`;
+      return `<button type="button" class="gr-dot-btn${cls}" data-step="${i}" title="Question ${i + 1} of ${cards.length}: ${isDone ? 'Evaluated' : 'Unanswered'}" aria-label="Question ${i + 1} of ${cards.length}"></button>`;
     }).join("");
 
     const isLastCard = idx === cards.length - 1;
@@ -619,6 +619,10 @@ window.GuidedReview = (function() {
 
       submitInlineVerdict(wiz.card_id, v, inlineOpts);
     };
+
+    wizCard.querySelectorAll(".gr-dot-btn[data-step]").forEach(btn => {
+      btn.addEventListener("click", () => goToInlineStep(Number(btn.dataset.step)));
+    });
 
     if (passBtn) passBtn.onclick = () => onSelect('pass');
     if (warnBtn) warnBtn.onclick = () => onSelect('warn');
