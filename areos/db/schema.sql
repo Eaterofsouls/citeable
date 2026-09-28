@@ -150,6 +150,7 @@ CREATE TABLE IF NOT EXISTS audit_runs (
     status TEXT DEFAULT 'automated_complete',
     overall_score INTEGER,
     run_token TEXT,
+    score_detail_json TEXT,
     created_at TEXT DEFAULT (datetime('now')),
     approved_count INTEGER DEFAULT 0,
     rejected_count INTEGER DEFAULT 0

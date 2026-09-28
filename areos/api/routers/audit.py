@@ -221,6 +221,17 @@ def get_audit_run(run_id: str, conn=Depends(get_db)):
     }
 
 
+def _parse_score_detail(raw):
+    """Stored layer breakdown for a run, or None for runs saved before it was persisted."""
+    if not raw:
+        return None
+    try:
+        detail = json.loads(raw)
+    except (TypeError, ValueError):
+        return None
+    return detail if isinstance(detail, dict) else None
+
+
 @router.get("/audit/runs/{run_id}/full")
 def get_full_run_report(run_id: str, conn=Depends(get_db)):
     """
@@ -301,6 +312,7 @@ def get_full_run_report(run_id: str, conn=Depends(get_db)):
         "run_date": run.get("run_date"),
         "target_domain": run["target_domain"],
         "overall_score": run.get("overall_score"),
+        "score_detail": _parse_score_detail(run.get("score_detail_json")),
         "remediation_plan": enriched_recs,
         "llm_synthesis": synthesis or {"llm_synthesis_used": False, "reason": "No synthesis ran", "pending": not completeness["wizard_complete"]},  # noqa: E501
         "manual_review_wizard": wizard_cards,

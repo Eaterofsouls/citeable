@@ -81,6 +81,12 @@ def migrate(db_path: Path | str | None = None) -> None:
             "ALTER TABLE audit_runs ADD COLUMN run_token TEXT"
         )
 
+    # Task T21: persist the full score breakdown
+    try:
+        conn.execute("SELECT score_detail_json FROM audit_runs LIMIT 1")
+    except Exception:
+        conn.execute("ALTER TABLE audit_runs ADD COLUMN score_detail_json TEXT")
+
     # Ensure kb_meta exists (areos/db/kb_version.py depends on it but no
     # schema generator currently defines it — this is dead code today, but
     # will hard-crash the moment anything calls increment_kb_version()).

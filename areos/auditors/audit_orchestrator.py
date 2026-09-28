@@ -733,6 +733,19 @@ def run_orchestrated_audit(
     # run record always carries the score even before the return payload.
     _scorecard_pre = compute_layered_score(findings)
     _overall_score_pre = _scorecard_pre.overall_score
+    _raw_metrics_pre = getattr(auth_res, "metrics", None) or {}
+    _score_detail_json = json.dumps({
+        "sub_scores": {k: v.as_dict() for k, v in _scorecard_pre.sub_scores.items()},
+        "score_breakdown": _scorecard_pre._flat_breakdown(),
+        "access_gate_applied": _scorecard_pre.access_gate_applied,
+        "access_gate_cap": _scorecard_pre.access_gate_cap,
+        "authority_metrics": {
+            "authority_score": _raw_metrics_pre.get("authority_score") or 0,
+            "referring_domains": _raw_metrics_pre.get("referring_domains") or 0,
+            "trust_flow": _raw_metrics_pre.get("trust_flow") or 0,
+            "citation_flow": _raw_metrics_pre.get("citation_flow") or 0,
+        },
+    })
 
     # Save to SQLite Database
     # FIX (Readiness Audit, Major #1): this used to write directly via
@@ -742,7 +755,7 @@ def run_orchestrated_audit(
     conn = get_connection(db_path)
     with write_as(conn, actor="orchestrator:run_orchestrated_audit", reason=f"Automated audit run for {clean_domain}"):  # noqa: E501
         conn.execute(
-            "INSERT INTO audit_runs (run_id, target_domain, run_date, audited_stages, automated_findings, status, overall_score, run_token) VALUES (?,?,?,?,?,?,?,?)",  # noqa: E501
+            "INSERT INTO audit_runs (run_id, target_domain, run_date, audited_stages, automated_findings, status, overall_score, run_token, score_detail_json) VALUES (?,?,?,?,?,?,?,?,?)",  # noqa: E501
             (
                 run_id,
                 clean_domain,
@@ -752,6 +765,7 @@ def run_orchestrated_audit(
                 "automated_complete",
                 _overall_score_pre,
                 run_token,
+                _score_detail_json,
             )
         )
 
