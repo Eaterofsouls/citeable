@@ -653,7 +653,7 @@ function updateShieldProgress() {
     if (shieldBanner) shieldBanner.className = "context-helper-card";
     if (shieldIcon) shieldIcon.textContent = "✓";
     if (shieldTitle) shieldTitle.textContent = "Human Verification Complete";
-    if (shieldSub) shieldSub.textContent = "Every check has been evaluated and recorded into the persistent empirical repository.";
+    if (shieldSub) shieldSub.textContent = "Every check has been evaluated and recorded into the audit empirical repository.";
 
     if (window._synthesisTriggeredForRun !== _activeRunId) {
       window._synthesisTriggeredForRun = _activeRunId;

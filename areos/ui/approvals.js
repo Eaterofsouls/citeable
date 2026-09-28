@@ -109,7 +109,7 @@ function renderPendingList() {
           <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--status-success)" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>
         </div>
         <h3 style="font-size:1.4rem; font-weight:800; color:var(--text-primary); text-transform:uppercase; letter-spacing:0.04em; margin-bottom:10px;">All Claims Verified</h3>
-        <p style="font-size:0.95rem; color:var(--text-secondary); line-height:1.6;">Every audited assertion in this test suite has been reviewed and recorded to persistent database truth.</p>
+        <p style="font-size:0.95rem; color:var(--text-secondary); line-height:1.6;">Every audited assertion in this test suite has been reviewed and recorded to the audit database.</p>
       </div>
     `;
     return;
