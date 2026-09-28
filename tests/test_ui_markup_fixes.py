@@ -6,3 +6,7 @@ def test_wizard_dots_use_delegated_listener_not_inline_onclick():
     assert "goToInlineStep(${i})" not in src
     assert 'data-step="${i}"' in src
     assert ".gr-dot-btn[data-step]" in src
+
+def test_no_94_percent_claim_in_user_facing_files():
+    for f in list(UI.glob("*.html")) + list(UI.glob("*.js")):
+        assert "94%" not in f.read_text(encoding="utf-8"), f.name
