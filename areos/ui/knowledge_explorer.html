@@ -42,7 +42,7 @@
 
         <!-- HELPER CARD: Claim Taxonomy Primer -->
         <div class="context-helper-card" id="helper-taxonomy-primer" style="border-radius: 8px; border: 1px solid var(--border-default); box-shadow: var(--shadow-sm); overflow: hidden; background: #FFFFFF; margin-bottom: 24px;">
-          <div class="helper-card-header" onclick="toggleHelperCard('helper-taxonomy-content', 'helper-taxonomy-chevron')" style="padding: 14px 20px; display: flex; align-items: center; justify-content: space-between; cursor: pointer; user-select: none; background: #FFFFFF;">
+          <div class="helper-card-header" onclick="toggleHelperCard('helper-taxonomy-content', 'helper-taxonomy-chevron', 'areos_explainer_collapsed_knowledge')" style="padding: 14px 20px; display: flex; align-items: center; justify-content: space-between; cursor: pointer; user-select: none;">
             <div style="display:flex; align-items:center; gap:12px;">
               <div style="width:30px; height:30px; border-radius:6px; background:#F8FAFC; display:flex; align-items:center; justify-content:center; border:1px solid #E2E8F0; color:#334155;">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/></svg>
@@ -202,18 +202,6 @@
     document.addEventListener('DOMContentLoaded', () => { 
       window.AreosNav.renderNav('knowledge'); 
     });
-
-    function toggleHelperCard(contentId, chevronId) {
-      const content = document.getElementById(contentId);
-      const chevron = document.getElementById(chevronId);
-      if (content && content.classList.contains('open')) {
-        content.classList.remove('open');
-        if (chevron) chevron.style.transform = 'rotate(-90deg)';
-      } else if (content) {
-        content.classList.add('open');
-        if (chevron) chevron.style.transform = 'rotate(0deg)';
-      }
-    }
   </script>
 </body>
 </html>

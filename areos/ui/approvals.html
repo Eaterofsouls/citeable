@@ -43,7 +43,7 @@
         <!-- HELPER CARD: Governance & Mutation Protocol -->
         <div class="context-helper-card" id="helper-approvals-primer">
           <div class="helper-bar emerald"></div>
-          <div class="helper-card-header" onclick="toggleHelperCard('helper-approvals-content', 'helper-approvals-chevron')">
+          <div class="helper-card-header" onclick="toggleHelperCard('helper-approvals-content', 'helper-approvals-chevron', 'areos_explainer_collapsed_approvals')">
             <div style="display:flex; align-items:center; gap:12px;">
               <div style="width:28px; height:28px; border-radius:6px; background:var(--surface-sunken); display:flex; align-items:center; justify-content:center; border:1px solid var(--border-default); color:var(--text-secondary);">
                 <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="18" cy="18" r="3"/><circle cx="6" cy="6" r="3"/><path d="M13 6h3a2 2 0 0 1 2 2v7"/><line x1="6" y1="9" x2="6" y2="21"/></svg>
@@ -55,7 +55,7 @@
             </div>
             <div style="display:flex; align-items:center; gap:12px;">
               <span class="status-pill success">DB Truth Protected</span>
-              <span id="helper-approvals-chevron" style="font-size:0.75rem; color:var(--text-tertiary); font-weight:700;">▾</span>
+              <span id="helper-approvals-chevron" style="font-size:0.75rem; color:var(--text-tertiary); font-weight:700; transition:transform 0.2s ease;">▾</span>
             </div>
           </div>
           <div id="helper-approvals-content" class="accordion-grid open">
@@ -141,18 +141,6 @@
     document.addEventListener('DOMContentLoaded', () => { 
       window.AreosNav.renderNav('approvals'); 
     });
-
-    function toggleHelperCard(contentId, chevronId) {
-      const content = document.getElementById(contentId);
-      const chevron = document.getElementById(chevronId);
-      if (content && content.classList.contains('open')) {
-        content.classList.remove('open');
-        if (chevron) chevron.style.transform = 'rotate(-90deg)';
-      } else if (content) {
-        content.classList.add('open');
-        if (chevron) chevron.style.transform = 'rotate(0deg)';
-      }
-    }
   </script>
 </body>
 </html>

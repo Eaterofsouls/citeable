@@ -835,11 +835,11 @@ a:hover {
   justify-content: space-between;
   cursor: pointer;
   user-select: none;
-  background: #FFFFFF;
+  background: var(--surface-panel);
   transition: background-color var(--duration-snappy) ease;
 }
 .helper-card-header:hover {
-  background: #F8FAFC;
+  background: var(--surface-sunken);
 }
 
 /* 60fps GPU Grid Accordion */

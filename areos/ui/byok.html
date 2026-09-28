@@ -45,13 +45,24 @@
         <!-- HELPER CARD: Security & Local Key Isolation -->
         <div class="context-helper-card" id="helper-byok-primer">
           <div class="helper-bar blue"></div>
-          <div style="padding:16px 20px; display:flex; align-items:center; gap:12px;">
-            <div style="width:28px; height:28px; border-radius:6px; background:var(--brand-50); border:1px solid var(--brand-100); display:flex; align-items:center; justify-content:center; color:var(--brand-500); flex-shrink:0;">
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
+          <div class="helper-card-header" onclick="toggleHelperCard('helper-byok-content', 'helper-byok-chevron', 'areos_explainer_collapsed_byok')">
+            <div style="display:flex; align-items:center; gap:12px;">
+              <div style="width:28px; height:28px; border-radius:6px; background:var(--brand-50); border:1px solid var(--brand-100); display:flex; align-items:center; justify-content:center; color:var(--brand-500); flex-shrink:0;">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
+              </div>
+              <div>
+                <strong style="font-size:0.9rem; color:var(--text-primary); display:block;">Client-Side Ephemeral Credential Security</strong>
+                <div style="font-size:0.75rem; color:var(--text-tertiary);">Key Vault · Local Storage Isolation</div>
+              </div>
             </div>
-            <div>
-              <strong style="font-size:0.9rem; color:var(--text-primary); display:block;">Client-Side Ephemeral Credential Security</strong>
-              <p style="margin:2px 0 0; font-size:0.8125rem; color:var(--text-secondary); line-height:1.5;">
+            <div style="display:flex; align-items:center; gap:12px;">
+              <span class="status-pill info">Client-Side Memory</span>
+              <span id="helper-byok-chevron" style="font-size:0.75rem; color:var(--text-tertiary); font-weight:700; transition:transform 0.2s ease;">▾</span>
+            </div>
+          </div>
+          <div id="helper-byok-content" class="accordion-grid open">
+            <div class="accordion-inner" style="padding:16px 20px; border-top:1px solid var(--border-default); font-size:0.8125rem; color:var(--text-secondary); background:var(--surface-sunken);">
+              <p style="margin:0; font-size:0.8125rem; color:var(--text-secondary); line-height:1.5;">
                 API keys saved here are stored exclusively in your browser's local memory (<code>localStorage</code>) and transmitted solely as ephemeral headers during audit synthesis. Keys are never logged or stored on our servers.
               </p>
             </div>

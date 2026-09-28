@@ -154,3 +154,49 @@ function makeDialogAccessible(container, opts) {
 		},
 	};
 }
+
+/**
+ * Shared collapsible helper/explainer card pattern with localStorage persistence.
+ * Defaults to expanded on first visit (localStorage not set), collapsed on subsequent visits when set.
+ */
+function initHelperCard(contentId, chevronId, storageKey) {
+  const content = document.getElementById(contentId);
+  const chevron = document.getElementById(chevronId);
+  if (!content) return;
+
+  const isCollapsed = localStorage.getItem(storageKey) === 'true';
+  if (isCollapsed) {
+    content.classList.remove('open');
+    if (chevron) chevron.style.transform = 'rotate(-90deg)';
+  } else {
+    content.classList.add('open');
+    if (chevron) chevron.style.transform = 'rotate(0deg)';
+  }
+}
+
+function toggleHelperCard(contentId, chevronId, storageKey) {
+  const content = document.getElementById(contentId);
+  const chevron = document.getElementById(chevronId);
+  if (!content) return;
+
+  const isOpen = content.classList.contains('open');
+  if (isOpen) {
+    content.classList.remove('open');
+    if (chevron) chevron.style.transform = 'rotate(-90deg)';
+    if (storageKey) localStorage.setItem(storageKey, 'true');
+  } else {
+    content.classList.add('open');
+    if (chevron) chevron.style.transform = 'rotate(0deg)';
+    if (storageKey) localStorage.setItem(storageKey, 'false');
+  }
+}
+
+// Auto-initialize helper cards on page load
+document.addEventListener('DOMContentLoaded', () => {
+  initHelperCard('helper-results-content', 'helper-results-chevron', 'areos_explainer_collapsed_results');
+  initHelperCard('shield-banner-content', 'shield-banner-chevron', 'areos_explainer_collapsed_manual_review');
+  initHelperCard('helper-byok-content', 'helper-byok-chevron', 'areos_explainer_collapsed_byok');
+  initHelperCard('helper-approvals-content', 'helper-approvals-chevron', 'areos_explainer_collapsed_approvals');
+  initHelperCard('helper-synthesis-content', 'helper-synthesis-chevron', 'areos_explainer_collapsed_synthesis');
+  initHelperCard('helper-taxonomy-content', 'helper-taxonomy-chevron', 'areos_explainer_collapsed_knowledge');
+});

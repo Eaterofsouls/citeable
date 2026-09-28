@@ -130,7 +130,7 @@
             <!-- HELPER CARD: Results Scoring Primer -->
             <div class="context-helper-card" id="helper-results-primer">
               <div class="helper-bar blue"></div>
-              <div class="helper-card-header" onclick="toggleHelperCard('helper-results-content', 'helper-results-chevron')">
+              <div class="helper-card-header" onclick="toggleHelperCard('helper-results-content', 'helper-results-chevron', 'areos_explainer_collapsed_results')">
                 <div style="display:flex; align-items:center; gap:12px;">
                   <div style="width:28px; height:28px; border-radius:6px; background:var(--surface-sunken); display:flex; align-items:center; justify-content:center; border:1px solid var(--border-default); color:var(--text-secondary);">
                     <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
@@ -142,7 +142,7 @@
                 </div>
                 <div style="display:flex; align-items:center; gap:12px;">
                   <span class="status-pill info">Scoring Methodology</span>
-                  <span id="helper-results-chevron" style="font-size:0.75rem; color:var(--text-tertiary); font-weight:700;">▾</span>
+                  <span id="helper-results-chevron" style="font-size:0.75rem; color:var(--text-tertiary); font-weight:700; transition:transform 0.2s ease;">▾</span>
                 </div>
               </div>
               <div id="helper-results-content" class="accordion-grid open">
@@ -267,19 +267,27 @@
 
           <div id="review-shield-banner" class="context-helper-card" style="display:none;">
             <div class="helper-bar blue"></div>
-            <div style="padding:16px 20px; display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px;">
+            <div class="helper-card-header" onclick="toggleHelperCard('shield-banner-content', 'shield-banner-chevron', 'areos_explainer_collapsed_manual_review')">
               <div style="display:flex; align-items:center; gap:12px;">
-                <div style="width:28px; height:28px; border-radius:6px; background:var(--brand-50); border:1px solid var(--brand-100); display:flex; align-items:center; justify-content:center; color:var(--brand-500);">
+                <div style="width:28px; height:28px; border-radius:6px; background:var(--brand-50); border:1px solid var(--brand-100); display:flex; align-items:center; justify-content:center; color:var(--brand-500); flex-shrink:0;">
                   <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="m9 12 2 2 4-4"/></svg>
                 </div>
                 <div>
                   <strong id="shield-title" style="font-size:0.95rem; color:var(--text-primary); display:block;">Qualitative Evaluation Protocol</strong>
-                  <span id="shield-sub" style="font-size:0.8125rem; color:var(--text-secondary);">Inspect on-page evidence to calibrate the composite diagnostic score and unlock synthesis.</span>
+                  <div style="font-size:0.75rem; color:var(--text-tertiary);">Guided Human Review · Quality Gate</div>
                 </div>
               </div>
-              <div style="text-align:right;">
-                <span style="font-family:var(--font-mono); font-size:0.8125rem; color:var(--text-secondary); display:inline-block;">Evaluated: <strong id="val-progress-text">0 / 0</strong></span>
-                <div class="bar-track" style="width:120px; height:4px; margin-top:4px;"><div class="bar-fill" id="meter-fill" style="width:0%; background:var(--brand-500);"></div></div>
+              <div style="display:flex; align-items:center; gap:16px;">
+                <div style="text-align:right;">
+                  <span style="font-family:var(--font-mono); font-size:0.8125rem; color:var(--text-secondary); display:inline-block;">Evaluated: <strong id="val-progress-text">0 / 0</strong></span>
+                  <div class="bar-track" style="width:120px; height:4px; margin-top:4px;"><div class="bar-fill" id="meter-fill" style="width:0%; background:var(--brand-500);"></div></div>
+                </div>
+                <span id="shield-banner-chevron" style="font-size:0.75rem; color:var(--text-tertiary); font-weight:700; transition:transform 0.2s ease;">▾</span>
+              </div>
+            </div>
+            <div id="shield-banner-content" class="accordion-grid open">
+              <div class="accordion-inner" style="padding:14px 20px; border-top:1px solid var(--border-default); font-size:0.8125rem; color:var(--text-secondary); background:var(--surface-sunken);">
+                <span id="shield-sub">Inspect on-page evidence to calibrate the composite diagnostic score and unlock synthesis. Completing qualitative assessments ensures high-fidelity AI recommendations.</span>
               </div>
             </div>
           </div>
@@ -453,18 +461,6 @@
     document.addEventListener('DOMContentLoaded', () => { 
       window.AreosNav.renderNav('studio'); 
     });
-
-    function toggleHelperCard(contentId, chevronId) {
-      const content = document.getElementById(contentId);
-      const chevron = document.getElementById(chevronId);
-      if (content && content.classList.contains('open')) {
-        content.classList.remove('open');
-        if (chevron) chevron.style.transform = 'rotate(-90deg)';
-      } else if (content) {
-        content.classList.add('open');
-        if (chevron) chevron.style.transform = 'rotate(0deg)';
-      }
-    }
   </script>
 </body>
 </html>
