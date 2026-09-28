@@ -90,15 +90,16 @@
 
           <!-- Live Execution Pipeline Monitor (hidden until audit runs) -->
           <div id="execution-monitor" style="display:none;" class="card">
-            <h3 style="margin-top: 0; color: var(--text-secondary); font-family: var(--font-mono); font-size: 0.85rem; margin-bottom: 1rem;">
-              [SYSTEM_LOG] ACTIVE DIAGNOSTIC RETRIEVAL IN PROGRESS...
+            <h3 style="margin-top: 0; color: var(--text-secondary); font-family: var(--font-sans); font-size: 0.875rem; font-weight: 600; margin-bottom: 1rem; display: flex; align-items: center; gap: 8px;">
+              <span style="font-family: var(--font-mono); font-size: 0.75rem; background: var(--surface-sunken); padding: 2px 6px; border-radius: 4px; border: 1px solid var(--border-default); font-weight: 700; color: var(--text-secondary);">SYSTEM_LOG</span>
+              <span>Active Diagnostic Retrieval in Progress...</span>
             </h3>
-            <div class="pipeline-stage" id="stage-robots"><div class="stage-icon active"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="animation:spin 1s linear infinite;"><circle cx="12" cy="12" r="10" stroke-opacity="0.25"/><path d="M12 2a10 10 0 0 1 10 10" stroke-opacity="0.85"/></svg></div><span>[LAYER 1/6] Verifying AI Crawler Policies (robots.txt & llms.txt)...</span></div>
-            <div class="pipeline-stage" id="stage-schema"><div class="stage-icon"></div><span>[LAYER 2/6] Evaluating JSON-LD Schema Semantic Honesty...</span></div>
-            <div class="pipeline-stage" id="stage-extract"><div class="stage-icon"></div><span>[LAYER 3/6] Assessing RAG Chunk Extractability & Density...</span></div>
-            <div class="pipeline-stage" id="stage-format"><div class="stage-icon"></div><span>[LAYER 4/6] Interrogating Quotation & Formatting Heuristics...</span></div>
-            <div class="pipeline-stage" id="stage-authority"><div class="stage-icon"></div><span>[LAYER 5/6] Measuring Algorithmic Trust & Entity Graph Authority...</span></div>
-            <div class="pipeline-stage" id="stage-citation"><div class="stage-icon"></div><span>[LAYER 6/6] Sampling Real-Time Generative AI Brand Citation Frequency...</span></div>
+            <div class="pipeline-stage" id="stage-robots"><div class="stage-icon active"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="animation:spin 1s linear infinite;"><circle cx="12" cy="12" r="10" stroke-opacity="0.25"/><path d="M12 2a10 10 0 0 1 10 10" stroke-opacity="0.85"/></svg></div><span class="pipeline-stage-tag">[LAYER 1/6]</span><span>Verifying AI Crawler Policies (robots.txt &amp; llms.txt)...</span></div>
+            <div class="pipeline-stage" id="stage-schema"><div class="stage-icon"></div><span class="pipeline-stage-tag">[LAYER 2/6]</span><span>Evaluating JSON-LD Schema Semantic Honesty...</span></div>
+            <div class="pipeline-stage" id="stage-extract"><div class="stage-icon"></div><span class="pipeline-stage-tag">[LAYER 3/6]</span><span>Assessing RAG Chunk Extractability &amp; Density...</span></div>
+            <div class="pipeline-stage" id="stage-format"><div class="stage-icon"></div><span class="pipeline-stage-tag">[LAYER 4/6]</span><span>Interrogating Quotation &amp; Formatting Heuristics...</span></div>
+            <div class="pipeline-stage" id="stage-authority"><div class="stage-icon"></div><span class="pipeline-stage-tag">[LAYER 5/6]</span><span>Measuring Algorithmic Trust &amp; Entity Graph Authority...</span></div>
+            <div class="pipeline-stage" id="stage-citation"><div class="stage-icon"></div><span class="pipeline-stage-tag">[LAYER 6/6]</span><span>Sampling Real-Time Generative AI Brand Citation Frequency...</span></div>
           </div>
 
         </div>
@@ -109,7 +110,7 @@
             <div style="display:flex; justify-content:space-between; align-items:flex-end; flex-wrap:wrap; gap:16px; padding-bottom:20px; border-bottom:1px solid var(--border-default);">
               <div>
                 <h3 style="margin:0; font-size:1.35rem; font-weight:700; color:var(--text-primary);" id="res-target-header">Audit Results Overview</h3>
-                <div style="color:var(--text-tertiary); font-size:0.85rem; font-family:var(--font-mono); margin-top:4px;" id="res-funnel-label">Run an audit from Step 1 to generate live visibility scores and diagnostics.</div>
+                <div style="color:var(--text-tertiary); font-size:0.85rem; font-family:var(--font-sans); margin-top:4px;" id="res-funnel-label">Run an audit from Step 1 to generate live visibility scores and diagnostics.</div>
               </div>
               <div style="display:flex; gap:10px; align-items:center;">
                 <button class="btn-secondary btn-export" id="btn-export-report">
@@ -295,7 +296,7 @@
           <div id="wizard-list"></div>
 
           <!-- Mandatory Methodology & ToS Caveat -->
-          <div id="wizard-caveat-box" style="display:none; margin-top:24px; background:var(--surface-panel); border:1px solid var(--border-default); padding:16px 20px; border-radius:var(--radius-md); font-size:0.8125rem; color:var(--text-tertiary); font-family:var(--font-mono); line-height:1.5;">
+          <div id="wizard-caveat-box" style="display:none; margin-top:24px; background:var(--surface-panel); border:1px solid var(--border-default); padding:16px 20px; border-radius:var(--radius-md); font-size:0.8125rem; color:var(--text-tertiary); font-family:var(--font-sans); line-height:1.5;">
             <strong style="color:var(--text-primary);">Governance Note:</strong><br>
             <span id="res-caveat">Loading governance transparency disclosure...</span>
           </div>
@@ -330,7 +331,7 @@
               <span id="synth-flags-count" class="status-pill danger">0 flags</span>
             </div>
             <div id="synth-flags-list" style="display:flex; flex-direction:column; gap:8px;"></div>
-            <div id="synth-flags-resolved" style="margin-top:10px; font-size:0.8125rem; color:var(--text-tertiary); font-family:var(--font-mono);"></div>
+            <div id="synth-flags-resolved" style="margin-top:10px; font-size:0.8125rem; color:var(--text-tertiary); font-family:var(--font-sans);"></div>
           </div>
 
           <!-- The final narrative -->

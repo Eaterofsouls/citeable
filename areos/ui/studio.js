@@ -404,7 +404,7 @@ function displayStudioResults(data, domain) {
    return `
    <div title="${deductionTip}" style="cursor:default;">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:3px;">
-     <span style="font-size:0.78rem;color:var(--text-secondary);font-family:'JetBrains Mono',monospace;display:flex;align-items:center;gap:5px;">
+     <span style="font-size:0.78rem;font-weight:600;color:var(--text-secondary);font-family:var(--font-sans);display:flex;align-items:center;gap:5px;letter-spacing:0.02em;">
       ${layer.icon} ${layer.label.toUpperCase()}
      </span>
      <span style="font-size:0.78rem;font-weight:700;color:var(--text-primary);font-family:'JetBrains Mono',monospace;">
@@ -438,7 +438,7 @@ function displayStudioResults(data, domain) {
   }
   const sorted = [...breakdown].sort((a, b) => (b.running_total||0) - (a.running_total||0));
   ledgerEl.innerHTML = `
-    <summary style="cursor:pointer;color:var(--text-secondary);font-family:'JetBrains Mono',monospace;
+    <summary style="cursor:pointer;color:var(--text-secondary);font-family:var(--font-sans);font-weight:600;
                     font-size:0.75rem;user-select:none;list-style:none;margin-bottom:0.5rem;">
       ▸ Score justification ledger (${breakdown.length} deductions)
     </summary>
