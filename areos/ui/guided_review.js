@@ -504,7 +504,8 @@ window.GuidedReview = (function() {
 
     const guide = getSimpleGuidance(wiz);
     const stepsHtml = (guide.steps || []).map(s => `<li>${s}</li>`).join("");
-    const checkRef = escapeHtml((wiz.reason || wiz.check_name || "QUALITATIVE_EVALUATION")).replace(/^Check code\(s\) fired:\s*/i, "");
+    const rawCheckRef = (wiz.reason || wiz.check_name || "Diagnostic Evaluation").replace(/^Check code\(s\) fired:\s*/i, "");
+    const cleanCheckLabel = rawCheckRef.replace(/\bC\d{3}\b\s*[-:–—]?\s*/gi, "").replace(/_/g, " ").trim();
 
     const saved = inlineVerdicts[wiz.card_id] || null;
     const savedVerdict = saved ? saved.verdict : null;
@@ -594,7 +595,7 @@ window.GuidedReview = (function() {
         </button>
       </div>
 
-      <div class="gr-card-footnote" title="System check ${escapeHtml(wiz.card_id || "")}">Diagnostic Verification &middot; ${checkRef}</div>
+      <div class="gr-card-footnote" title="System Check Code: ${escapeHtml(wiz.card_id || '')}${wiz.reason ? ' (' + escapeHtml(wiz.reason) + ')' : ''}">Diagnostic Verification &middot; ${escapeHtml(cleanCheckLabel || 'Qualitative Review')}</div>
     `;
 
     const passBtn = wizCard.querySelector(".yes");
@@ -741,7 +742,10 @@ window.GuidedReview = (function() {
 
     const idEl = document.getElementById("gr-card-id");
     const titleEl = document.getElementById("gr-title");
-    if (idEl) idEl.textContent = `[Check ID: ${card.card_id || "C---"}] — ${card.automatability === "Not" ? "Not Automatable" : "Partial"} Diagnostic`;
+    if (idEl) {
+      idEl.textContent = `${card.automatability === "Not" ? "Qualitative Assessment" : "Automated Verification Assist"}`;
+      idEl.title = `Internal Check ID: ${card.card_id || "C---"}`;
+    }
     if (titleEl) titleEl.textContent = card.check_name || "Diagnostic Check Review";
 
     const guide = getSimpleGuidance(card);
