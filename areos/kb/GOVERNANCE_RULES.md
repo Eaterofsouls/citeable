@@ -75,6 +75,8 @@ made specific errors when they were not explicit. Read them carefully.
 | low | T3–T4 only; OR methodology concerns; OR contested |
 
 **Never change confidence without adding new evidence. Never change confidence because one newer source was found.**
+**An active claim with confidence "high" must have at least one evidence row with relationship "supports".**
+
 
 ## Excerpt Rules
 

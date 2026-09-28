@@ -47,11 +47,26 @@ INFORMATIONAL_OR_POSITIVE_CODES = {
 }
 
 
+def check_high_confidence_has_support(knowledge: list[dict], evidence: list[dict]) -> list[str]:
+    """Verify that every active claim with confidence 'high' has at least one 'supports' evidence row."""
+    supports_kids = {e["kid"] for e in evidence if e.get("relationship") == "supports"}
+    errors = []
+    for k in knowledge:
+        if k.get("status") == "active" and k.get("confidence") == "high":
+            if k.get("kid") not in supports_kids:
+                errors.append(
+                    f"Active claim {k.get('kid')} has confidence 'high' but no 'supports' evidence rows"
+                )
+    return errors
+
+
 def verify_parity() -> bool:
     knowledge_path = WORKSPACE_ROOT / "areos/kb/corpus/knowledge.jsonl"
+    evidence_path = WORKSPACE_ROOT / "areos/kb/corpus/evidence.jsonl"
     map_path = WORKSPACE_ROOT / "areos/kb/check_code_to_knowledge_map.json"
 
     knowledge = parse_jsonl(knowledge_path)
+    evidence = parse_jsonl(evidence_path)
     valid_kids = {k["kid"] for k in knowledge}
 
     with open(map_path, "r", encoding="utf-8") as f:
@@ -79,13 +94,17 @@ def verify_parity() -> bool:
         if code not in ACTION_SNIPPETS:
             errors.append(f"Check code {code} mapped in JSON but missing from ACTION_SNIPPETS in audit_orchestrator.py")
 
+    # 4. Consistency gate: active claim with confidence 'high' must have at least one 'supports' evidence row
+    support_errors = check_high_confidence_has_support(knowledge, evidence)
+    errors.extend(support_errors)
+
     if errors:
         print(f"[FAIL] Semantic Parity Gate FAILED with {len(errors)} errors:")
         for err in errors:
             print(f"  - {err}")
         return False
 
-    print(f"[PASS] Semantic Parity Gate PASSED: {len(cc_map)} check codes fully synchronized across KB, scoring, and remediation snippets.")
+    print(f"[PASS] Semantic Parity Gate PASSED: {len(cc_map)} check codes synchronized; all active high-confidence claims have supports evidence.")
     return True
 
 
