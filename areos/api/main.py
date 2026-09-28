@@ -1,6 +1,7 @@
 import hmac
 import logging
 import os
+import re
 import uuid
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -105,22 +106,31 @@ async def _correlation_id_middleware(request: Request, call_next):
 # docs.js is cosmetic only and trivially bypassed.
 _INTERNAL_DOCS_TOKEN = os.environ.get("AREOS_API_TOKEN", "")
 
+_PROTECTED_DOC_PREFIXES = (
+    "/docs/internal",
+    "/docs/external_legacy",
+    "/docs/session_artifacts",
+)
+
+def _normalize_doc_path(raw_path: str) -> str:
+    """Collapse duplicate slashes, resolve dot segments and lowercase, so variants
+    like /docs//internal/x.md cannot dodge the prefix check."""
+    import posixpath
+    from urllib.parse import unquote
+    decoded = unquote(unquote(raw_path)).replace("\\", "/")
+    collapsed = re.sub(r"/+", "/", decoded)
+    return posixpath.normpath(collapsed).lower()
+
 @app.middleware("http")
 async def _guard_internal_docs(request: Request, call_next):
-    path = request.url.path
-    if path.startswith("/docs/internal/") or path == "/docs/internal":
+    path = _normalize_doc_path(request.url.path)
+    if path.startswith(_PROTECTED_DOC_PREFIXES):
         auth_header = request.headers.get("authorization", "")
         if not auth_header.startswith("Bearer "):
-            return JSONResponse(
-                {"detail": "Authorization required for internal documentation"},
-                status_code=401,
-            )
+            return JSONResponse({"detail": "Authorization required for internal documentation"}, status_code=401)
         supplied_token = auth_header.split(" ", 1)[1]
         if not _INTERNAL_DOCS_TOKEN or not hmac.compare_digest(supplied_token, _INTERNAL_DOCS_TOKEN):
-            return JSONResponse(
-                {"detail": "Invalid or missing API token"},
-                status_code=401,
-            )
+            return JSONResponse({"detail": "Invalid or missing API token"}, status_code=401)
     return await call_next(request)
 
 @app.exception_handler(Exception)
