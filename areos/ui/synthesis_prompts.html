@@ -11,6 +11,7 @@
   <link rel="icon" type="image/svg+xml" href="favicon.svg">
 
   <script src="context.js"></script>
+  <script src="auth.js"></script>
   <script src="identity.js"></script>
   <script src="api.js"></script>
   <script src="dom.js"></script>
@@ -54,21 +55,22 @@
           </div>
         </div>
 
-        <!-- Shown only when no admin token is present -->
-        <div id="prompts-auth-gate" class="card" style="display:none; text-align:center; padding:2.4rem 2rem;">
-          <h3 style="color:var(--text-primary); margin-bottom:0.6rem; font-size:1.15rem;">Admin access required</h3>
-          <p style="color:var(--text-secondary); margin-bottom:1.4rem; max-width:480px; margin-left:auto; margin-right:auto; font-size:0.875rem;">
-            Editing synthesis prompts requires an admin token. Authenticate to continue, or press
-            <kbd style="background:var(--surface-sunken); padding:2px 6px; border-radius:4px; font-family:var(--font-mono); border:1px solid var(--border-default);">Ctrl/Cmd+Shift+A</kbd>
-            anywhere in the app.
+        <!-- Shown only when no admin token is present or rejected -->
+        <div id="prompts-auth-gate" class="card" style="display:none; text-align:center; padding:3rem 2rem; max-width:600px; margin:40px auto;">
+          <div style="width:56px; height:56px; border-radius:50%; background:var(--status-danger-bg); border:1px solid var(--status-danger-border); display:flex; align-items:center; justify-content:center; margin:0 auto 16px; color:var(--status-danger-text);">
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
+          </div>
+          <h3 id="prompts-gate-title" style="color:var(--text-primary); margin-bottom:8px; font-size:1.3rem; font-weight:800;">Admin Authentication Required</h3>
+          <p id="prompts-gate-desc" style="color:var(--text-secondary); margin-bottom:20px; font-size:0.9rem; line-height:1.6;">
+            Viewing and editing global synthesis prompts requires an active administrator token. Authenticate to manage pipeline instructions.
           </p>
-          <button class="btn-primary" style="padding:8px 20px;" onclick="document.getElementById('admin-auth-modal').style.display='flex'; document.getElementById('admin-auth-input').focus();">
+          <button class="btn-primary" style="padding:10px 24px; font-weight:700; font-size:0.9rem;" onclick="if (window.AreosNav && typeof window.AreosNav.openAdminModal === 'function') { window.AreosNav.openAdminModal(); } else if (document.getElementById('admin-auth-modal')) { document.getElementById('admin-auth-modal').style.display='flex'; document.getElementById('admin-auth-input')?.focus(); }">
             Enter Admin Token
           </button>
         </div>
 
         <!-- Editor Form -->
-        <div id="prompts-editor-container" style="display:none; display:flex; flex-direction:column; gap:20px;">
+        <div id="prompts-editor-container" style="display:none; flex-direction:column; gap:20px;">
           <!-- Loaded via synthesis_prompts.js -->
         </div>
 

@@ -11,12 +11,27 @@
 // its own admin-gated page with an explicit warning, instead of embedded
 // in the report-viewing flow.
 
+const STEP_LABELS = {
+  synthesizer: {
+    title: "1. Synthesizer System Prompt",
+    badge: "Synthesis Lead",
+    desc: "Drafts the executive summary and ranked technical findings from raw automated telemetry and human review verdicts."
+  },
+  red_teamer: {
+    title: "2. Adversarial Red-Teamer System Prompt",
+    badge: "Adversarial QA",
+    desc: "Audits the draft narrative for hallucinations, unsupported claims, or ungrounded assertions before report generation."
+  },
+  grounder: {
+    title: "3. Grounder & Citation System Prompt",
+    badge: "Verification Gating",
+    desc: "Calibrates findings against the empirical knowledge graph and produces final markdown citations and remediation steps."
+  }
+};
+
 document.addEventListener('DOMContentLoaded', () => {
   checkAdminAccessAndLoad();
 
-  // Re-check if the person authenticates via the global Ctrl/Cmd+Shift+A
-  // modal while already on this page (that flow reloads the page, but
-  // this covers it defensively either way).
   const authSubmit = document.getElementById('admin-auth-submit');
   if (authSubmit) {
     authSubmit.addEventListener('click', () => {
@@ -27,13 +42,15 @@ document.addEventListener('DOMContentLoaded', () => {
 
 function checkAdminAccessAndLoad() {
   const gate = document.getElementById('prompts-auth-gate');
-  const invalid = document.getElementById('prompts-auth-invalid');
-  const editorArea = document.getElementById('prompt-editor-area');
+  const gateTitle = document.getElementById('prompts-gate-title');
+  const gateDesc = document.getElementById('prompts-gate-desc');
+  const editorArea = document.getElementById('prompts-editor-container');
   const hasToken = typeof getToken === 'function' && !!getToken();
 
   if (!hasToken) {
+    if (gateTitle) gateTitle.textContent = "Admin Authentication Required";
+    if (gateDesc) gateDesc.textContent = "Viewing and editing global synthesis prompts requires an active administrator token. Authenticate to manage pipeline instructions.";
     if (gate) gate.style.display = 'block';
-    if (invalid) invalid.style.display = 'none';
     if (editorArea) editorArea.style.display = 'none';
     return;
   }
@@ -45,8 +62,9 @@ function checkAdminAccessAndLoad() {
 /** Load synthesis prompts into the editor textareas. */
 async function loadSynthesisPrompts() {
   const gate = document.getElementById('prompts-auth-gate');
-  const invalid = document.getElementById('prompts-auth-invalid');
-  const editorArea = document.getElementById('prompt-editor-area');
+  const gateTitle = document.getElementById('prompts-gate-title');
+  const gateDesc = document.getElementById('prompts-gate-desc');
+  const editorArea = document.getElementById('prompts-editor-container');
 
   try {
     const res = await AreosAPI.fetch('/api/v1/synthesis/prompts', {
@@ -54,12 +72,10 @@ async function loadSynthesisPrompts() {
     });
 
     if (res.status === 401 || res.status === 403) {
-      // A token is present but the server rejected it — distinct from "no
-      // token at all" so the person knows to re-authenticate, not that
-      // the page is broken.
-      if (invalid) invalid.style.display = 'flex';
+      if (gateTitle) gateTitle.textContent = "Admin Token Invalid or Expired";
+      if (gateDesc) gateDesc.textContent = "Your admin token was rejected by the server (HTTP " + res.status + "). Please authenticate with a valid administrator token.";
+      if (gate) gate.style.display = 'block';
       if (editorArea) editorArea.style.display = 'none';
-      if (gate) gate.style.display = 'none';
       return;
     }
     if (!res.ok) {
@@ -67,14 +83,45 @@ async function loadSynthesisPrompts() {
       return;
     }
 
-    if (invalid) invalid.style.display = 'none';
+    if (gate) gate.style.display = 'none';
     if (editorArea) editorArea.style.display = 'flex';
 
     const data = await res.json();
-    (data.prompts || []).forEach(p => {
-      const ta = document.getElementById(`prompt-${p.step}`);
-      if (ta) ta.value = p.system_prompt;
+    const prompts = data.prompts || [];
+
+    let editorHtml = '';
+    prompts.forEach(p => {
+      const meta = STEP_LABELS[p.step] || {
+        title: `${p.step.toUpperCase()} Prompt`,
+        badge: "Pipeline Step",
+        desc: "Global system prompt for this synthesis pipeline step."
+      };
+      const updatedStr = p.updated_at ? `Updated: ${p.updated_at} (${p.updated_by || 'system'})` : 'Default system configuration';
+
+      editorHtml += `
+        <div class="card" style="padding:24px; background:var(--surface-card); border:1px solid var(--border-default); border-radius:8px;">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px; flex-wrap:wrap; gap:8px;">
+            <div>
+              <div style="display:flex; align-items:center; gap:8px;">
+                <h3 style="margin:0; font-size:1.05rem; font-weight:700; color:var(--text-primary);">${meta.title}</h3>
+                <span class="status-pill info text-xs">${meta.badge}</span>
+              </div>
+              <p style="margin:4px 0 0; font-size:0.8125rem; color:var(--text-secondary); line-height:1.5;">${meta.desc}</p>
+            </div>
+            <span style="font-family:var(--font-mono); font-size:0.75rem; color:var(--text-tertiary);">${updatedStr}</span>
+          </div>
+
+          <textarea id="prompt-${p.step}" class="input" rows="8" style="width:100%; font-family:var(--font-mono); font-size:0.85rem; padding:12px; border-radius:6px; resize:vertical; line-height:1.5; background:var(--surface-sunken); color:var(--text-primary); border:1px solid var(--border-default); margin-bottom:16px;">${(p.system_prompt || '').replace(/</g, '&lt;').replace(/>/g, '&gt;')}</textarea>
+
+          <div style="display:flex; justify-content:flex-end; gap:10px; align-items:center;">
+            <button type="button" class="btn-secondary" onclick="window.resetPrompt('${p.step}')" style="font-size:0.82rem; font-weight:600; padding:6px 14px;">Reset to Default</button>
+            <button type="button" class="btn-primary" onclick="window.savePrompt('${p.step}')" style="font-size:0.82rem; font-weight:700; padding:6px 16px;">Save Prompt Changes</button>
+          </div>
+        </div>
+      `;
     });
+
+    editorArea.innerHTML = editorHtml;
   } catch (e) {
     console.warn('Could not load synthesis prompts:', e);
     AreosAPI.notify('Network error loading prompts: ' + e.message);
