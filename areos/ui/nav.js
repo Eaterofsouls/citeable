@@ -26,12 +26,12 @@ const ROUTES = [
     icon: `<svg class="w-4 h-4 text-slate-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>`
   },
   {
-    label: 'Prompt Design',
+    label: 'Citation Test Queries',
     path: 'prompts.html',
     icon: `<svg class="w-4 h-4 text-slate-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>`
   },
   {
-    label: 'Synthesis Prompts',
+    label: 'Synthesis Prompts [Cascade Risk]',
     path: 'synthesis_prompts.html',
     icon: `<svg class="w-4 h-4 text-slate-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>`
   },
@@ -227,15 +227,16 @@ window.AreosNav = {
     },
     {
       id: "prompts",
-      label: "Prompt Design",
+      label: "Citation Test Queries",
       href: "prompts.html",
       icon: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>`
     },
     {
       id: "synthesis_prompts",
       label: "Synthesis Prompts",
+      isHighRisk: true,
       href: "synthesis_prompts.html",
-      icon: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>`
+      icon: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--status-danger-text, #E11D48)" stroke-width="2"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>`
     },
     {
       id: "case_study",
@@ -326,10 +327,12 @@ window.AreosNav = {
       const hrefAttr = item.id === "byok" ? 'href="javascript:void(0);"' : `href="${item.href}${qp}"`;
       const customStyle = item.id === "byok" ? 'border: 1px solid var(--brand-500); margin: 12px 4px 4px 4px; border-radius: 8px; font-weight: 700; background: var(--brand-50); color: var(--brand-500);' : '';
       const clickAttr = item.id === "byok" ? 'onclick="if (window.BYOKVault) { window.BYOKVault.open(); } else { alert(\'BYOK Vault loading...\'); } return false;"' : '';
+      const riskBadge = item.isHighRisk ? `<span style="margin-left:auto; font-size:0.625rem; font-weight:700; background:var(--status-danger-bg, #FFF1F2); color:var(--status-danger-text, #E11D48); border:1px solid var(--status-danger-border, #FECDD3); border-radius:4px; padding:1px 5px; letter-spacing:0.04em;">CASCADE</span>` : '';
       html += `
         <a ${hrefAttr} ${clickAttr} data-nav-id="${item.id}" class="nav-item ${isActive}" style="${customStyle}">
           ${item.icon}
           <span>${item.label}</span>
+          ${riskBadge}
         </a>
       `;
     }
