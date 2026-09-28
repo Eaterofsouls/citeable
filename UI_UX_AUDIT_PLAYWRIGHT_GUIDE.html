@@ -1,0 +1,355 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AREOS / Citeable UI/UX Audit & Playwright Configuration Guide</title>
+  <style>
+    :root {
+      --bg: #0b0f19;
+      --surface: #111827;
+      --surface-elevated: #1f2937;
+      --border: #374151;
+      --text-main: #f9fafb;
+      --text-muted: #9ca3af;
+      --brand: #06b6d4;
+      --brand-hover: #0891b2;
+      --success: #10b981;
+      --warning: #f59e0b;
+      --danger: #ef4444;
+      --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      padding: 0;
+      background: var(--bg);
+      color: var(--text-main);
+      font-family: var(--font-sans);
+      line-height: 1.6;
+    }
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 40px 24px;
+    }
+    header {
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 24px;
+      margin-bottom: 36px;
+    }
+    .badge {
+      display: inline-block;
+      padding: 4px 10px;
+      border-radius: 9999px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      background: rgba(6, 182, 212, 0.15);
+      color: var(--brand);
+      border: 1px solid rgba(6, 182, 212, 0.3);
+      margin-bottom: 12px;
+    }
+    h1 {
+      font-size: 2.2rem;
+      font-weight: 800;
+      margin: 0 0 12px 0;
+      color: #fff;
+    }
+    h2 {
+      font-size: 1.5rem;
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 8px;
+      margin-top: 48px;
+      color: var(--brand);
+    }
+    h3 {
+      font-size: 1.15rem;
+      margin-top: 28px;
+      color: #e5e7eb;
+    }
+    p, li {
+      color: var(--text-muted);
+      font-size: 0.95rem;
+    }
+    strong {
+      color: var(--text-main);
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 20px 0;
+      background: var(--surface);
+      border-radius: 8px;
+      overflow: hidden;
+      border: 1px solid var(--border);
+    }
+    th, td {
+      padding: 12px 14px;
+      text-align: left;
+      font-size: 0.85rem;
+      border-bottom: 1px solid var(--border);
+    }
+    th {
+      background: var(--surface-elevated);
+      color: #fff;
+      font-weight: 600;
+    }
+    tr:last-child td {
+      border-bottom: none;
+    }
+    tr:hover td {
+      background: rgba(255, 255, 255, 0.02);
+    }
+    code {
+      font-family: var(--font-mono);
+      background: rgba(255, 255, 255, 0.08);
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-size: 0.85em;
+      color: #38bdf8;
+    }
+    pre {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      padding: 16px;
+      border-radius: 8px;
+      overflow-x: auto;
+      font-family: var(--font-mono);
+      font-size: 0.85rem;
+      color: #e2e8f0;
+    }
+    .card-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+      gap: 20px;
+      margin: 24px 0;
+    }
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 18px;
+      transition: transform 0.2s, border-color 0.2s;
+    }
+    .card:hover {
+      border-color: var(--brand);
+    }
+    .card-title {
+      font-weight: 700;
+      font-size: 0.95rem;
+      color: #fff;
+      margin-bottom: 6px;
+    }
+    .card-desc {
+      font-size: 0.82rem;
+      color: var(--text-muted);
+      margin-bottom: 12px;
+    }
+    .tag {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-size: 0.72rem;
+      font-weight: 600;
+      background: var(--surface-elevated);
+      color: #cbd5e1;
+      margin-right: 6px;
+      margin-top: 4px;
+    }
+    .pill-pass { background: rgba(16, 185, 129, 0.2); color: #34d399; }
+    .pill-warn { background: rgba(245, 158, 11, 0.2); color: #fbbf24; }
+    .pill-info { background: rgba(6, 182, 212, 0.2); color: #38bdf8; }
+    .footer {
+      margin-top: 60px;
+      padding-top: 24px;
+      border-top: 1px solid var(--border);
+      text-align: center;
+      font-size: 0.85rem;
+      color: var(--text-muted);
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <div class="badge">Enterprise Quality Assurance</div>
+      <h1>AREOS / Citeable UI/UX Audit & Playwright Guide</h1>
+      <p>Automated visual quality, accessibility (WCAG 2.1 AAA), and Playwright screenshot configuration handbook. Documents all 42 captured states across Desktop and Mobile devices.</p>
+    </header>
+
+    <h2>1. Executive Summary & Package Structure</h2>
+    <p>This package contains full-resolution captures of every user-facing page, workflow state, and interactive overlay in the platform. Each screenshot exercises specific Playwright rendering and context emulation options to ensure cross-platform visual consistency.</p>
+    
+    <div class="card-grid">
+      <div class="card">
+        <div class="card-title">🖥️ Desktop Suite (23 Captures)</div>
+        <div class="card-desc">1440×900 resolution at 2× Retina scale factor. Covers hero layouts, telemetry streams, score dashboards, governance approvals, documentation hubs, and keyboard modals.</div>
+        <span class="tag pill-info">Retina 2x</span>
+        <span class="tag">Full Page & Viewport</span>
+      </div>
+      <div class="card">
+        <div class="card-title">📱 Mobile Suite (9 Captures)</div>
+        <div class="card-desc">390×844 resolution at 3× OLED density with touch emulation. Tests hamburger menu drawer, responsive card reflow, tap target ergonomics, and landscape mode.</div>
+        <span class="tag pill-pass">3x Touch Emulation</span>
+        <span class="tag">Zero Overflow-X</span>
+      </div>
+      <div class="card">
+        <div class="card-title">⚙️ Specialized Configs (10 Captures)</div>
+        <div class="card-desc">Advanced Playwright capabilities: Dark Mode, High Contrast (Forced Colors), Reduced Motion, Dynamic Masking, Clipping, Alpha Transparency, and Injected CSS Styles.</div>
+        <span class="tag pill-warn">WCAG AAA</span>
+        <span class="tag">Regression Stability</span>
+      </div>
+    </div>
+
+    <h2>2. Playwright Configuration Master Reference ("What Is What")</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>Configuration Parameter</th>
+          <th>Type & Default</th>
+          <th>Behavioral Explanation</th>
+          <th>UI/UX Audit Role</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><code>full_page</code></td>
+          <td><code>bool = False</code></td>
+          <td>When True, scrolls the full document height and stitches the entire webpage into a single image.</td>
+          <td>Auditing vertical rhythm, page length, and footer placement vs. testing initial above-the-fold CTA prominence.</td>
+        </tr>
+        <tr>
+          <td><code>type</code> & <code>quality</code></td>
+          <td><code>'png' | 'jpeg'</code></td>
+          <td>PNG provides lossless 24-bit output with alpha; JPEG applies lossy compression (1–100 quality).</td>
+          <td>PNG is mandatory for typography and sub-pixel alignment inspection; JPEG benchmarks lightweight reporting.</td>
+        </tr>
+        <tr>
+          <td><code>animations</code></td>
+          <td><code>'disabled' | 'allow'</code></td>
+          <td>When disabled, freezes CSS transitions, keyframes, and SVG animations at terminal states.</td>
+          <td>Eliminates test flakiness from moving spinners, half-faded overlays, or pulsating status dots in CI.</td>
+        </tr>
+        <tr>
+          <td><code>caret</code></td>
+          <td><code>'hide' | 'initial'</code></td>
+          <td>Suppresses the blinking text insertion cursor inside input fields.</td>
+          <td>Prevents 500ms blinking cursor timing differences from triggering false visual regression alerts.</td>
+        </tr>
+        <tr>
+          <td><code>scale</code></td>
+          <td><code>'css' | 'device'</code></td>
+          <td>'css' maps 1:1 to CSS layout pixels; 'device' captures at physical hardware pixel density.</td>
+          <td>'css' enables pixel ruler measurement against 8px grids; 'device' audits Retina SVG sharpness.</td>
+        </tr>
+        <tr>
+          <td><code>clip</code></td>
+          <td><code>dict {x, y, w, h}</code></td>
+          <td>Crops capture strictly to a rectangular coordinate boundary.</td>
+          <td>Targeted sub-layout inspection (e.g. score card or sticky header) without full DOM overhead.</td>
+        </tr>
+        <tr>
+          <td><code>omit_background</code></td>
+          <td><code>bool = False</code></td>
+          <td>Renders with a transparent alpha channel rather than the browser's default white canvas.</td>
+          <td>Design system component isolation; audits border antialiasing and drop shadows on arbitrary backgrounds.</td>
+        </tr>
+        <tr>
+          <td><code>mask</code> & <code>mask_color</code></td>
+          <td><code>List[Locator], str</code></td>
+          <td>Paints solid color boxes over specified dynamic elements (e.g. timestamps or session IDs).</td>
+          <td>Stabilizes visual regression testing by masking non-deterministic or volatile UI elements.</td>
+        </tr>
+        <tr>
+          <td><code>style</code></td>
+          <td><code>str</code></td>
+          <td>Injects custom CSS stylesheets into the document immediately prior to capturing the screenshot.</td>
+          <td>Visual accessibility audits: draws outlines around all interactive tap targets or tests fallback fonts.</td>
+        </tr>
+        <tr>
+          <td><code>color_scheme</code></td>
+          <td><code>'dark' | 'light'</code></td>
+          <td>Emulates <code>@media (prefers-color-scheme: dark)</code>.</td>
+          <td>Dark mode contrast compliance (WCAG AA 4.5:1), ensuring no un-themed white surfaces persist.</td>
+        </tr>
+        <tr>
+          <td><code>forced_colors</code></td>
+          <td><code>'active' | 'none'</code></td>
+          <td>Emulates Windows High Contrast Mode.</td>
+          <td>Verifies interactive buttons and cards maintain visible system outlines when custom colors are stripped.</td>
+        </tr>
+        <tr>
+          <td><code>reduced_motion</code></td>
+          <td><code>'reduce' | 'none'</code></td>
+          <td>Emulates <code>@media (prefers-reduced-motion: reduce)</code>.</td>
+          <td>Ensures vestibular accessibility compliance by disabling non-essential motion and animated transitions.</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h2>3. Complete Screenshot Manifest (42 Captured States)</h2>
+    <p>All screenshots are stored in the accompanying directory structure and indexed in <code>audit_manifest.json</code>.</p>
+    
+    <h3>🖥️ Desktop Suite (1440×900 @ 2× DPR)</h3>
+    <ul>
+      <li><code>desktop/01_studio_landing_viewport.png</code> — Landing hero above-the-fold CTA prominence and input field affordance.</li>
+      <li><code>desktop/01_studio_landing_fullpage.png</code> — Full vertical document scroll of landing studio and baseline footer.</li>
+      <li><code>desktop/02_studio_domain_validation_error.png</code> — Inline regex domain validation error feedback and active input border highlight.</li>
+      <li><code>desktop/03_studio_live_scan_telemetry.png</code> — Multi-phase diagnostic scan monitor with active progress states.</li>
+      <li><code>desktop/04_studio_score_results_dashboard.png</code> — Overall 0-100 score gauge, 5-layer diagnostic cards, and historical score delta.</li>
+      <li><code>desktop/05_studio_guided_review_cards.png</code> — Guided review wizard with Pass/Warn/Fail tri-state verdict buttons.</li>
+      <li><code>desktop/06_studio_synthesis_narrative.png</code> — Generative synthesis executive report with formatted markdown typography.</li>
+      <li><code>desktop/07_claims_browser_page.png</code> — Empirical claims knowledge base registry with filter pills and citation links.</li>
+      <li><code>desktop/08_knowledge_explorer_graph.png</code> — Interactive ontological graph canvas and node relationship matrix.</li>
+      <li><code>desktop/09_byok_security_vault.png</code> — BYOK encryption vault, provider key entry form, and password mask toggle.</li>
+      <li><code>desktop/10_approvals_console.png</code> — Governance queue, pending sign-off diff viewer, and decision bars.</li>
+      <li><code>desktop/11_prompts_editor.png</code> — Monospace prompt engineering interface and template parameter tokens.</li>
+      <li><code>desktop/12_synthesis_prompts.png</code> — Synthesis pipeline model instructions and reasoning templates.</li>
+      <li><code>desktop/13_remediation_plan.png</code> — Prioritized technical remediation sequence and code export triggers.</li>
+      <li><code>desktop/14_case_study_benchmarks.png</code> — Citation velocity graphs, competitor comparison bars, and methodology disclaimers.</li>
+      <li><code>desktop/15_outcome_report.png</code> — Post-audit verification summary and pass/fail status stamps.</li>
+      <li><code>desktop/16_manual_review_worksheet.png</code> — Analyst manual scoring rubric and observational note inputs.</li>
+      <li><code>desktop/17_docs_scoring_ontology.png</code> — Technical documentation hub covering 5-layer scoring formulas and deductions.</li>
+      <li><code>desktop/18_docs_internal_architecture.png</code> — Token-authenticated internal engineering architecture and async task topology.</li>
+      <li><code>desktop/19_docs_diagram_fullscreen_canvas.png</code> — Fullscreen interactive SVG diagram canvas with zoom and pan controls.</li>
+      <li><code>desktop/20_global_cmdk_palette.png</code> — Keyboard-triggered (Ctrl+K) command palette search modal.</li>
+      <li><code>desktop/21_global_admin_auth_modal.png</code> — Keyboard-triggered (Ctrl+Shift+A) administrative token modal.</li>
+      <li><code>desktop/22_global_help_tour_modal.png</code> — First-time user onboarding modal explaining platform navigation.</li>
+    </ul>
+
+    <h3>📱 Mobile Suite (390×844 @ 3× DPR & Touch Emulation)</h3>
+    <ul>
+      <li><code>mobile/01_mobile_studio_landing_viewport.png</code> — Mobile portrait initial viewport: compact branding, hamburger toggle, and hero CTA.</li>
+      <li><code>mobile/02_mobile_studio_landing_fullpage.png</code> — Complete vertical reflow on mobile, testing for zero horizontal scroll leakage.</li>
+      <li><code>mobile/03_mobile_hamburger_drawer_open.png</code> — Slide-out navigation drawer with touch targets meeting the ≥ 48px guideline.</li>
+      <li><code>mobile/04_mobile_score_dashboard_fullpage.png</code> — Stacked results dashboard with responsive circular SVG gauge.</li>
+      <li><code>mobile/05_mobile_guided_review_cards.png</code> — Vertically stacked review cards with thumb-zone verdict button rows.</li>
+      <li><code>mobile/06_mobile_byok_vault.png</code> — Compact mobile credential management screen and password reveal hit target.</li>
+      <li><code>mobile/07_mobile_claims_browser.png</code> — Claims registry reflowed into readable stacked mobile cards.</li>
+      <li><code>mobile/08_mobile_docs_scoring.png</code> — Documentation layout with independent horizontally scrollable code blocks.</li>
+      <li><code>mobile/09_mobile_landscape_results_viewport.png</code> — Mobile phone rotated horizontally (844×390), testing vertical compression.</li>
+    </ul>
+
+    <h3>⚙️ Specialized Configurations Suite</h3>
+    <ul>
+      <li><code>specialized_configs/config_01_light_scheme_contrast.png</code> — Light Hybrid theme contrast validation (Task 6 Option B).</li>
+      <li><code>specialized_configs/config_02_forced_colors_high_contrast.png</code> — Windows High Contrast Mode simulation via forced_colors='active'.</li>
+      <li><code>specialized_configs/config_03_reduced_motion_emulation.png</code> — Vestibular motion sensitivity simulation via prefers-reduced-motion: reduce.</li>
+      <li><code>specialized_configs/config_04_element_masking_pink.png</code> — Dynamic timestamp and run ID masking via mask=[locators] and mask_color.</li>
+      <li><code>specialized_configs/config_05_region_clipped_header_kpis.png</code> — Isolated rectangular bounding-box clip of the score header banner.</li>
+      <li><code>specialized_configs/config_06_component_isolated_locator.png</code> — Direct locator-level component capture (page.locator().screenshot()).</li>
+      <li><code>specialized_configs/config_07_transparent_background_button.png</code> — Button component rendered with transparent alpha channel (omit_background=True).</li>
+      <li><code>specialized_configs/config_08_lossy_jpeg_quality75.jpeg</code> — Lightweight JPEG compression at quality=75 for bandwidth-sensitive audits.</li>
+      <li><code>specialized_configs/config_09_injected_style_focus_audit.png</code> — Custom CSS injected to highlight all interactive button and link hit areas.</li>
+      <li><code>specialized_configs/config_10_scale_css_grid.png</code> — 1:1 CSS layout pixel scaling for exact 8px grid ruler measurements.</li>
+    </ul>
+
+    <div class="footer">
+      Generated automatically by the AREOS Quality Assurance Engine &middot; Antigravity 2.0
+    </div>
+  </div>
+</body>
+</html>
