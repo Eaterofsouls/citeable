@@ -982,6 +982,27 @@ a:hover {
   background: var(--brand-50) !important;
 }
 
+.index-row-header {
+  cursor: pointer;
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.row-statement-preview {
+  flex: 1 1 0;
+  min-width: 0;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  white-space: normal;
+  line-height: 1.45;
+  font-size: 0.875rem;
+  color: var(--text-primary);
+  word-break: break-word;
+}
+
 .claim-drawer {
   width: 440px;
   max-width: calc(100vw - var(--sidebar-width) - 48px);

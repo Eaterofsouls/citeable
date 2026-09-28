@@ -186,12 +186,12 @@ function renderClaims(claimsToAppend, isLoadMore) {
  const isPinned = pinnedClaims.has(claim.claim_id);
 
  row.innerHTML = `
- <div class="index-row-header" style="cursor:pointer; display: flex; align-items: center; gap: 8px;">
+ <div class="index-row-header">
  ${isContested ? `<div class="priority-indicator" title="Contested Claim">${iconWarning}</div>` : ''}
- <div class="badge ${typeClass}">${escapeHtml((claim.claim_type || 'FACT').toUpperCase())}</div>
- <div class="row-id" style="font-family: var(--font-mono); font-size: 0.85rem; color: var(--text-secondary); width: 65px;">${escapeHtml(claim.claim_id)}</div>
- <div class="row-statement-preview" style="flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;"></div>
- <button class="btn-pin ${isPinned ? 'pinned' : ''}" style="margin-left:auto; background:none; border:none; cursor:pointer; color:var(--text-secondary); font-size:1.2rem;" aria-label="Pin claim">
+ <div class="badge ${typeClass}" style="flex-shrink:0; margin-top:1px;">${escapeHtml((claim.claim_type || 'FACT').toUpperCase())}</div>
+ <div class="row-id" style="flex-shrink:0; font-family: var(--font-mono); font-size: 0.8125rem; color: var(--text-secondary); width: 65px; margin-top:2px;">${escapeHtml(claim.claim_id)}</div>
+ <div class="row-statement-preview"></div>
+ <button class="btn-pin ${isPinned ? 'pinned' : ''}" style="flex-shrink:0; margin-left:auto; background:none; border:none; cursor:pointer; color:var(--text-secondary); font-size:1.2rem;" aria-label="Pin claim">
  ${isPinned ? '' : iconPinUnfilled}
  </button>
  </div>

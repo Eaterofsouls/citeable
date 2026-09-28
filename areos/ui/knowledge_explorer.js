@@ -190,12 +190,12 @@ function renderRecords(recordsToAppend, isLoadMore) {
  const typeClass = `type-${record.type.toLowerCase()}`;
 
  row.innerHTML = `
- <div class="index-row-header" style="cursor:pointer; display: flex; align-items: center; gap: 8px;">
+ <div class="index-row-header">
  ${isContested ? `<div class="priority-indicator" title="Contested">${iconWarning}</div>` : ''}
- <div class="badge ${typeClass}">${record.type}</div>
- <div style="font-family: var(--font-mono); font-size: 0.85rem; color: var(--text-secondary); width: 65px;">${record.kid}</div>
- <div class="row-statement-preview" style="flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;"></div>
- <button class="btn-pin ${isPinned ? 'pinned' : ''}" style="margin-left:auto; background:none; border:none; cursor:pointer; color:var(--text-secondary); font-size:1.2rem;" aria-label="Pin claim">
+ <div class="badge ${typeClass}" style="flex-shrink:0; margin-top:1px;">${record.type}</div>
+ <div class="row-id" style="flex-shrink:0; font-family: var(--font-mono); font-size: 0.8125rem; color: var(--text-secondary); width: 65px; margin-top:2px;">${record.kid}</div>
+ <div class="row-statement-preview"></div>
+ <button class="btn-pin ${isPinned ? 'pinned' : ''}" style="flex-shrink:0; margin-left:auto; background:none; border:none; cursor:pointer; color:var(--text-secondary); font-size:1.2rem;" aria-label="Pin claim">
  ${isPinned ? '' : iconPinUnfilled}
  </button>
  </div>
