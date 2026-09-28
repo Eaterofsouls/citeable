@@ -203,6 +203,8 @@
           if (text && text.trim().length > 0) {
             return { ok: true, status: res.status, text };
           }
+        } else if (res.status === 401 || res.status === 403) {
+          return { ok: false, status: res.status, unauthenticated: true, text: '' };
         }
       } catch (err) {}
     }
@@ -211,9 +213,25 @@
 
   async function loadDocumentationSource(page) {
     const result = await fetchMarkdown(page.file);
-    return result.ok
-      ? result.text
-      : '## Documentation Unavailable\n\nThe documentation could not be loaded right now. Please try again shortly.';
+    if (!result.ok) {
+      if (result.unauthenticated || result.status === 401 || result.status === 403) {
+        return `
+<div style="padding:3rem 1.5rem;text-align:center;background:var(--surface-panel);border:1px solid var(--border-default);border-radius:12px;margin:2rem auto;max-width:540px;">
+  <div style="width:48px;height:48px;border-radius:50%;background:var(--brand-50);border:1px solid var(--brand-100);color:var(--brand-500);display:flex;align-items:center;justify-content:center;margin:0 auto 16px;">
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+  </div>
+  <h3 style="font-weight:700;color:var(--text-primary);margin-bottom:8px;">Admin Authentication Required</h3>
+  <p style="font-size:0.9rem;color:var(--text-secondary);line-height:1.5;margin-bottom:20px;">
+    Internal engineering specifications require administrative credentials. Please authenticate to view internal system architecture and audit directives.
+  </p>
+  <button type="button" class="btn-primary" onclick="const m = document.getElementById('admin-auth-modal'); if (m) { m.style.display = 'flex'; const i = document.getElementById('admin-auth-input'); if (i) i.focus(); }" style="padding:10px 20px;font-weight:600;cursor:pointer;">
+    Authenticate with Admin Token
+  </button>
+</div>`;
+      }
+      return '## Documentation Unavailable\n\nThe documentation could not be loaded right now. Please try again shortly.';
+    }
+    return result.text;
   }
 
   function resolveDocLinks(containerEl) {
@@ -260,6 +278,27 @@
     }
     const escaped = markdown.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
     return `<pre>${escaped}</pre>`;
+  }
+
+  function extractFrontmatter(markdown) {
+    let metadata = {};
+    let content = markdown;
+    const fmMatch = markdown.match(/^---\r?\n([\s\S]*?)\r?\n---\r?\n/);
+    if (fmMatch) {
+      const rawFm = fmMatch[1];
+      content = markdown.slice(fmMatch[0].length);
+      rawFm.split(/\r?\n/).forEach(line => {
+        const parts = line.split(':');
+        if (parts.length >= 2) {
+          const key = parts[0].trim();
+          let val = parts.slice(1).join(':').trim().replace(/^["']|["']$/g, '');
+          if (val && !val.includes('{{COMMIT_HASH}}')) {
+            metadata[key] = val;
+          }
+        }
+      });
+    }
+    return { metadata, content };
   }
 
   // ---------------------------------------------------------------------
@@ -1006,7 +1045,23 @@
     }
 
     try {
-      contentEl.innerHTML = renderMarkdownToHtml(markdown);
+      const { metadata, content } = extractFrontmatter(markdown);
+      let renderedHtml = renderMarkdownToHtml(content);
+      if (Object.keys(metadata).length > 0) {
+        let chipsHtml = '<div class="docs-meta-chips" style="display:flex;gap:8px;margin-bottom:1.5rem;flex-wrap:wrap;align-items:center;">';
+        if (metadata.status) {
+          chipsHtml += `<span class="badge" style="background:var(--brand-50);color:var(--brand-600);border:1px solid var(--brand-200);font-size:0.75rem;padding:2px 8px;border-radius:4px;font-weight:600;text-transform:uppercase;">Status: ${escapeHtml(metadata.status)}</span>`;
+        }
+        if (metadata.last_verified) {
+          chipsHtml += `<span class="badge" style="background:var(--surface-sunken);color:var(--text-secondary);border:1px solid var(--border-default);font-size:0.75rem;padding:2px 8px;border-radius:4px;">Verified: ${escapeHtml(metadata.last_verified)}</span>`;
+        }
+        if (metadata.owner) {
+          chipsHtml += `<span class="badge" style="background:var(--surface-sunken);color:var(--text-secondary);border:1px solid var(--border-default);font-size:0.75rem;padding:2px 8px;border-radius:4px;">Owner: ${escapeHtml(metadata.owner)}</span>`;
+        }
+        chipsHtml += '</div>';
+        renderedHtml = chipsHtml + renderedHtml;
+      }
+      contentEl.innerHTML = renderedHtml;
     } catch (err) {
       contentEl.innerHTML = '<div class="docs-error">Documentation could not be rendered. Please refresh the page.</div>';
       return;
