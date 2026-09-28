@@ -163,7 +163,7 @@ status: current
 | ID | GAP-005 |
 | Severity | Low |
 | Component | `areos/api/main.py` |
-| Description | The CORS configuration explicitly permits `localhost:8000` and `localhost:3000` to accommodate development flows. |
+| Description | The CORS configuration explicitly permits `localhost:8000`, `127.0.0.1:8000`, `localhost:3000` and `127.0.0.1:3000` to accommodate development flows. |
 | Evidence | `CORSMiddleware` in `main.py` hardcodes `allow_origins` to localhost URLs. The code comments acknowledge this is primarily for local dev servers. |
 | Status | Accepted |
 | Workaround | The shipped UI is served same-origin, so these rules do not actively compromise standard usage. |

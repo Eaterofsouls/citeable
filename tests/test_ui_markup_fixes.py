@@ -17,3 +17,15 @@ def test_site_is_pinned_to_light_mode():
     assert "prefers-color-scheme" not in css
     assert 'data-theme="dark"' not in css
     assert re.search(r":root\s*\{\s*color-scheme:\s*light;\s*\}", css)
+
+def test_cors_docs_list_every_origin_the_code_allows():
+    root = Path(__file__).resolve().parents[1]
+    main_src = (root / "areos" / "api" / "main.py").read_text(encoding="utf-8")
+    block = main_src[main_src.index("allow_origins=["):]
+    block = block[: block.index("]")]
+    origins = re.findall(r'"http://([^"]+)"', block)
+    assert len(origins) == 4
+    docs = (UI / "docs" / "internal" / "10-security.md").read_text(encoding="utf-8")
+    docs += (UI / "docs" / "internal" / "15-known-issues.md").read_text(encoding="utf-8")
+    for origin in origins:
+        assert origin in docs, origin

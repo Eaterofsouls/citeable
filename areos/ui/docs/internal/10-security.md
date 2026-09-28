@@ -124,6 +124,6 @@ AREOS serves security headers directly from its ASGI middleware (`areos/api/main
 
 - **Single-Tenant Architecture**: There is no per-user isolation; any user with the admin token has full control over all system state.
 - **Static Admin Token**: `AREOS_API_TOKEN` is statically configured at runtime and lacks built-in rotation mechanisms.
-- **CORS Localhost Allowance**: The API allows cross-origin requests from `localhost:8000` and `localhost:3000`. This is intended for local development but represents an overly permissive policy if the service were exposed on a loopback interface accessible to other local processes.
+- **CORS Localhost Allowance**: The API allows cross-origin requests from `localhost:8000`, `127.0.0.1:8000`, `localhost:3000` and `127.0.0.1:3000`. This is intended for local development but represents an overly permissive policy if the service were exposed on a loopback interface accessible to other local processes.
 - **No Request Signing**: Inter-service or client-server requests rely purely on the bearer token, making them susceptible to replay if intercepted (though mitigated by TLS in production).
 - **No Rate Limiting on Admin Endpoints**: While LLM calls are rate-limited and retried gracefully, the AREOS API itself lacks rate limiting for admin operations, exposing it to potential internal DoS.
