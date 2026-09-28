@@ -463,3 +463,6 @@
 {"at": "2026-09-28", "session": "session_15", "op": "UPDATE", "kid": "KT-198", "note": "Confidence demoted from high to medium (zero supports evidence rows)."}
 {"at": "2026-09-28", "session": "session_15", "op": "UPDATE", "kid": "KT-199", "note": "Confidence demoted from high to medium (zero supports evidence rows)."}
 {"at": "2026-09-28", "session": "session_15", "op": "UPDATE", "kid": "KT-201", "note": "Confidence demoted from high to medium (zero supports evidence rows)."}
+{"at": "2026-09-28", "session": "session_15", "op": "UPDATE", "kid": "KT-194", "note": "Updated statement with Vercel/MERJ 2024 measurement; added supporting evidence SRC-115 and contextualizing evidence SRC-116, SRC-117."}
+{"at": "2026-09-28", "session": "session_15", "op": "UPDATE", "kid": "KT-110", "note": "Updated statement regarding syndication canonicalization; added supporting evidence SRC-118 and relabeled SRC-093 to supports."}
+{"at": "2026-09-28", "session": "session_15", "op": "UPDATE", "kid": "KT-116", "note": "Updated statement on neural matching; added supporting evidence SRC-119, SRC-120, SRC-121."}
