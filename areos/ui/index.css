@@ -1106,6 +1106,57 @@ a:hover {
 }
 
 /* ==========================================================================
+   Landing Framework Overview (Task 23)
+   ========================================================================== */
+.landing-framework-section {
+  margin-top: 36px;
+}
+
+.landing-framework-grid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 16px;
+}
+
+@media (max-width: 1200px) {
+  .landing-framework-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+@media (max-width: 768px) {
+  .landing-framework-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.landing-framework-card {
+  background: var(--surface-panel);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  padding: 18px 20px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  box-shadow: var(--shadow-xs);
+  transition: border-color var(--duration-snappy), box-shadow var(--duration-snappy);
+}
+
+.landing-framework-card:hover {
+  border-color: var(--border-strong);
+  box-shadow: var(--shadow-sm);
+}
+
+.landing-framework-badge {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: var(--radius-full);
+  display: inline-block;
+}
+
+/* ==========================================================================
    Scorecards, Analytics Grids & Lists
    ========================================================================== */
 .scorecard-grid, .stat-grid {
