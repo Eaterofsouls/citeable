@@ -502,6 +502,32 @@ function displayStudioResults(data, domain) {
     return safe.replace(/\*([^*\n]+)\*/g, '<em>$1</em>');
   }
 
+  // Helper: Deduplicate description by stripping redundant repetition of the recommendation title
+  function cleanDescription(desc, title) {
+    if (!desc) return '';
+    let cleaned = String(desc).trim();
+    const rawTitle = (title || '').trim().replace(/[.\s]+$/, '');
+    if (!rawTitle) return cleaned;
+
+    const lines = cleaned.split('\n');
+    const filtered = lines.map(line => {
+      let l = line.trim();
+      const cleanL = l.replace(/[.\s]+$/, '');
+      if (cleanL.toLowerCase() === rawTitle.toLowerCase()) {
+        return '';
+      }
+      const idx = l.toLowerCase().indexOf(rawTitle.toLowerCase());
+      if (idx !== -1) {
+        let before = l.slice(0, idx).trim().replace(/[:.\s-]+$/, '');
+        let after = l.slice(idx + rawTitle.length).replace(/^[.\d)\s]+/, '').replace(/^[:.\s-]+/, '').trim();
+        return [before, after].filter(Boolean).join('. ');
+      }
+      return l;
+    }).filter(Boolean);
+
+    return filtered.join('\n').trim();
+  }
+
   // Helper: map numeric priority score to a color-coded label
   function priorityLabel(score) {
     const s = score || 5;
@@ -524,7 +550,8 @@ function displayStudioResults(data, domain) {
       const pLabel = priorityLabel(rec.priority_score || (idx + 1) * 3);
 
       const safeTitle = renderUserText(rec.title);
-      const safeDesc = renderUserText(rec.description);
+      const deduplicatedDesc = cleanDescription(rec.description, rec.title);
+      const safeDesc = renderUserText(deduplicatedDesc);
       const safeClaimStmt = renderUserText(rec.governing_claim_statement);
       const safeCheckCode = escapeHtml(rec.check_code);
       const safeKid = typeof escapeHtml === 'function' ? escapeHtml(rec.governing_claim_id || '') : String(rec.governing_claim_id || '');
@@ -567,7 +594,7 @@ function displayStudioResults(data, domain) {
           </div>
         </div>
         <div class="rec-body ${idx === 0 ? 'open' : ''}">
-          <p style="color: var(--text-primary); line-height: 1.6; margin-top: 0;">${safeDesc}</p>
+          ${safeDesc ? `<p style="color: var(--text-primary); line-height: 1.6; margin-top: 0; margin-bottom: 12px;">${safeDesc}</p>` : ''}
           <a href="knowledge_explorer.html?kid=${encodedKid}" target="_blank" class="citation-box" style="display:block; text-decoration:none;" onclick="event.stopPropagation();">
             <span class="citation-badge"> View Knowledge Record [${safeKid}] (${rec.confidence} Confidence / ${rec.source_tier}) ↗</span>
             <div style="margin-top: 0.4rem; color:var(--text-primary);">${safeClaimStmt}</div>

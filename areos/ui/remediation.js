@@ -130,6 +130,32 @@ function renderPlan(data) {
  document.getElementById('plan-markdown').textContent = planMarkdownText;
 }
 
+// Helper: Deduplicate description by stripping redundant repetition of the recommendation title
+function cleanDescription(desc, title) {
+  if (!desc) return '';
+  let cleaned = String(desc).trim();
+  const rawTitle = (title || '').trim().replace(/[.\s]+$/, '');
+  if (!rawTitle) return cleaned;
+
+  const lines = cleaned.split('\n');
+  const filtered = lines.map(line => {
+    let l = line.trim();
+    const cleanL = l.replace(/[.\s]+$/, '');
+    if (cleanL.toLowerCase() === rawTitle.toLowerCase()) {
+      return '';
+    }
+    const idx = l.toLowerCase().indexOf(rawTitle.toLowerCase());
+    if (idx !== -1) {
+      let before = l.slice(0, idx).trim().replace(/[:.\s-]+$/, '');
+      let after = l.slice(idx + rawTitle.length).replace(/^[.\d)\s]+/, '').replace(/^[:.\s-]+/, '').trim();
+      return [before, after].filter(Boolean).join('. ');
+    }
+    return l;
+  }).filter(Boolean);
+
+  return filtered.join('\n').trim();
+}
+
 function renderRecCard(rec, num) {
  const card = document.createElement('div');
  card.className = `rec-card source-${rec.source}`;
@@ -178,10 +204,11 @@ function renderRecCard(rec, num) {
  header.appendChild(title);
  header.appendChild(meta);
 
- const desc = el('div', rec.description, {className: 'rec-description', style: 'margin-top: 12px; color: var(--text-secondary);'});
+ const deduplicatedDesc = cleanDescription(rec.description, rec.title);
+ const desc = deduplicatedDesc ? el('div', deduplicatedDesc, {className: 'rec-description', style: 'margin-top: 12px; color: var(--text-secondary);'}) : null;
 
  card.appendChild(header);
- card.appendChild(desc);
+ if (desc) card.appendChild(desc);
 
  // Inline citation — use data already on the rec object if the API returned it,
  // otherwise fall back to a secondary claim fetch (older server versions).
