@@ -29,6 +29,7 @@ let offset = 0;
 const LIMIT = 50;
 let currentRecords = [];
 let totalCount = 0;
+let totalDatabaseRecords = 216;
 let currentAbortController = null;
 let focusedIndex = -1;
 
@@ -37,6 +38,32 @@ const storageKeyPins = `areos_kb_pins_${analystId}`;
 const storageKeyFilters = `areos_kb_filters_${analystId}`;
 
 let pinnedRecords = new Set(JSON.parse(localStorage.getItem(storageKeyPins) || '[]'));
+
+async function fetchKBStats() {
+  try {
+    const res = await AreosAPI.fetch('/knowledge/stats');
+    if (res.ok) {
+      const stats = await res.json();
+      if (stats.knowledge_count) {
+        totalDatabaseRecords = stats.knowledge_count;
+        updateCountsDisplay();
+      }
+    }
+  } catch (e) {
+    // fallback to 216
+  }
+}
+
+function updateCountsDisplay() {
+  const subtitleEl = document.getElementById('kb-subtitle');
+  if (totalCount === totalDatabaseRecords) {
+    if (totalKnowledgeSpan) totalKnowledgeSpan.textContent = `${totalCount} Records Found`;
+    if (subtitleEl) subtitleEl.textContent = `Scientific Classification · ${totalDatabaseRecords} Verified Empirical & Technical Claims`;
+  } else {
+    if (totalKnowledgeSpan) totalKnowledgeSpan.textContent = `${totalCount} of ${totalDatabaseRecords} Records`;
+    if (subtitleEl) subtitleEl.textContent = `Scientific Classification · ${totalDatabaseRecords} total · ${totalCount} matching current filters`;
+  }
+}
 
 // Icons
 const iconWarning = `<svg viewBox="0 0 24 24" fill="none" stroke="var(--status-contested)" stroke-width="2" width="16"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>`;
@@ -144,7 +171,7 @@ async function fetchKnowledge(isLoadMore = false) {
 }
 
 function renderRecords(recordsToAppend, isLoadMore) {
- if (totalKnowledgeSpan) totalKnowledgeSpan.textContent = `${totalCount} Records Found`;
+ updateCountsDisplay();
 
  if (currentRecords.length === 0) {
  knowledgeContainer.innerHTML = `<div class="no-results">No records match the selected filters.</div>`;
@@ -353,6 +380,7 @@ function renderDrawer(detail) {
 // Bindings
 document.addEventListener('DOMContentLoaded', () => {
  loadSavedFilters();
+ fetchKBStats();
  fetchKnowledge();
 
  let debounce;
