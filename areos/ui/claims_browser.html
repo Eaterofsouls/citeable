@@ -36,8 +36,80 @@
         </div>
       </header>
 
-      <!-- Filters Bar -->
-      <section class="filters-bar glass-panel">
+      <div class="page-container page-container--fluid">
+        <!-- HELPER CARD: Claim Taxonomy Primer -->
+        <div class="context-helper-card" id="helper-taxonomy-primer" style="border-radius: 8px; border: 1px solid var(--border-default); box-shadow: var(--shadow-sm); overflow: hidden; background: #FFFFFF; margin-bottom: 24px;">
+          <div class="helper-card-header" onclick="toggleHelperCard('helper-taxonomy-content', 'helper-taxonomy-chevron', 'areos_explainer_collapsed_claims_taxonomy')" style="padding: 14px 20px; display: flex; align-items: center; justify-content: space-between; cursor: pointer; user-select: none;">
+            <div style="display:flex; align-items:center; gap:12px;">
+              <div style="width:30px; height:30px; border-radius:6px; background:#F8FAFC; display:flex; align-items:center; justify-content:center; border:1px solid #E2E8F0; color:#334155;">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/></svg>
+              </div>
+              <div>
+                <div style="font-weight:600; color:var(--text-primary); font-size:0.875rem; letter-spacing: -0.01em;">Citeable Knowledge Base &amp; Claim Taxonomy</div>
+                <div style="font-size:0.75rem; color:var(--text-tertiary);">Scientific Classification · Verified Empirical &amp; Technical Claims</div>
+              </div>
+            </div>
+            <div style="display:flex; align-items:center; gap:12px;">
+              <span style="font-size:0.75rem; font-family:var(--font-mono); font-weight:600; color:var(--text-secondary); background:#F1F5F9; border:1px solid #E2E8F0; padding:2px 8px; border-radius:9999px;">5 Scientific Tiers</span>
+              <span id="helper-taxonomy-chevron" style="font-size:0.75rem; color:var(--text-tertiary); font-weight:700; transition: transform 0.2s;">▾</span>
+            </div>
+          </div>
+          <div id="helper-taxonomy-content" class="accordion-grid open">
+            <div class="accordion-inner" style="border-top:1px solid var(--border-default); background:#F8FAFC; padding: 14px 20px;">
+              <div class="taxonomy-grid" style="display:grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 12px;">
+                
+                <!-- FACT -->
+                <div style="background:#FFFFFF; border:1px solid var(--border-default); border-radius:6px; padding:12px 14px; display:flex; flex-direction:column; gap:4px;">
+                  <div style="display:flex; align-items:center; gap:6px;">
+                    <span style="width:6px; height:6px; border-radius:50%; background:#16A34A;"></span>
+                    <span style="font-family:var(--font-mono); font-size:0.75rem; font-weight:700; color:#0F172A; letter-spacing:0.04em;">FACT</span>
+                  </div>
+                  <div style="font-size:0.75rem; color:var(--text-secondary); line-height:1.4;">Empirically verified platform mechanics.</div>
+                </div>
+
+                <!-- GUIDANCE -->
+                <div style="background:#FFFFFF; border:1px solid var(--border-default); border-radius:6px; padding:12px 14px; display:flex; flex-direction:column; gap:4px;">
+                  <div style="display:flex; align-items:center; gap:6px;">
+                    <span style="width:6px; height:6px; border-radius:50%; background:#0A66C2;"></span>
+                    <span style="font-family:var(--font-mono); font-size:0.75rem; font-weight:700; color:#0F172A; letter-spacing:0.04em;">GUIDANCE</span>
+                  </div>
+                  <div style="font-size:0.75rem; color:var(--text-secondary); line-height:1.4;">Official documentation best practices.</div>
+                </div>
+
+                <!-- STANDARD -->
+                <div style="background:#FFFFFF; border:1px solid var(--border-default); border-radius:6px; padding:12px 14px; display:flex; flex-direction:column; gap:4px;">
+                  <div style="display:flex; align-items:center; gap:6px;">
+                    <span style="width:6px; height:6px; border-radius:50%; background:#475569;"></span>
+                    <span style="font-family:var(--font-mono); font-size:0.75rem; font-weight:700; color:#0F172A; letter-spacing:0.04em;">STANDARD</span>
+                  </div>
+                  <div style="font-size:0.75rem; color:var(--text-secondary); line-height:1.4;">Formal industry RFC &amp; W3C specifications.</div>
+                </div>
+
+                <!-- FINDING -->
+                <div style="background:#FFFFFF; border:1px solid var(--border-default); border-radius:6px; padding:12px 14px; display:flex; flex-direction:column; gap:4px;">
+                  <div style="display:flex; align-items:center; gap:6px;">
+                    <span style="width:6px; height:6px; border-radius:50%; background:#D97706;"></span>
+                    <span style="font-family:var(--font-mono); font-size:0.75rem; font-weight:700; color:#0F172A; letter-spacing:0.04em;">FINDING</span>
+                  </div>
+                  <div style="font-size:0.75rem; color:var(--text-secondary); line-height:1.4;">Correlated multi-domain search data.</div>
+                </div>
+
+                <!-- UNCERTAINTY -->
+                <div style="background:#FFFFFF; border:1px solid var(--border-default); border-radius:6px; padding:12px 14px; display:flex; flex-direction:column; gap:4px;">
+                  <div style="display:flex; align-items:center; gap:6px;">
+                    <span style="width:6px; height:6px; border-radius:50%; background:#E11D48;"></span>
+                    <span style="font-family:var(--font-mono); font-size:0.75rem; font-weight:700; color:#0F172A; letter-spacing:0.04em;">UNCERTAINTY</span>
+                  </div>
+                  <div style="font-size:0.75rem; color:var(--text-secondary); line-height:1.4;">Actively shifting frontier behavior.</div>
+                </div>
+
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Filters Bar -->
+        <section class="filters-bar glass-panel">
         <div class="filter-group">
           <label>Search</label>
           <input type="text" id="search-input" class="glass-input" placeholder="Search statements...">
@@ -120,6 +192,7 @@
           </div>
           <div id="drawer-content"></div>
         </aside>
+      </div>
       </div>
     </main>
   </div>

@@ -181,22 +181,22 @@ function renderClaims(claimsToAppend, isLoadMore) {
 
  if (expandedClaims.has(claim.claim_id)) row.classList.add('expanded');
 
- const statusClass = `status-${claim.status || 'active'}`;
+ const typeClass = `type-${(claim.claim_type || 'fact').toLowerCase()}`;
  const isContested = claim.status === 'contested';
  const isPinned = pinnedClaims.has(claim.claim_id);
 
  row.innerHTML = `
- <div class="index-row-header" style="cursor:pointer;">
+ <div class="index-row-header" style="cursor:pointer; display: flex; align-items: center; gap: 8px;">
  ${isContested ? `<div class="priority-indicator" title="Contested Claim">${iconWarning}</div>` : ''}
- <div class="status-badge ${statusClass}"></div>
- <div class="row-statement-preview"></div>
+ <div class="badge ${typeClass}">${escapeHtml((claim.claim_type || 'FACT').toUpperCase())}</div>
+ <div class="row-id" style="font-family: var(--font-mono); font-size: 0.85rem; color: var(--text-secondary); width: 65px;">${escapeHtml(claim.claim_id)}</div>
+ <div class="row-statement-preview" style="flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;"></div>
  <button class="btn-pin ${isPinned ? 'pinned' : ''}" style="margin-left:auto; background:none; border:none; cursor:pointer; color:var(--text-secondary); font-size:1.2rem;" aria-label="Pin claim">
  ${isPinned ? '' : iconPinUnfilled}
  </button>
  </div>
  `;
 
- row.querySelector('.status-badge').textContent = claim.status || 'unknown';
  row.querySelector('.row-statement-preview').textContent = claim.statement;
 
  const pinBtn = row.querySelector('.btn-pin');
@@ -271,7 +271,11 @@ function openDrawer(claim) {
 
  let html = `
  <div style="display:flex; justify-content:space-between; align-items:center;">
-  <div style="font-family:var(--font-mono); font-size:0.9rem; color:var(--text-secondary);">${escapeHtml(claim.claim_id)}</div>
+  <div style="display:flex; align-items:center; gap:8px;">
+    <div class="badge type-${(claim.claim_type || 'fact').toLowerCase()}">${escapeHtml((claim.claim_type || 'FACT').toUpperCase())}</div>
+    <div style="font-family:var(--font-mono); font-size:0.9rem; color:var(--text-secondary);">${escapeHtml(claim.claim_id)}</div>
+    <span class="status-pill ${claim.status === 'contested' ? 'warning' : 'success'}" style="font-size:0.75rem;">${escapeHtml(claim.status || 'active')}</span>
+  </div>
  <button class="btn-secondary btn-propose" style="padding:4px 8px; font-size:0.8rem;">Propose Edit</button>
  </div>
  
