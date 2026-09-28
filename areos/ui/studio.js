@@ -129,7 +129,19 @@ document.addEventListener("DOMContentLoaded", () => {
 			try {
 				const errJson = await res.json();
 				if (errJson && errJson.detail) {
-					errorDetail = typeof errJson.detail === 'string' ? errJson.detail : JSON.stringify(errJson.detail);
+					if (typeof errJson.detail === 'string') {
+						errorDetail = errJson.detail;
+					} else if (Array.isArray(errJson.detail)) {
+						console.error("FastAPI Validation Detail:", errJson.detail);
+						const domainErr = errJson.detail.find(e => Array.isArray(e.loc) && e.loc.includes('target_domain'));
+						if (domainErr) {
+							errorDetail = "That doesn't look like a valid domain. Try a bare hostname like example.com, without https:// or a path.";
+						} else {
+							errorDetail = errJson.detail.map(e => e.msg || 'Invalid input').join('. ');
+						}
+					} else {
+						errorDetail = "Invalid request payload. Please check your inputs.";
+					}
 				}
 			} catch (_) {
 				try {
