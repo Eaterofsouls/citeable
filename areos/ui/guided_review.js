@@ -373,6 +373,12 @@ window.GuidedReview = (function() {
     return guidedDialog;
   }
 
+  // Inline Wizard State Management (Task 14)
+  let inlineCards = [];
+  let inlineOpts = {};
+  let inlineCurrentIndex = 0;
+  let inlineVerdicts = {}; // cardId -> { verdict, notes }
+
   async function submitInlineVerdict(cardId, verdict, opts) {
     const notesEl = document.getElementById(`notes-${cardId}`);
     const notes = notesEl && notesEl.value.trim() ? notesEl.value.trim() : `Human qualitative verification recorded as ${verdict.toUpperCase()}`;
@@ -403,21 +409,6 @@ window.GuidedReview = (function() {
         }
       }
 
-      const cardEl = document.getElementById(`wizard-card-${cardId}`);
-      if (cardEl) {
-        cardEl.style.borderColor = verdict === 'pass' ? 'var(--status-success)' : (verdict === 'warn' ? 'var(--status-warning)' : 'var(--status-danger)');
-        cardEl.style.background = 'var(--surface-sunken)';
-        const verdictLabel = verdict === 'pass' ? 'Pass' : (verdict === 'warn' ? 'Warn' : 'Fail');
-        cardEl.innerHTML = `
-        <div style="display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 0.5rem;">
-          <div>
-            <strong style="color: var(--text-primary); font-size: 1.1rem;">Evaluated: ${verdictLabel}</strong>
-            ${notes ? `<p style="margin: 0.4rem 0 0; color: var(--text-tertiary); font-size: 0.9rem;">${escapeHtml(notes)}</p>` : ""}
-          </div>
-          <span style="background: var(--status-success-bg); color: var(--status-success-text); border: 1px solid var(--status-success-border); padding: 3px 10px; border-radius: 9999px; font-weight: 600; font-size: 0.75rem;">Saved</span>
-        </div>`;
-      }
-
       if (opts && typeof opts.onVerdict === "function") {
         opts.onVerdict(cardId, verdict);
       }
@@ -427,91 +418,221 @@ window.GuidedReview = (function() {
     }
   }
 
-  // Redesigned per UX audit \u00a75.5: each card reads as one interview
-  // question (headline) \u2014 why it matters \u2014 how to check it (numbered)
-  // \u2014 a fast Pass/Warn/Fail answer. Check codes / card IDs move to a
-  // small monospace footnote instead of leading the card.
+  function goToInlineStep(idx) {
+    if (idx >= 0 && idx < inlineCards.length) {
+      inlineCurrentIndex = idx;
+      renderInlineCard();
+    }
+  }
+
+  function prevInlineStep() {
+    if (inlineCurrentIndex > 0) {
+      inlineCurrentIndex--;
+      renderInlineCard();
+    }
+  }
+
+  function nextInlineStep() {
+    const currentCard = inlineCards[inlineCurrentIndex];
+    if (currentCard && !inlineVerdicts[currentCard.card_id]) {
+      if (typeof AreosAPI !== 'undefined' && AreosAPI.notify) {
+        AreosAPI.notify("Please select a verdict (Pass, Warn, or Fail) to continue.");
+      } else {
+        alert("Please select a verdict (Pass, Warn, or Fail) to continue.");
+      }
+      return;
+    }
+
+    if (inlineCurrentIndex < inlineCards.length - 1) {
+      inlineCurrentIndex++;
+      renderInlineCard();
+    } else {
+      const allAnswered = inlineCards.every(c => !!inlineVerdicts[c.card_id]);
+      if (allAnswered) {
+        finishAndGoToReport();
+      } else {
+        const firstUnanswered = inlineCards.findIndex(c => !inlineVerdicts[c.card_id]);
+        if (firstUnanswered !== -1) {
+          inlineCurrentIndex = firstUnanswered;
+          renderInlineCard();
+        }
+      }
+    }
+  }
+
   function renderInlineWizard(cards, opts) {
     const cEl = document.querySelector(opts.container || "#wizard-list");
     if (!cEl) return;
+
+    inlineCards = cards;
+    inlineOpts = opts;
+    inlineCurrentIndex = 0;
+
+    // Seed existing verdicts if present
+    inlineCards.forEach((c) => {
+      if (c.verdicts && c.verdicts.length > 0) {
+        const v = c.verdicts[0];
+        inlineVerdicts[c.card_id] = {
+          verdict: (v.verdict || v).toLowerCase(),
+          notes: v.notes || v.diagnosis_text || ""
+        };
+      }
+    });
+
+    // Start on first unanswered card if any
+    const firstUnanswered = inlineCards.findIndex(c => !inlineVerdicts[c.card_id]);
+    if (firstUnanswered !== -1) {
+      inlineCurrentIndex = firstUnanswered;
+    }
+
+    renderInlineCard();
+  }
+
+  function renderInlineCard() {
+    const cEl = document.querySelector(inlineOpts.container || "#wizard-list");
+    if (!cEl) return;
     cEl.innerHTML = "";
+
+    const cards = inlineCards;
+    const idx = inlineCurrentIndex;
+    const wiz = cards[idx];
+    if (!wiz) return;
 
     const domainInput = document.getElementById("domain-input");
     const domain = domainInput ? domainInput.value.trim() : "";
     const siteUrl = domain ? (domain.startsWith("http") ? domain : `https://${domain}`) : null;
 
-    cards.forEach((wiz, idx) => {
-      const guide = getSimpleGuidance(wiz);
-      const stepsHtml = (guide.steps || []).map(s => `<li>${s}</li>`).join("");
-      const checkRef = escapeHtml((wiz.reason || wiz.check_name || "QUALITATIVE_EVALUATION")).replace(/^Check code\(s\) fired:\s*/i, "");
+    const guide = getSimpleGuidance(wiz);
+    const stepsHtml = (guide.steps || []).map(s => `<li>${s}</li>`).join("");
+    const checkRef = escapeHtml((wiz.reason || wiz.check_name || "QUALITATIVE_EVALUATION")).replace(/^Check code\(s\) fired:\s*/i, "");
 
-      const wizCard = document.createElement("div");
-      wizCard.className = "gr-card";
-      wizCard.id = `wizard-card-${wiz.card_id}`;
-      
-      let prepopulatedHtml = "";
-      const auditResult = (window.AreosContext && window.AreosContext.auditResult) || {};
-      const effectiveQid = CLAIM_TO_QUESTION[wiz.card_id] || wiz.card_id;
-      if ((effectiveQid === "B1_SCHEMA_HONESTY" || wiz.card_id === "C053") && auditResult.schema_claims) {
-        prepopulatedHtml = `<div class="gr-card-prepopulate"><strong>Pre-populated Data (Schema Claims):</strong>\n${escapeHtml(typeof auditResult.schema_claims === 'string' ? auditResult.schema_claims : JSON.stringify(auditResult.schema_claims, null, 2))}</div>`;
-      } else if ((effectiveQid === "B2_CONTENT_ANSWERABILITY" || wiz.card_id === "C052") && auditResult.extracted_lead_text) {
-        prepopulatedHtml = `<div class="gr-card-prepopulate"><strong>Pre-populated Data (Extracted Lead Text):</strong>\n${escapeHtml(auditResult.extracted_lead_text)}</div>`;
-      } else if ((effectiveQid === "C1_BRAND_ACCURACY" || wiz.card_id === "C077" || wiz.card_id === "C074") && auditResult.citation_result && auditResult.citation_result.full_responses) {
-        prepopulatedHtml = `<div class="gr-card-prepopulate"><strong>Pre-populated Data (Full Responses):</strong>\n${escapeHtml(typeof auditResult.citation_result.full_responses === 'string' ? auditResult.citation_result.full_responses : JSON.stringify(auditResult.citation_result.full_responses, null, 2))}</div>`;
-      } else if ((effectiveQid === "C4_CITATION_GAP" || wiz.card_id === "C073" || wiz.card_id === "C082") && auditResult.citation_analytics && auditResult.citation_analytics.competitor_domains) {
-        prepopulatedHtml = `<div class="gr-card-prepopulate"><strong>Pre-populated Data (Competitor Domains):</strong>\n${escapeHtml(typeof auditResult.citation_analytics.competitor_domains === 'string' ? auditResult.citation_analytics.competitor_domains : JSON.stringify(auditResult.citation_analytics.competitor_domains, null, 2))}</div>`;
-      }
+    const saved = inlineVerdicts[wiz.card_id] || null;
+    const savedVerdict = saved ? saved.verdict : null;
+    const savedNotes = saved ? saved.notes : "";
 
-      const exampleHtml = guide.example
-        ? `<div class="gr-card-example">
-             <strong>Try it yourself</strong>
-             ${escapeHtml(guide.example.replace(/\{\{domain\}\}/g, domain || "yourdomain.com"))}
-           </div>`
-        : "";
-      wizCard.innerHTML = `
-        <div class="gr-question-progress">
-          <span>Question ${idx + 1} of ${cards.length}</span>
-          <div class="gr-question-dots">
-            ${cards.map((c, i) => `<span class="${i < idx ? 'is-done' : (i === idx ? 'is-current' : '')}"></span>`).join("")}
-          </div>
+    const wizCard = document.createElement("div");
+    wizCard.className = "gr-card";
+    wizCard.id = `wizard-card-${wiz.card_id}`;
+
+    let prepopulatedHtml = "";
+    const auditResult = (window.AreosContext && window.AreosContext.auditResult) || {};
+    const effectiveQid = CLAIM_TO_QUESTION[wiz.card_id] || wiz.card_id;
+    if ((effectiveQid === "B1_SCHEMA_HONESTY" || wiz.card_id === "C053") && auditResult.schema_claims) {
+      prepopulatedHtml = `<div class="gr-card-prepopulate"><strong>Pre-populated Data (Schema Claims):</strong>\n${escapeHtml(typeof auditResult.schema_claims === 'string' ? auditResult.schema_claims : JSON.stringify(auditResult.schema_claims, null, 2))}</div>`;
+    } else if ((effectiveQid === "B2_CONTENT_ANSWERABILITY" || wiz.card_id === "C052") && auditResult.extracted_lead_text) {
+      prepopulatedHtml = `<div class="gr-card-prepopulate"><strong>Pre-populated Data (Extracted Lead Text):</strong>\n${escapeHtml(auditResult.extracted_lead_text)}</div>`;
+    } else if ((effectiveQid === "C1_BRAND_ACCURACY" || wiz.card_id === "C077" || wiz.card_id === "C074") && auditResult.citation_result && auditResult.citation_result.full_responses) {
+      prepopulatedHtml = `<div class="gr-card-prepopulate"><strong>Pre-populated Data (Full Responses):</strong>\n${escapeHtml(typeof auditResult.citation_result.full_responses === 'string' ? auditResult.citation_result.full_responses : JSON.stringify(auditResult.citation_result.full_responses, null, 2))}</div>`;
+    } else if ((effectiveQid === "C4_CITATION_GAP" || wiz.card_id === "C073" || wiz.card_id === "C082") && auditResult.citation_analytics && auditResult.citation_analytics.competitor_domains) {
+      prepopulatedHtml = `<div class="gr-card-prepopulate"><strong>Pre-populated Data (Competitor Domains):</strong>\n${escapeHtml(typeof auditResult.citation_analytics.competitor_domains === 'string' ? auditResult.citation_analytics.competitor_domains : JSON.stringify(auditResult.citation_analytics.competitor_domains, null, 2))}</div>`;
+    }
+
+    const exampleHtml = guide.example
+      ? `<div class="gr-card-example">
+           <strong>Try it yourself</strong>
+           ${escapeHtml(guide.example.replace(/\{\{domain\}\}/g, domain || "yourdomain.com"))}
+         </div>`
+      : "";
+
+    const dotsHtml = cards.map((c, i) => {
+      const isDone = !!inlineVerdicts[c.card_id];
+      const isCurrent = i === idx;
+      let cls = "";
+      if (isDone) cls += " is-done";
+      if (isCurrent) cls += " is-current";
+      return `<button type="button" class="gr-dot-btn${cls}" onclick="window.GuidedReview.goToInlineStep(${i})" title="Question ${i + 1} of ${cards.length}: ${isDone ? 'Evaluated' : 'Unanswered'}" aria-label="Question ${i + 1} of ${cards.length}"></button>`;
+    }).join("");
+
+    const isLastCard = idx === cards.length - 1;
+    const allAnswered = cards.every(c => !!inlineVerdicts[c.card_id]);
+
+    wizCard.innerHTML = `
+      <div class="gr-question-progress">
+        <span>Question ${idx + 1} of ${cards.length}</span>
+        <div class="gr-question-dots">
+          ${dotsHtml}
+        </div>
+      </div>
+
+      ${prepopulatedHtml}
+
+      <h3 class="gr-card-question">${escapeHtml(guide.question)}</h3>
+
+      <div class="gr-card-why">
+        <strong>Why this matters</strong>
+        ${escapeHtml(guide.why)}
+      </div>
+
+      <div class="gr-card-how">
+        <strong>How to check it</strong>
+        <ol>${stepsHtml}</ol>
+      </div>
+
+      ${exampleHtml}
+
+      ${siteUrl ? `<a class="gr-view-page-btn" href="${siteUrl}" target="_blank" rel="noopener">👀 View the site we're asking about</a>` : ""}
+
+      <input type="text" class="verdict-notes" id="notes-${wiz.card_id}" value="${escapeHtml(savedNotes)}" placeholder="Add an observation note (optional)...">
+
+      <div class="gr-verdict-row" style="margin-bottom:18px;">
+        <button type="button" class="btn-verdict gr-verdict-btn yes ${savedVerdict === 'pass' ? 'selected' : ''}" data-card-id="${wiz.card_id}" data-verdict="pass">✓ Pass</button>
+        <button type="button" class="btn-verdict gr-verdict-btn partly ${savedVerdict === 'warn' ? 'selected' : ''}" data-card-id="${wiz.card_id}" data-verdict="warn">⚠ Warn</button>
+        <button type="button" class="btn-verdict gr-verdict-btn no ${savedVerdict === 'fail' ? 'selected' : ''}" data-card-id="${wiz.card_id}" data-verdict="fail">✗ Fail</button>
+      </div>
+
+      <div class="gr-wizard-nav" style="display:flex; justify-content:space-between; align-items:center; border-top:1px solid var(--border-default); padding-top:16px; margin-top:16px; flex-wrap:wrap; gap:12px;">
+        <button type="button" class="btn-secondary" ${idx === 0 ? 'disabled style="opacity:0.4; cursor:not-allowed;"' : ''} onclick="window.GuidedReview.prevInlineStep()">
+          &larr; Previous Question
+        </button>
+
+        <div id="inline-verdict-status" style="font-size:0.85rem; font-weight:600;">
+          ${savedVerdict ? `<span class="status-pill success text-xs">Evaluated: ${savedVerdict.toUpperCase()}</span>` : `<span style="color:var(--text-tertiary);">Select verdict to continue</span>`}
         </div>
 
-        ${prepopulatedHtml}
+        <button type="button" class="btn-primary" onclick="window.GuidedReview.nextInlineStep()">
+          ${isLastCard ? (allAnswered ? 'Complete Review & View Report &rarr;' : 'Finish Review &rarr;') : 'Next Question &rarr;'}
+        </button>
+      </div>
 
-        <h3 class="gr-card-question">${escapeHtml(guide.question)}</h3>
+      <div class="gr-card-footnote" title="System check ${escapeHtml(wiz.card_id || "")}">Diagnostic Verification &middot; ${checkRef}</div>
+    `;
 
-        <div class="gr-card-why">
-          <strong>Why this matters</strong>
-          ${escapeHtml(guide.why)}
-        </div>
+    const passBtn = wizCard.querySelector(".yes");
+    const warnBtn = wizCard.querySelector(".partly");
+    const failBtn = wizCard.querySelector(".no");
 
-        <div class="gr-card-how">
-          <strong>How to check it</strong>
-          <ol>${stepsHtml}</ol>
-        </div>
+    const onSelect = (v) => {
+      wizCard.querySelectorAll(".gr-verdict-btn").forEach(b => b.classList.remove("selected"));
+      if (v === 'pass' && passBtn) passBtn.classList.add("selected");
+      if (v === 'warn' && warnBtn) warnBtn.classList.add("selected");
+      if (v === 'fail' && failBtn) failBtn.classList.add("selected");
 
-        ${exampleHtml}
+      const notes = document.getElementById(`notes-${wiz.card_id}`)?.value || "";
+      inlineVerdicts[wiz.card_id] = { verdict: v, notes: notes };
 
-        ${siteUrl ? `<a class="gr-view-page-btn" href="${siteUrl}" target="_blank" rel="noopener">👀 View the site we're asking about</a>` : ""}
+      const statusEl = document.getElementById("inline-verdict-status");
+      if (statusEl) statusEl.innerHTML = `<span class="status-pill success text-xs">Evaluated: ${v.toUpperCase()} (Saved)</span>`;
 
-        <input type="text" class="verdict-notes" id="notes-${wiz.card_id}" placeholder="Add an observation note (optional)...">
+      const dots = wizCard.querySelectorAll(".gr-dot-btn");
+      if (dots[idx]) dots[idx].classList.add("is-done");
 
-        <div class="gr-verdict-row">
-          <button class="btn-verdict gr-verdict-btn yes" data-card-id="${wiz.card_id}" data-verdict="pass">✓ Pass</button>
-          <button class="btn-verdict gr-verdict-btn partly" data-card-id="${wiz.card_id}" data-verdict="warn">⚠ Warn</button>
-          <button class="btn-verdict gr-verdict-btn no" data-card-id="${wiz.card_id}" data-verdict="fail">✗ Fail</button>
-        </div>
+      submitInlineVerdict(wiz.card_id, v, inlineOpts);
+    };
 
-        <div class="gr-card-footnote">Check ${escapeHtml(wiz.card_id || "")} · ${checkRef}</div>
-      `;
-      const passBtn = wizCard.querySelector(".yes");
-      const warnBtn = wizCard.querySelector(".partly");
-      const failBtn = wizCard.querySelector(".no");
-      if (passBtn) passBtn.onclick = () => { wizCard.querySelectorAll(".gr-verdict-btn").forEach(b => b.classList.remove("selected")); passBtn.classList.add("selected"); submitInlineVerdict(wiz.card_id, "pass", opts); };
-      if (warnBtn) warnBtn.onclick = () => { wizCard.querySelectorAll(".gr-verdict-btn").forEach(b => b.classList.remove("selected")); warnBtn.classList.add("selected"); submitInlineVerdict(wiz.card_id, "warn", opts); };
-      if (failBtn) failBtn.onclick = () => { wizCard.querySelectorAll(".gr-verdict-btn").forEach(b => b.classList.remove("selected")); failBtn.classList.add("selected"); submitInlineVerdict(wiz.card_id, "fail", opts); };
-      cEl.appendChild(wizCard);
-    });
+    if (passBtn) passBtn.onclick = () => onSelect('pass');
+    if (warnBtn) warnBtn.onclick = () => onSelect('warn');
+    if (failBtn) failBtn.onclick = () => onSelect('fail');
+
+    const notesInput = document.getElementById(`notes-${wiz.card_id}`);
+    if (notesInput) {
+      notesInput.addEventListener('input', () => {
+        if (inlineVerdicts[wiz.card_id]) {
+          inlineVerdicts[wiz.card_id].notes = notesInput.value;
+        }
+      });
+    }
+
+    cEl.appendChild(wizCard);
   }
 
   function isQuestionVisible(questionId) {
@@ -809,6 +930,9 @@ window.GuidedReview = (function() {
     finishAndGoToReport: finishAndGoToReport,
     getHumanReviewGuidance: getHumanReviewGuidance,
     submitInlineVerdict: submitInlineVerdict,
+    goToInlineStep: goToInlineStep,
+    prevInlineStep: prevInlineStep,
+    nextInlineStep: nextInlineStep,
     isQuestionVisible: isQuestionVisible,
     FAMILY_BY_CARD_ID: FAMILY_BY_CARD_ID
   };

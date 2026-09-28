@@ -2367,19 +2367,28 @@ p, span, h1, h2, h3, h4, h5, h6, li, a, td, th {
   align-items: center;
 }
 
-.gr-question-dots span {
-  width: 8px;
-  height: 8px;
+.gr-question-dots span,
+.gr-question-dots button,
+.gr-dot-btn {
+  width: 10px;
+  height: 10px;
   border-radius: 50%;
   background: var(--border-default);
   transition: all var(--duration-snappy);
+  cursor: pointer;
+  border: none;
+  padding: 0;
 }
 
-.gr-question-dots span.is-done {
+.gr-question-dots span.is-done,
+.gr-question-dots button.is-done,
+.gr-dot-btn.is-done {
   background: var(--status-success);
 }
 
-.gr-question-dots span.is-current {
+.gr-question-dots span.is-current,
+.gr-question-dots button.is-current,
+.gr-dot-btn.is-current {
   background: var(--brand-500);
   box-shadow: 0 0 0 2px var(--brand-100);
   transform: scale(1.2);
