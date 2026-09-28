@@ -41,6 +41,9 @@
     saveVaultData(data) {
       try {
         localStorage.setItem(VAULT_STORAGE_KEY, JSON.stringify(data));
+        if (window.AreosNav && typeof window.AreosNav.renderSidebarFooter === 'function') {
+          window.AreosNav.renderSidebarFooter();
+        }
       } catch (e) {
         console.error("Failed to save to BYOK localStorage vault:", e);
       }
@@ -207,15 +210,16 @@
       }
     }
 
-    async handleAddKey() {
-      const provSel = document.getElementById('byok-select-provider');
-      const keyInput = document.getElementById('byok-input-key');
-      const provider = provSel.value;
-      const apiKey = keyInput.value.trim();
+    async handleAddKey(mode = 'modal') {
+      const isInline = mode === 'inline';
+      const provSel = document.getElementById(isInline ? 'byok-inline-select-provider' : 'byok-select-provider');
+      const keyInput = document.getElementById(isInline ? 'byok-inline-input-key' : 'byok-input-key');
+      const provider = provSel ? provSel.value : 'google';
+      const apiKey = keyInput ? keyInput.value.trim() : '';
 
       if (!apiKey) {
         this.showPrivateSessionAlert('Please paste a valid API key first.', 'error');
-        keyInput.focus();
+        if (keyInput) keyInput.focus();
         return;
       }
 
@@ -229,7 +233,7 @@
       };
       this.saveVaultData(vault);
 
-      keyInput.value = '';
+      if (keyInput) keyInput.value = '';
       this.renderTable();
 
       await this.verifyKey(provider, apiKey);
@@ -318,70 +322,134 @@
       }
     }
 
-    renderTable() {
-      const container = document.getElementById('byok-keys-table-container');
+    renderInline(container) {
       if (!container) return;
-      const vault = this.getVaultData();
-      const entries = Object.entries(vault);
-
-      if (entries.length === 0) {
-        container.innerHTML = `
-          <div style="padding: 32px 20px; text-align: center; color: #64748B; font-size: 0.92rem;">
-            <div style="font-weight: 700; color: #0F172A; margin-bottom: 4px;">No AI provider keys configured in this local vault.</div>
-            <div style="font-size: 0.82rem; color: #94A3B8;">Select a provider above, paste your secret token, and click <strong>Add & Test Key</strong> to begin.</div>
-          </div>
-        `;
-        return;
-      }
-
-      let rowsHtml = '';
-      for (const [prov, data] of entries) {
-        const info = PROVIDER_INFO[prov] || { name: prov.toUpperCase(), tag: "Custom" };
-        const keyMasked = data.key ? data.key.slice(0, 5) + "••••••••••••••••" : "Empty";
-        
-        let statusTag = `<span style="display:inline-flex; align-items:center; gap:6px; background:#F1F5F9; color:#64748B; padding:3px 10px; border-radius:12px; font-size:0.75rem; font-weight:700; border:1px solid #CBD5E1;">VERIFYING...</span>`;
-        if (data.status === 'live') {
-          statusTag = `<span style="display:inline-flex; align-items:center; gap:6px; background:#ECFDF5; color:#059669; padding:3px 10px; border-radius:12px; font-size:0.75rem; font-weight:700; border:1px solid #A7F3D0;">LIVE (${data.latencyMs || 0}ms)</span>`;
-        } else if (data.status === 'unverified') {
-          statusTag = `<span style="display:inline-flex; align-items:center; gap:6px; background:#FFFBEB; color:#D97706; padding:3px 10px; border-radius:12px; font-size:0.75rem; font-weight:700; border:1px solid #FDE68A;" title="${data.lastMsg || 'Syntax Valid'}">UNVERIFIED</span>`;
-        } else if (data.status === 'offline') {
-          statusTag = `<span style="display:inline-flex; align-items:center; gap:6px; background:#FFF1F2; color:#E11D48; padding:3px 10px; border-radius:12px; font-size:0.75rem; font-weight:700; border:1px solid #FECDD3;" title="${data.lastMsg || 'Invalid Key'}">OFFLINE</span>`;
-        }
-
-        rowsHtml += `
-          <div class="byok-key-row" style="display:grid; grid-template-columns: minmax(180px, 1.5fr) minmax(140px, 1.2fr) minmax(140px, 1fr) auto; gap:16px; align-items:center; padding:14px 18px; border-bottom:1px solid #E2E8F0; background:#FFFFFF;">
-            <div>
-              <div style="color:#0F172A; font-weight:700; font-size:0.92rem;">
-                ${info.name}
-              </div>
-              <div style="font-size:0.75rem; color:#94A3B8; margin-top:2px;">${info.tag}</div>
-            </div>
-            <div style="font-family:monospace; color:#334155; font-size:0.85rem; background:#F1F5F9; padding:4px 8px; border-radius:4px; border:1px solid #E2E8F0; width: fit-content;">
-              ${keyMasked}
-            </div>
-            <div>
-              ${statusTag}
-              ${data.status === 'offline' ? `<div style="font-size:0.75rem; color:#E11D48; margin-top:2px;">${data.lastMsg || ''}</div>` : ''}
-            </div>
-            <div style="display:flex; gap:8px; justify-content:flex-end;">
-              <button onclick="window.BYOKVault.verifyKey('${prov}')" title="Test Live Status" style="background:#FFFFFF; border:1px solid #CBD5E1; color:#0F172A; padding:5px 10px; border-radius:4px; font-size:0.78rem; cursor:pointer; font-weight:600;">Test</button>
-              <button onclick="window.BYOKVault.deleteKey('${prov}')" title="Delete Key from Vault" style="background:#FFF1F2; border:1px solid #FECDD3; color:#E11D48; padding:5px 10px; border-radius:4px; font-size:0.78rem; cursor:pointer; font-weight:700;">Remove</button>
-            </div>
-          </div>
-        `;
-      }
-
+      this.inlineContainer = container;
       container.innerHTML = `
-        <div style="display:flex; flex-direction:column;">
-          ${rowsHtml}
+        <div class="card" style="background: var(--surface-card, #FFFFFF); border: 1px solid var(--border-default, #E2E8F0); border-radius: 8px; padding: 20px; margin-bottom: 24px;">
+          <h3 style="color: var(--text-primary, #0F172A); font-size: 0.95rem; font-weight: 700; margin: 0 0 14px 0; text-transform: uppercase; letter-spacing: 0.05em;">Add New AI Provider Key</h3>
+          <div class="byok-add-form-grid" style="display: grid; grid-template-columns: minmax(200px, 1fr) 2fr auto; gap: 12px; align-items: stretch;">
+            <div>
+              <select id="byok-inline-select-provider" class="input" style="width: 100%; height: 44px; padding: 8px 12px; background: var(--surface-card, #FFFFFF); border: 1px solid var(--border-default, #CBD5E1); color: var(--text-primary, #0F172A); border-radius: 6px; font-weight: 600; font-size: 0.9rem;">
+                ${Object.entries(PROVIDER_INFO).map(([key, info]) => `<option value="${key}">${info.name}</option>`).join('')}
+              </select>
+            </div>
+            <div style="position: relative; display: flex; align-items: center;">
+              <input type="password" id="byok-inline-input-key" class="input" placeholder="Paste ephemeral API key (e.g. AIza... or sk-...)" style="width: 100%; height: 44px; padding: 8px 40px 8px 14px; background: var(--surface-card, #FFFFFF); border: 1px solid var(--border-default, #CBD5E1); color: var(--text-primary, #0F172A); border-radius: 6px; font-family: monospace; font-size: 0.9rem;" />
+              <button type="button" id="byok-inline-toggle-eye" title="Show/Hide Secret Key" style="position: absolute; right: 8px; background: transparent; border: none; color: var(--text-tertiary, #94A3B8); cursor: pointer; padding: 6px; display: flex; align-items: center;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg></button>
+            </div>
+            <button id="byok-inline-add-btn" class="btn-primary" style="height: 44px; padding: 0 20px; font-weight: 700; font-size: 0.85rem; white-space: nowrap; text-transform: uppercase;">
+              Add & Test Key
+            </button>
+          </div>
+        </div>
+
+        <div class="card" style="background: var(--surface-card, #FFFFFF); border: 1px solid var(--border-default, #E2E8F0); border-radius: 8px; padding: 20px;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+            <h3 style="color: var(--text-primary, #0F172A); font-size: 0.95rem; font-weight: 700; margin: 0; text-transform: uppercase; letter-spacing: 0.05em;">Active Local Vault Credentials</h3>
+            <button id="byok-inline-refresh-all-btn" style="background: var(--surface-card, #FFFFFF); border: 1px solid var(--border-default, #CBD5E1); color: var(--text-primary, #0F172A); padding: 5px 12px; border-radius: 6px; font-size: 0.78rem; font-weight: 700; cursor: pointer;">Verify All Live Status</button>
+          </div>
+          <div id="byok-inline-keys-table-container" style="background: var(--surface-card, #FFFFFF); border: 1px solid var(--border-default, #E2E8F0); border-radius: 8px; overflow: hidden; min-height: 80px;">
+          </div>
         </div>
       `;
+
+      const keyInput = document.getElementById('byok-inline-input-key');
+      const eyeBtn = document.getElementById('byok-inline-toggle-eye');
+      if (eyeBtn && keyInput) {
+        eyeBtn.addEventListener('click', () => {
+          keyInput.type = keyInput.type === 'password' ? 'text' : 'password';
+        });
+      }
+
+      const addBtn = document.getElementById('byok-inline-add-btn');
+      if (addBtn) {
+        addBtn.addEventListener('click', () => this.handleAddKey('inline'));
+      }
+
+      const refreshBtn = document.getElementById('byok-inline-refresh-all-btn');
+      if (refreshBtn) {
+        refreshBtn.addEventListener('click', () => this.verifyAllKeys());
+      }
+
+      if (keyInput) {
+        keyInput.addEventListener('keydown', (e) => {
+          if (e.key === 'Enter') {
+            e.preventDefault();
+            this.handleAddKey('inline');
+          }
+        });
+      }
+
+      this.renderTable();
+    }
+
+    renderTable() {
+      const vault = this.getVaultData();
+      const entries = Object.entries(vault);
+      let contentHtml = '';
+
+      if (entries.length === 0) {
+        contentHtml = `
+          <div style="padding: 32px 20px; text-align: center; color: var(--text-secondary, #64748B); font-size: 0.92rem;">
+            <div style="font-weight: 700; color: var(--text-primary, #0F172A); margin-bottom: 4px;">No AI provider keys configured in this local vault.</div>
+            <div style="font-size: 0.82rem; color: var(--text-tertiary, #94A3B8);">Select a provider above, paste your secret token, and click <strong>Add & Test Key</strong> to begin.</div>
+          </div>
+        `;
+      } else {
+        let rowsHtml = '';
+        for (const [prov, data] of entries) {
+          const info = PROVIDER_INFO[prov] || { name: prov.toUpperCase(), tag: "Custom" };
+          const keyMasked = data.key ? data.key.slice(0, 5) + "••••••••••••••••" : "Empty";
+          
+          let statusTag = `<span style="display:inline-flex; align-items:center; gap:6px; background:var(--surface-sunken, #F1F5F9); color:var(--text-secondary, #64748B); padding:3px 10px; border-radius:12px; font-size:0.75rem; font-weight:700; border:1px solid var(--border-default, #CBD5E1);">VERIFYING...</span>`;
+          if (data.status === 'live') {
+            statusTag = `<span style="display:inline-flex; align-items:center; gap:6px; background:var(--status-success-bg, #ECFDF5); color:var(--status-success, #059669); padding:3px 10px; border-radius:12px; font-size:0.75rem; font-weight:700; border:1px solid var(--status-success-border, #A7F3D0);">LIVE (${data.latencyMs || 0}ms)</span>`;
+          } else if (data.status === 'unverified') {
+            statusTag = `<span style="display:inline-flex; align-items:center; gap:6px; background:var(--status-warning-bg, #FFFBEB); color:var(--status-warning, #D97706); padding:3px 10px; border-radius:12px; font-size:0.75rem; font-weight:700; border:1px solid var(--status-warning-border, #FDE68A);" title="${data.lastMsg || 'Syntax Valid'}">UNVERIFIED</span>`;
+          } else if (data.status === 'offline') {
+            statusTag = `<span style="display:inline-flex; align-items:center; gap:6px; background:var(--status-danger-bg, #FFF1F2); color:var(--status-danger, #E11D48); padding:3px 10px; border-radius:12px; font-size:0.75rem; font-weight:700; border:1px solid var(--status-danger-border, #FECDD3);" title="${data.lastMsg || 'Invalid Key'}">OFFLINE</span>`;
+          }
+
+          rowsHtml += `
+            <div class="byok-key-row" style="display:grid; grid-template-columns: minmax(180px, 1.5fr) minmax(140px, 1.2fr) minmax(140px, 1fr) auto; gap:16px; align-items:center; padding:14px 18px; border-bottom:1px solid var(--border-default, #E2E8F0); background:var(--surface-card, #FFFFFF);">
+              <div>
+                <div style="color:var(--text-primary, #0F172A); font-weight:700; font-size:0.92rem;">
+                  ${info.name}
+                </div>
+                <div style="font-size:0.75rem; color:var(--text-tertiary, #94A3B8); margin-top:2px;">${info.tag}</div>
+              </div>
+              <div style="font-family:monospace; color:var(--text-secondary, #334155); font-size:0.85rem; background:var(--surface-sunken, #F1F5F9); padding:4px 8px; border-radius:4px; border:1px solid var(--border-default, #E2E8F0); width: fit-content;">
+                ${keyMasked}
+              </div>
+              <div>
+                ${statusTag}
+                ${data.status === 'offline' ? `<div style="font-size:0.75rem; color:var(--status-danger, #E11D48); margin-top:2px;">${data.lastMsg || ''}</div>` : ''}
+              </div>
+              <div style="display:flex; gap:8px; justify-content:flex-end;">
+                <button onclick="window.BYOKVault.verifyKey('${prov}')" title="Test Live Status" style="background:var(--surface-card, #FFFFFF); border:1px solid var(--border-default, #CBD5E1); color:var(--text-primary, #0F172A); padding:5px 10px; border-radius:4px; font-size:0.78rem; cursor:pointer; font-weight:600;">Test</button>
+                <button onclick="window.BYOKVault.deleteKey('${prov}')" title="Delete Key from Vault" style="background:var(--status-danger-bg, #FFF1F2); border:1px solid var(--status-danger-border, #FECDD3); color:var(--status-danger, #E11D48); padding:5px 10px; border-radius:4px; font-size:0.78rem; cursor:pointer; font-weight:700;">Remove</button>
+              </div>
+            </div>
+          `;
+        }
+        contentHtml = `<div style="display:flex; flex-direction:column;">${rowsHtml}</div>`;
+      }
+
+      const modalCont = document.getElementById('byok-keys-table-container');
+      if (modalCont) modalCont.innerHTML = contentHtml;
+      const inlineCont = document.getElementById('byok-inline-keys-table-container');
+      if (inlineCont) inlineCont.innerHTML = contentHtml;
     }
   }
 
   function initByok() {
     if (!window.BYOKVault) {
       window.BYOKVault = new ByokVaultManager();
+    }
+    const inlineContainer = document.getElementById('byok-vault-container');
+    if (inlineContainer && window.BYOKVault && !window.BYOKVault.inlineContainer) {
+      window.BYOKVault.renderInline(inlineContainer);
     }
   }
   if (document.readyState === 'loading') {
