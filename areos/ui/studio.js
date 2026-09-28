@@ -8,8 +8,12 @@ document.addEventListener('DOMContentLoaded', () => {
  // elements (.step-dot / .step-label), so a click on the number or
  // label text must still resolve to the button itself, not the span.
  const target = e.currentTarget;
- tabBtns.forEach(b => b.classList.remove('active'));
+ tabBtns.forEach(b => {
+   b.classList.remove('active');
+   b.setAttribute('aria-selected', 'false');
+ });
  target.classList.add('active');
+ target.setAttribute('aria-selected', 'true');
 
  document.querySelectorAll('.tab-content').forEach(content => {
  content.style.display = 'none';
@@ -178,9 +182,15 @@ document.addEventListener("DOMContentLoaded", () => {
  // of which tab was active before the run (fixes UX + automation).
  document.querySelectorAll('.tab-content').forEach(el => el.style.display = 'none');
  document.getElementById('tab-results').style.display = 'block';
- document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+ document.querySelectorAll('.tab-btn').forEach(b => {
+   b.classList.remove('active');
+   b.setAttribute('aria-selected', 'false');
+ });
  const resTabBtn = document.querySelector('.tab-btn[data-tab="tab-results"]');
- if (resTabBtn) resTabBtn.classList.add('active');
+ if (resTabBtn) {
+   resTabBtn.classList.add('active');
+   resTabBtn.setAttribute('aria-selected', 'true');
+ }
  if (typeof syncStepper === 'function') syncStepper();
  resultsArea.scrollIntoView({ behavior: "smooth" });
  } catch (err) {
@@ -1244,10 +1254,16 @@ function renderSynthesisTab(data) {
   }
 
   // Auto-switch to synthesis tab to show results
-  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b => {
+    b.classList.remove('active');
+    b.setAttribute('aria-selected', 'false');
+  });
   document.querySelectorAll('.tab-content').forEach(c => c.style.display = 'none');
   const synthBtn = document.getElementById('tab-btn-synthesis');
-  if (synthBtn) synthBtn.classList.add('active');
+  if (synthBtn) {
+    synthBtn.classList.add('active');
+    synthBtn.setAttribute('aria-selected', 'true');
+  }
   document.getElementById('tab-synthesis').style.display = 'block';
 
   if (typeof syncFinalReportButton === 'function') syncFinalReportButton();
@@ -1288,10 +1304,16 @@ async function triggerPostWizardSynthesis() {
     <span style="color:#64748b; font-size:0.85rem;">Your human review verdicts are being merged with the automated findings.</span>`;
 
   // Switch to the synthesis tab so user sees progress
-  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b => {
+    b.classList.remove('active');
+    b.setAttribute('aria-selected', 'false');
+  });
   document.querySelectorAll('.tab-content').forEach(c => c.style.display = 'none');
   const synthBtn = document.getElementById('tab-btn-synthesis');
-  if (synthBtn) synthBtn.classList.add('active');
+  if (synthBtn) {
+    synthBtn.classList.add('active');
+    synthBtn.setAttribute('aria-selected', 'true');
+  }
   const synthTab = document.getElementById('tab-synthesis');
   if (synthTab) synthTab.style.display = 'block';
   // TQ-008: Lock all wizard inputs immediately to prevent modification during synthesis

@@ -2738,6 +2738,9 @@ p, span, h1, h2, h3, h4, h5, h6, li, a, td, th {
   }
 
   .studio-stepper .step-btn {
+    min-height: 48px;
+    min-width: 48px;
+    justify-content: center;
     padding: 6px 8px !important;
     font-size: 0.75rem !important;
     gap: 4px !important;
@@ -2755,6 +2758,11 @@ p, span, h1, h2, h3, h4, h5, h6, li, a, td, th {
 @media (max-width: 480px) {
   .studio-stepper .step-connector {
     display: none !important;
+  }
+
+  .studio-stepper .step-btn {
+    min-height: 48px;
+    min-width: 48px;
   }
 
   .studio-stepper .step-btn .step-label {
