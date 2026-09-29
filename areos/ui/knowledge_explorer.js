@@ -14,14 +14,25 @@ const filterType = document.getElementById('filter-type');
 const filterPinned = document.getElementById('filter-pinned');
 const btnReset = document.getElementById('btn-reset');
 
+function closeDrawer() {
+  const drawer = document.getElementById('knowledge-drawer');
+  if (drawer) drawer.style.display = 'none';
+  knowledgeContainer.querySelectorAll('.index-row.focused, .index-row.highlight-target').forEach(r => {
+    r.classList.remove('focused');
+    r.classList.remove('highlight-target');
+  });
+  document.querySelector('.claims-layout')?.classList.remove('drawer-open');
+  if (drawerDialog && typeof drawerDialog.close === 'function') {
+    drawerDialog.close();
+  }
+  setUrlKid(null, true);
+}
+
 const drawerDialog = makeDialogAccessible(document.getElementById('knowledge-drawer'), {
- label: 'Knowledge Detail',
- onClose: () => {
- document.getElementById('knowledge-drawer').style.display = 'none';
- knowledgeContainer.querySelectorAll('.index-row.focused').forEach(r => r.classList.remove('focused'));
- document.querySelector('.claims-layout')?.classList.remove('drawer-open');
- drawerDialog.close();
- },
+  label: 'Knowledge Detail',
+  onClose: () => {
+    closeDrawer();
+  },
 });
 
 // State
@@ -38,6 +49,54 @@ const storageKeyPins = `areos_kb_pins_${analystId}`;
 const storageKeyFilters = `areos_kb_filters_${analystId}`;
 
 let pinnedRecords = new Set(JSON.parse(localStorage.getItem(storageKeyPins) || '[]'));
+
+function getTargetKidFromUrl() {
+  try {
+    const url = new URL(window.location.href);
+    const qKid = url.searchParams.get('kid') || url.searchParams.get('id') || url.searchParams.get('claim');
+    if (qKid) return qKid.trim().toUpperCase();
+
+    const hash = window.location.hash ? window.location.hash.substring(1) : '';
+    if (hash) {
+      const match = hash.match(/(?:kid=|id=|claim=)?(KT-\d+)/i);
+      if (match) return match[1].toUpperCase();
+    }
+  } catch (e) {
+    console.error('Failed to parse URL for kid:', e);
+  }
+  return null;
+}
+
+function setUrlKid(kid, replace = true) {
+  try {
+    const url = new URL(window.location.href);
+    if (kid) {
+      url.searchParams.set('kid', kid);
+      url.searchParams.delete('id');
+      url.searchParams.delete('claim');
+      if (url.hash && /KT-\d+/i.test(url.hash)) {
+        url.hash = '';
+      }
+    } else {
+      url.searchParams.delete('kid');
+      url.searchParams.delete('id');
+      url.searchParams.delete('claim');
+      if (url.hash && /KT-\d+/i.test(url.hash)) {
+        url.hash = '';
+      }
+    }
+    const newRelativePath = url.pathname + (url.searchParams.toString() ? '?' + url.searchParams.toString() : '') + (url.hash || '');
+    if (window.location.pathname + window.location.search + window.location.hash !== newRelativePath) {
+      if (replace) {
+        window.history.replaceState({ kid }, '', newRelativePath);
+      } else {
+        window.history.pushState({ kid }, '', newRelativePath);
+      }
+    }
+  } catch (e) {
+    console.error('Failed to update URL state:', e);
+  }
+}
 
 async function fetchKBStats() {
   try {
@@ -72,342 +131,419 @@ const iconPinUnfilled = `<svg viewBox="0 0 24 24" fill="none" stroke="currentCol
 const iconSource = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path></svg>`;
 
 function loadSavedFilters() {
- try {
- const saved = JSON.parse(localStorage.getItem(storageKeyFilters));
- if (saved) {
- if(saved.search) searchInput.value = saved.search;
- if(saved.scope) filterScope.value = saved.scope;
- if(saved.status) filterStatus.value = saved.status;
- if(saved.confidence) filterConfidence.value = saved.confidence;
- if(saved.type) filterType.value = saved.type;
- if(saved.pinned) filterPinned.checked = saved.pinned;
- }
- } catch(e) {}
+  try {
+    const saved = JSON.parse(localStorage.getItem(storageKeyFilters));
+    if (saved) {
+      if (saved.search) searchInput.value = saved.search;
+      if (saved.scope) filterScope.value = saved.scope;
+      if (saved.status) filterStatus.value = saved.status;
+      if (saved.confidence) filterConfidence.value = saved.confidence;
+      if (saved.type) filterType.value = saved.type;
+      if (saved.pinned) filterPinned.checked = saved.pinned;
+    }
+  } catch (e) {}
 }
 
 function saveFilters() {
- const filters = {
- search: searchInput.value,
- scope: filterScope.value,
- status: filterStatus.value,
- confidence: filterConfidence.value,
- type: filterType.value,
- pinned: filterPinned.checked
- };
- localStorage.setItem(storageKeyFilters, JSON.stringify(filters));
+  const filters = {
+    search: searchInput.value,
+    scope: filterScope.value,
+    status: filterStatus.value,
+    confidence: filterConfidence.value,
+    type: filterType.value,
+    pinned: filterPinned.checked
+  };
+  localStorage.setItem(storageKeyFilters, JSON.stringify(filters));
 }
 
 function togglePin(kid, btn) {
- if (pinnedRecords.has(kid)) {
- pinnedRecords.delete(kid);
- btn.innerHTML = iconPinUnfilled;
- btn.classList.remove('pinned');
- } else {
- pinnedRecords.add(kid);
- btn.innerHTML = '';
- btn.classList.add('pinned');
- }
- localStorage.setItem(storageKeyPins, JSON.stringify(Array.from(pinnedRecords)));
+  if (pinnedRecords.has(kid)) {
+    pinnedRecords.delete(kid);
+    btn.innerHTML = iconPinUnfilled;
+    btn.classList.remove('pinned');
+  } else {
+    pinnedRecords.add(kid);
+    btn.innerHTML = '';
+    btn.classList.add('pinned');
+  }
+  localStorage.setItem(storageKeyPins, JSON.stringify(Array.from(pinnedRecords)));
 }
 
-async function fetchKnowledge(isLoadMore = false) {
- if (!isLoadMore) {
- offset = 0;
- currentRecords = [];
- knowledgeContainer.innerHTML = `<div class="loader-container"><div class="spinner"></div></div>`;
- focusedIndex = -1;
- } else {
- const btn = document.getElementById('btn-load-more');
- if (btn) btn.textContent = 'Loading...';
- }
+function createRecordRow(record, actualIndex) {
+  const row = document.createElement('div');
+  row.className = 'index-row';
+  row.dataset.id = record.kid;
+  row.dataset.index = actualIndex !== undefined ? actualIndex : -1;
 
- if (currentAbortController) currentAbortController.abort();
- currentAbortController = new AbortController();
+  const isContested = record.status === 'contested';
+  const isPinned = pinnedRecords.has(record.kid);
+  const typeClass = `type-${record.type.toLowerCase()}`;
 
- saveFilters();
+  row.innerHTML = `
+    <div class="index-row-header">
+      ${isContested ? `<div class="priority-indicator" title="Contested">${iconWarning}</div>` : ''}
+      <div class="badge ${typeClass}" style="flex-shrink:0; margin-top:1px;">${record.type}</div>
+      <div class="row-id" style="flex-shrink:0; font-family: var(--font-mono); font-size: 0.8125rem; color: var(--text-secondary); width: 65px; margin-top:2px;">${record.kid}</div>
+      <div class="row-statement-preview"></div>
+      <button class="btn-pin ${isPinned ? 'pinned' : ''}" style="flex-shrink:0; margin-left:auto; background:none; border:none; cursor:pointer; color:var(--text-secondary); font-size:1.2rem;" aria-label="Pin claim">
+        ${isPinned ? '' : iconPinUnfilled}
+      </button>
+    </div>
+  `;
 
- const params = new URLSearchParams();
- if (searchInput.value) params.append("search_query", searchInput.value);
- if (filterScope.value) params.append("scope", filterScope.value);
- if (filterStatus.value) params.append("status", filterStatus.value);
- if (filterConfidence.value) params.append("confidence", filterConfidence.value);
- if (filterType.value) params.append("type", filterType.value);
- 
- params.append("limit", LIMIT);
- params.append("offset", offset);
+  row.querySelector('.row-statement-preview').textContent = record.statement;
 
- try {
- const response = await AreosAPI.fetch(`/knowledge?${params.toString()}`, {
- signal: currentAbortController.signal
- });
+  const pinBtn = row.querySelector('.btn-pin');
+  if (pinBtn) {
+    pinBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      togglePin(record.kid, pinBtn);
+    });
+  }
 
- if (!response.ok) throw new Error("Failed to fetch");
+  row.addEventListener('click', (e) => {
+    if (e.target.closest('.btn-pin')) return;
+    setUrlKid(record.kid, false);
+    loadAndOpenDrawer(record);
+    focusAndHighlightTarget(record.kid);
+  });
 
- const data = await response.json();
- totalCount = data.total_count || 0;
- 
- let fetched = data.records;
- if (filterPinned.checked) {
- fetched = fetched.filter(c => pinnedRecords.has(c.kid));
- totalCount = pinnedRecords.size;
- }
+  return row;
+}
 
- if (!isLoadMore) {
- currentRecords = fetched;
- knowledgeContainer.innerHTML = '';
- } else {
- currentRecords = currentRecords.concat(fetched);
- const btn = document.getElementById('btn-load-more');
- if (btn) btn.remove();
- }
- 
- renderRecords(fetched, isLoadMore);
- } catch (err) {
- if (err.name === 'AbortError') return;
- if (!isLoadMore) knowledgeContainer.innerHTML = '';
- AreosAPI.notify(`Error loading knowledge: ${err.message}`, 'error');
- if (totalKnowledgeSpan) totalKnowledgeSpan.textContent = "Error";
- }
+function focusAndHighlightTarget(kid) {
+  if (!kid) return;
+  knowledgeContainer.querySelectorAll('.index-row.focused, .index-row.highlight-target').forEach(r => {
+    r.classList.remove('focused');
+    r.classList.remove('highlight-target');
+  });
+  const row = knowledgeContainer.querySelector(`[data-id="${kid}"]`);
+  if (row) {
+    row.classList.add('focused');
+    row.classList.add('highlight-target');
+    if (row.dataset.index !== undefined && row.dataset.index !== '-1') {
+      focusedIndex = parseInt(row.dataset.index, 10);
+    }
+    row.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }
+}
+
+async function fetchKnowledge(isLoadMore = false, targetKid = null) {
+  if (!isLoadMore) {
+    offset = 0;
+    currentRecords = [];
+    knowledgeContainer.innerHTML = `<div class="loader-container"><div class="spinner"></div></div>`;
+    focusedIndex = -1;
+  } else {
+    const btn = document.getElementById('btn-load-more');
+    if (btn) btn.textContent = 'Loading...';
+  }
+
+  if (currentAbortController) currentAbortController.abort();
+  currentAbortController = new AbortController();
+
+  saveFilters();
+
+  const params = new URLSearchParams();
+  if (searchInput.value) params.append("search_query", searchInput.value);
+  if (filterScope.value) params.append("scope", filterScope.value);
+  if (filterStatus.value) params.append("status", filterStatus.value);
+  if (filterConfidence.value) params.append("confidence", filterConfidence.value);
+  if (filterType.value) params.append("type", filterType.value);
+  
+  const fetchLimit = targetKid && !isLoadMore ? Math.max(LIMIT, totalDatabaseRecords || 250) : LIMIT;
+  params.append("limit", fetchLimit);
+  params.append("offset", offset);
+
+  try {
+    const response = await AreosAPI.fetch(`/knowledge?${params.toString()}`, {
+      signal: currentAbortController.signal
+    });
+
+    if (!response.ok) throw new Error("Failed to fetch");
+
+    const data = await response.json();
+    totalCount = data.total_count || 0;
+    
+    let fetched = data.records;
+    if (filterPinned.checked) {
+      fetched = fetched.filter(c => pinnedRecords.has(c.kid));
+      totalCount = pinnedRecords.size;
+    }
+
+    if (!isLoadMore) {
+      currentRecords = fetched;
+      knowledgeContainer.innerHTML = '';
+    } else {
+      currentRecords = currentRecords.concat(fetched);
+      const btn = document.getElementById('btn-load-more');
+      if (btn) btn.remove();
+    }
+    
+    renderRecords(fetched, isLoadMore);
+
+    if (targetKid) {
+      focusAndHighlightTarget(targetKid);
+    }
+  } catch (err) {
+    if (err.name === 'AbortError') return;
+    if (!isLoadMore) knowledgeContainer.innerHTML = '';
+    AreosAPI.notify(`Error loading knowledge: ${err.message}`, 'error');
+    if (totalKnowledgeSpan) totalKnowledgeSpan.textContent = "Error";
+  }
 }
 
 function renderRecords(recordsToAppend, isLoadMore) {
- updateCountsDisplay();
+  updateCountsDisplay();
 
- if (currentRecords.length === 0) {
- knowledgeContainer.innerHTML = `<div class="no-results">No records match the selected filters.</div>`;
- return;
- }
+  if (currentRecords.length === 0) {
+    knowledgeContainer.innerHTML = `<div class="no-results">No records match the selected filters.</div>`;
+    return;
+  }
 
- recordsToAppend.forEach((record, idx) => {
- const row = document.createElement('div');
- row.className = 'index-row';
- row.dataset.id = record.kid;
- const actualIndex = isLoadMore ? (offset + idx) : idx;
- row.dataset.index = actualIndex;
-
- const isContested = record.status === 'contested';
- const isPinned = pinnedRecords.has(record.kid);
- const typeClass = `type-${record.type.toLowerCase()}`;
-
- row.innerHTML = `
- <div class="index-row-header">
- ${isContested ? `<div class="priority-indicator" title="Contested">${iconWarning}</div>` : ''}
- <div class="badge ${typeClass}" style="flex-shrink:0; margin-top:1px;">${record.type}</div>
- <div class="row-id" style="flex-shrink:0; font-family: var(--font-mono); font-size: 0.8125rem; color: var(--text-secondary); width: 65px; margin-top:2px;">${record.kid}</div>
- <div class="row-statement-preview"></div>
- <button class="btn-pin ${isPinned ? 'pinned' : ''}" style="flex-shrink:0; margin-left:auto; background:none; border:none; cursor:pointer; color:var(--text-secondary); font-size:1.2rem;" aria-label="Pin claim">
- ${isPinned ? '' : iconPinUnfilled}
- </button>
- </div>
- `;
-
- row.querySelector('.row-statement-preview').textContent = record.statement;
-
- const pinBtn = row.querySelector('.btn-pin');
- if (pinBtn) {
-  pinBtn.addEventListener('click', (e) => {
-  e.stopPropagation();
-  togglePin(record.kid, pinBtn);
+  recordsToAppend.forEach((record, idx) => {
+    const actualIndex = isLoadMore ? (offset + idx) : idx;
+    const row = createRecordRow(record, actualIndex);
+    knowledgeContainer.appendChild(row);
   });
- }
 
- row.addEventListener('click', (e) => {
- if(e.target.closest('.btn-pin')) return;
- loadAndOpenDrawer(record);
- updateFocusIndex(actualIndex);
- });
-
- knowledgeContainer.appendChild(row);
- });
-
- if (currentRecords.length < totalCount && !filterPinned.checked) {
- const btnLoadMore = document.createElement('button');
- btnLoadMore.id = 'btn-load-more';
- btnLoadMore.className = 'btn-secondary';
- btnLoadMore.style.cssText = 'width:100%; margin-top:20px; padding:12px;';
- btnLoadMore.textContent = 'Load More';
- btnLoadMore.onclick = () => {
- offset += LIMIT;
- fetchKnowledge(true);
- };
- knowledgeContainer.appendChild(btnLoadMore);
- }
+  if (currentRecords.length < totalCount && !filterPinned.checked) {
+    const btnLoadMore = document.createElement('button');
+    btnLoadMore.id = 'btn-load-more';
+    btnLoadMore.className = 'btn-secondary';
+    btnLoadMore.style.cssText = 'width:100%; margin-top:20px; padding:12px;';
+    btnLoadMore.textContent = 'Load More';
+    btnLoadMore.onclick = () => {
+      offset += LIMIT;
+      fetchKnowledge(true);
+    };
+    knowledgeContainer.appendChild(btnLoadMore);
+  }
 }
 
 function updateFocusIndex(idx) {
- focusedIndex = idx;
- knowledgeContainer.querySelectorAll('.index-row.focused').forEach(r => r.classList.remove('focused'));
- const row = knowledgeContainer.querySelector(`[data-index="${focusedIndex}"]`);
- if (row) {
- row.classList.add('focused');
- row.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
- }
+  focusedIndex = idx;
+  knowledgeContainer.querySelectorAll('.index-row.focused').forEach(r => r.classList.remove('focused'));
+  const row = knowledgeContainer.querySelector(`[data-index="${focusedIndex}"]`);
+  if (row) {
+    row.classList.add('focused');
+    row.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  }
 }
 
 async function loadAndOpenDrawer(record) {
- const drawer = document.getElementById('knowledge-drawer');
- const content = document.getElementById('drawer-content');
- if (!drawer || !content) return;
- 
- drawer.style.display = 'block';
- drawer.scrollTop = 0;
- document.querySelector('.claims-layout')?.classList.add('drawer-open');
- drawerDialog.open();
- content.innerHTML = `<div class="loader-container"><div class="spinner"></div></div>`;
+  const drawer = document.getElementById('knowledge-drawer');
+  const content = document.getElementById('drawer-content');
+  if (!drawer || !content) return null;
+  
+  drawer.style.display = 'block';
+  drawer.scrollTop = 0;
+  document.querySelector('.claims-layout')?.classList.add('drawer-open');
+  drawerDialog.open();
+  content.innerHTML = `<div class="loader-container"><div class="spinner"></div></div>`;
 
- try {
- const res = await AreosAPI.fetch(`/knowledge/${record.kid}`);
- if (!res.ok) throw new Error("Failed to load details");
- const detail = await res.json();
- renderDrawer(detail);
- } catch (err) {
- content.innerHTML = `<div style="color:var(--status-contested); padding:20px;">Error loading detail: ${err.message}</div>`;
- }
+  try {
+    const res = await AreosAPI.fetch(`/knowledge/${record.kid}`);
+    if (!res.ok) throw new Error("Failed to load details");
+    const detail = await res.json();
+    renderDrawer(detail);
+    return detail;
+  } catch (err) {
+    content.innerHTML = `<div style="color:var(--status-contested); padding:20px;">Error loading detail: ${err.message}</div>`;
+    return null;
+  }
 }
 
 function renderDrawer(detail) {
- const content = document.getElementById('drawer-content');
- const rec = detail.record;
- 
- 	const formatText = (text) => {
-		if (!text) return '';
-		const safe = typeof escapeHtml === 'function' ? escapeHtml(text) : String(text).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#039;');
-		return safe
-			.replace(/\*\*(.*?)\*\*/g, '<strong style="color:var(--text-primary); font-weight:600;">$1</strong>')
-			.replace(/\*(.*?)\*/g, '<em>$1</em>')
-			.replace(/`(.*?)`/g, '<code style="background:var(--surface-sunken); padding:2px 4px; border-radius:3px; font-family:var(--font-mono); font-size:0.9em; border:1px solid var(--border-default);">$1</code>');
-	};
+  const content = document.getElementById('drawer-content');
+  const rec = detail.record;
+  
+  const formatText = (text) => {
+    if (!text) return '';
+    const safe = typeof escapeHtml === 'function' ? escapeHtml(text) : String(text).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#039;');
+    return safe
+      .replace(/\*\*(.*?)\*\*/g, '<strong style="color:var(--text-primary); font-weight:600;">$1</strong>')
+      .replace(/\*(.*?)\*/g, '<em>$1</em>')
+      .replace(/`(.*?)`/g, '<code style="background:var(--surface-sunken); padding:2px 4px; border-radius:3px; font-family:var(--font-mono); font-size:0.9em; border:1px solid var(--border-default);">$1</code>');
+  };
 
- const typeClass = `type-${rec.type.toLowerCase()}`;
- const statusClass = `status-${rec.status.toLowerCase()}`;
+  const typeClass = `type-${rec.type.toLowerCase()}`;
+  const statusClass = `status-${rec.status.toLowerCase()}`;
 
- let html = `
- <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 12px;">
- <div style="display:flex; align-items:center; gap: 12px;">
- <span class="badge ${typeClass}">${rec.type}</span>
- <span class="badge ${statusClass}">${rec.status}</span>
- </div>
- <div style="font-family:var(--font-mono); font-size:0.9rem; color:var(--text-secondary);">${rec.kid}</div>
- </div>
- 
- <div style="margin: 16px 0; font-size:1.1rem; line-height:1.5; color: var(--text-primary);">
- ${formatText(rec.statement)}
- </div>
- `;
+  let html = `
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 12px;">
+      <div style="display:flex; align-items:center; gap: 12px;">
+        <span class="badge ${typeClass}">${rec.type}</span>
+        <span class="badge ${statusClass}">${rec.status}</span>
+      </div>
+      <div style="font-family:var(--font-mono); font-size:0.9rem; color:var(--text-secondary);">${rec.kid}</div>
+    </div>
+    
+    <div style="margin: 16px 0; font-size:1.1rem; line-height:1.5; color: var(--text-primary);">
+      ${formatText(rec.statement)}
+    </div>
+  `;
 
- if (rec.context) {
- html += `
-  <div style="margin-bottom: 24px; padding: 12px; background: var(--surface-sunken); border-radius: 6px; font-size: 0.95rem; line-height: 1.5; color: var(--text-secondary); border: 1px solid var(--border-default);">
- <strong>Context:</strong> ${formatText(rec.context)}
- </div>
- `;
- }
+  if (rec.context) {
+    html += `
+      <div style="margin-bottom: 24px; padding: 12px; background: var(--surface-sunken); border-radius: 6px; font-size: 0.95rem; line-height: 1.5; color: var(--text-secondary); border: 1px solid var(--border-default);">
+        <strong>Context:</strong> ${formatText(rec.context)}
+      </div>
+    `;
+  }
 
- if (rec.type === 'GUIDANCE' && rec.guidance_json) {
- try {
- const g = JSON.parse(rec.guidance_json);
- html += `
- <div style="margin-bottom: 24px; padding: 16px; border-left: 3px solid var(--accent); background: rgba(99,102,241,0.05);">
- <h4 style="margin-top:0; margin-bottom:8px; color:var(--text-primary); font-size:0.9rem; text-transform:uppercase;">Guidance Detail</h4>
- ${g.problem ? `<div style="margin-bottom:8px; font-size:0.95rem;"><strong>Problem:</strong> ${g.problem}</div>` : ''}
- ${g.action ? `<div style="font-size:0.95rem;"><strong>Action:</strong> ${g.action}</div>` : ''}
- </div>
- `;
- } catch(e) {}
- }
+  if (rec.type === 'GUIDANCE' && rec.guidance_json) {
+    try {
+      const g = JSON.parse(rec.guidance_json);
+      html += `
+        <div style="margin-bottom: 24px; padding: 16px; border-left: 3px solid var(--accent); background: rgba(99,102,241,0.05);">
+          <h4 style="margin-top:0; margin-bottom:8px; color:var(--text-primary); font-size:0.9rem; text-transform:uppercase;">Guidance Detail</h4>
+          ${g.problem ? `<div style="margin-bottom:8px; font-size:0.95rem;"><strong>Problem:</strong> ${g.problem}</div>` : ''}
+          ${g.action ? `<div style="font-size:0.95rem;"><strong>Action:</strong> ${g.action}</div>` : ''}
+        </div>
+      `;
+    } catch(e) {}
+  }
 
- html += `
- <div class="card-meta" style="display:flex; flex-wrap:wrap; gap:16px; margin-bottom:24px; border-bottom: 1px solid var(--border-subtle); padding-bottom: 16px;">
- <div class="meta-item" style="display:flex; align-items:center; gap:6px;">
- <span>Conf: <strong style="color:var(--text-primary);">${rec.confidence}</strong></span>
- </div>
- <div class="meta-item" style="display:flex; align-items:center; gap:6px;">
- <span>Support: <strong style="color:var(--text-primary);">${rec.support}</strong></span>
- </div>
- ${rec.scope ? `<div class="meta-item">Scope: <strong style="color:var(--text-primary);">${rec.scope}</strong></div>` : ''}
- </div>
- `;
+  html += `
+    <div class="card-meta" style="display:flex; flex-wrap:wrap; gap:16px; margin-bottom:24px; border-bottom: 1px solid var(--border-subtle); padding-bottom: 16px;">
+      <div class="meta-item" style="display:flex; align-items:center; gap:6px;">
+        <span>Conf: <strong style="color:var(--text-primary);">${rec.confidence}</strong></span>
+      </div>
+      <div class="meta-item" style="display:flex; align-items:center; gap:6px;">
+        <span>Support: <strong style="color:var(--text-primary);">${rec.support}</strong></span>
+      </div>
+      ${rec.scope ? `<div class="meta-item">Scope: <strong style="color:var(--text-primary);">${rec.scope}</strong></div>` : ''}
+    </div>
+  `;
 
- // Evidence Chain
- if (detail.evidence.length > 0) {
- html += `<h4 style="margin-bottom: 12px; font-size:0.9rem; text-transform:uppercase; color:var(--text-secondary);">Evidence Chain (${detail.evidence.length})</h4>`;
- html += `<div style="display:flex; flex-direction:column; gap:12px; margin-bottom:24px;">`;
- 
- detail.evidence.forEach(ev => {
- const src = detail.sources.find(s => s.sid === ev.sid);
- html += `
- <div style="padding: 12px; border: 1px solid var(--border-default); border-radius: 6px; background: var(--surface-panel);">
- <div style="display:flex; justify-content:space-between; margin-bottom:6px;">
- <div style="font-size: 0.85rem; font-family: var(--font-mono); color: var(--text-secondary);">${ev.eid}</div>
- <div style="font-size: 0.85rem;"><strong style="color:var(--brand-text-on-canvas);">${ev.relationship}</strong> (${ev.weight})</div>
- </div>
- `;
- if (ev.note) {
- html += `<div style="font-size: 0.95rem; margin-bottom: 8px;">${formatText(ev.note)}</div>`;
- }
- if (src) {
- html += `
- <div style="display:flex; gap: 8px; align-items: flex-start; margin-top: 8px; padding-top: 8px; border-top: 1px dashed var(--border-subtle);">
- <div style="color: var(--text-secondary); margin-top:2px;">${iconSource}</div>
- <div style="font-size: 0.9rem; overflow:hidden;">
- ${src.title ? `<div style="color:var(--text-primary); margin-bottom:2px;">${escapeHtml(src.title)}</div>` : ''}
- ${src.url ? `<a href="${safeUrl(src.url)}" target="_blank" style="color:var(--brand-text-on-canvas); text-decoration:none; word-break:break-all;">${escapeHtml(src.url)}</a>` : '<span style="color:var(--text-secondary);">Internal Document</span>'}
- ${src.publisher ? `<div style="color:var(--text-secondary); font-size:0.8rem; margin-top:2px;">${escapeHtml(src.publisher)} (${escapeHtml(src.authority)})</div>` : ''}
- </div>
- </div>
- `;
- }
- html += `</div>`;
- });
- 
- html += `</div>`;
- } else {
- html += `<div style="font-size:0.9rem; color:var(--text-secondary); margin-bottom:24px;">No evidence linked to this record.</div>`;
- }
+  // Evidence Chain
+  if (detail.evidence.length > 0) {
+    html += `<h4 style="margin-bottom: 12px; font-size:0.9rem; text-transform:uppercase; color:var(--text-secondary);">Evidence Chain (${detail.evidence.length})</h4>`;
+    html += `<div style="display:flex; flex-direction:column; gap:12px; margin-bottom:24px;">`;
+    
+    detail.evidence.forEach(ev => {
+      const src = detail.sources.find(s => s.sid === ev.sid);
+      html += `
+        <div style="padding: 12px; border: 1px solid var(--border-default); border-radius: 6px; background: var(--surface-panel);">
+          <div style="display:flex; justify-content:space-between; margin-bottom:6px;">
+            <div style="font-size: 0.85rem; font-family: var(--font-mono); color: var(--text-secondary);">${ev.eid}</div>
+            <div style="font-size: 0.85rem;"><strong style="color:var(--brand-text-on-canvas);">${ev.relationship}</strong> (${ev.weight})</div>
+          </div>
+      `;
+      if (ev.note) {
+        html += `<div style="font-size: 0.95rem; margin-bottom: 8px;">${formatText(ev.note)}</div>`;
+      }
+      if (src) {
+        html += `
+          <div style="display:flex; gap: 8px; align-items: flex-start; margin-top: 8px; padding-top: 8px; border-top: 1px dashed var(--border-subtle);">
+            <div style="color: var(--text-secondary); margin-top:2px;">${iconSource}</div>
+            <div style="font-size: 0.9rem; overflow:hidden;">
+              ${src.title ? `<div style="color:var(--text-primary); margin-bottom:2px;">${escapeHtml(src.title)}</div>` : ''}
+              ${src.url ? `<a href="${safeUrl(src.url)}" target="_blank" style="color:var(--brand-text-on-canvas); text-decoration:none; word-break:break-all;">${escapeHtml(src.url)}</a>` : '<span style="color:var(--text-secondary);">Internal Document</span>'}
+              ${src.publisher ? `<div style="color:var(--text-secondary); font-size:0.8rem; margin-top:2px;">${escapeHtml(src.publisher)} (${escapeHtml(src.authority)})</div>` : ''}
+            </div>
+          </div>
+        `;
+      }
+      html += `</div>`;
+    });
+    
+    html += `</div>`;
+  } else {
+    html += `<div style="font-size:0.9rem; color:var(--text-secondary); margin-bottom:24px;">No evidence linked to this record.</div>`;
+  }
 
- // Check Codes
- if (detail.related_check_codes.length > 0) {
- html += `<div style="margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--border-subtle);">
- <div style="font-size:0.85rem; color:var(--text-secondary); margin-bottom:8px;">Mapped Check Codes:</div>
- <div style="display:flex; flex-wrap:wrap; gap:8px;">
-  ${detail.related_check_codes.map(cc => `<span style="font-family:var(--font-mono); font-size:0.8rem; background:var(--surface-sunken); padding:2px 6px; border-radius:4px; border:1px solid var(--border-default);">${cc}</span>`).join('')}
- </div></div>`;
- }
+  // Check Codes
+  if (detail.related_check_codes.length > 0) {
+    html += `<div style="margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--border-subtle);">
+      <div style="font-size:0.85rem; color:var(--text-secondary); margin-bottom:8px;">Mapped Check Codes:</div>
+      <div style="display:flex; flex-wrap:wrap; gap:8px;">
+        ${detail.related_check_codes.map(cc => `<span style="font-family:var(--font-mono); font-size:0.8rem; background:var(--surface-sunken); padding:2px 6px; border-radius:4px; border:1px solid var(--border-default);">${cc}</span>`).join('')}
+      </div></div>`;
+  }
 
- content.innerHTML = html;
+  content.innerHTML = html;
 }
 
 // Bindings
 document.addEventListener('DOMContentLoaded', () => {
- loadSavedFilters();
- fetchKBStats();
- fetchKnowledge();
+  const initialKid = getTargetKidFromUrl();
 
- let debounce;
- searchInput.addEventListener('input', () => {
- clearTimeout(debounce);
- debounce = setTimeout(() => fetchKnowledge(), 300);
- });
+  if (initialKid) {
+    // Clear filters in inputs so the deep-linked claim isn't hidden by old localStorage session
+    searchInput.value = '';
+    filterScope.value = '';
+    filterStatus.value = '';
+    filterConfidence.value = '';
+    filterType.value = '';
+    filterPinned.checked = false;
 
- [filterScope, filterStatus, filterConfidence, filterType, filterPinned].forEach(el => {
- el.addEventListener('change', () => fetchKnowledge());
- });
+    // Open drawer immediately
+    loadAndOpenDrawer({ kid: initialKid }).then((detail) => {
+      if (detail && detail.record) {
+        const existing = knowledgeContainer.querySelector(`[data-id="${initialKid}"]`);
+        if (!existing) {
+          const row = createRecordRow(detail.record, 0);
+          const noRes = knowledgeContainer.querySelector('.no-results');
+          if (noRes) noRes.remove();
+          knowledgeContainer.prepend(row);
+          focusAndHighlightTarget(initialKid);
+        }
+      }
+    });
 
- btnReset.addEventListener('click', () => {
- searchInput.value = '';
- filterScope.value = '';
- filterStatus.value = '';
- filterConfidence.value = '';
- filterType.value = '';
- filterPinned.checked = false;
- fetchKnowledge();
- });
- 
- // Close drawer button
- document.getElementById('btn-close-drawer').addEventListener('click', () => {
- document.getElementById('knowledge-drawer').style.display = 'none';
- knowledgeContainer.querySelectorAll('.index-row.focused').forEach(r => r.classList.remove('focused'));
- document.querySelector('.claims-layout')?.classList.remove('drawer-open');
- drawerDialog.close();
- });
+    fetchKnowledge(false, initialKid);
+  } else {
+    loadSavedFilters();
+    fetchKnowledge();
+  }
+
+  fetchKBStats();
+
+  let debounce;
+  searchInput.addEventListener('input', () => {
+    clearTimeout(debounce);
+    debounce = setTimeout(() => fetchKnowledge(), 300);
+  });
+
+  [filterScope, filterStatus, filterConfidence, filterType, filterPinned].forEach(el => {
+    el.addEventListener('change', () => fetchKnowledge());
+  });
+
+  btnReset.addEventListener('click', () => {
+    searchInput.value = '';
+    filterScope.value = '';
+    filterStatus.value = '';
+    filterConfidence.value = '';
+    filterType.value = '';
+    filterPinned.checked = false;
+    setUrlKid(null, true);
+    fetchKnowledge();
+  });
+  
+  // Close drawer button
+  const closeBtn = document.getElementById('btn-close-drawer');
+  if (closeBtn) {
+    closeBtn.addEventListener('click', closeDrawer);
+  }
+
+  // History popstate and hashchange support
+  window.addEventListener('popstate', () => {
+    const currentKid = getTargetKidFromUrl();
+    if (currentKid) {
+      loadAndOpenDrawer({ kid: currentKid });
+      focusAndHighlightTarget(currentKid);
+    } else {
+      closeDrawer();
+    }
+  });
+
+  window.addEventListener('hashchange', () => {
+    const currentKid = getTargetKidFromUrl();
+    if (currentKid) {
+      loadAndOpenDrawer({ kid: currentKid });
+      focusAndHighlightTarget(currentKid);
+    }
+  });
 });

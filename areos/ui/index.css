@@ -846,6 +846,17 @@ a:hover {
   background: var(--brand-50) !important;
 }
 
+@keyframes highlight-pulse {
+  0% { box-shadow: 0 0 0 0 rgba(10, 102, 194, 0.4); }
+  50% { box-shadow: 0 0 0 6px rgba(10, 102, 194, 0.15); }
+  100% { box-shadow: 0 0 0 0 rgba(10, 102, 194, 0); }
+}
+
+.index-row.highlight-target {
+  animation: highlight-pulse 2s ease-out;
+}
+
+
 .index-row-header {
   cursor: pointer;
   display: flex;
