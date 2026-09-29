@@ -7,7 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="index.css?v=3">
+  <link rel="stylesheet" href="index.css?v=20260929">
   <link rel="icon" type="image/svg+xml" href="favicon.svg">
 
   <script src="vendor/marked.min.js"></script>
@@ -90,16 +90,22 @@
 
           <!-- Live Execution Pipeline Monitor (hidden until audit runs) -->
           <div id="execution-monitor" style="display:none;" class="card">
-            <h3 style="margin-top: 0; color: var(--text-secondary); font-family: var(--font-sans); font-size: 0.875rem; font-weight: 600; margin-bottom: 1rem; display: flex; align-items: center; gap: 8px;">
-              <span style="font-family: var(--font-mono); font-size: 0.75rem; background: var(--surface-sunken); padding: 2px 6px; border-radius: 4px; border: 1px solid var(--border-default); font-weight: 700; color: var(--text-secondary);">SYSTEM_LOG</span>
-              <span>Active Diagnostic Retrieval in Progress...</span>
-            </h3>
-            <div class="pipeline-stage" id="stage-robots"><div class="stage-icon active"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="animation:spin 1s linear infinite;"><circle cx="12" cy="12" r="10" stroke-opacity="0.25"/><path d="M12 2a10 10 0 0 1 10 10" stroke-opacity="0.85"/></svg></div><span class="pipeline-stage-tag">[LAYER 1/6]</span><span>Verifying AI Crawler Policies (robots.txt &amp; llms.txt)...</span></div>
-            <div class="pipeline-stage" id="stage-schema"><div class="stage-icon"></div><span class="pipeline-stage-tag">[LAYER 2/6]</span><span>Evaluating JSON-LD Schema Semantic Honesty...</span></div>
-            <div class="pipeline-stage" id="stage-extract"><div class="stage-icon"></div><span class="pipeline-stage-tag">[LAYER 3/6]</span><span>Assessing RAG Chunk Extractability &amp; Density...</span></div>
-            <div class="pipeline-stage" id="stage-format"><div class="stage-icon"></div><span class="pipeline-stage-tag">[LAYER 4/6]</span><span>Interrogating Quotation &amp; Formatting Heuristics...</span></div>
-            <div class="pipeline-stage" id="stage-authority"><div class="stage-icon"></div><span class="pipeline-stage-tag">[LAYER 5/6]</span><span>Measuring Algorithmic Trust &amp; Entity Graph Authority...</span></div>
-            <div class="pipeline-stage" id="stage-citation"><div class="stage-icon"></div><span class="pipeline-stage-tag">[LAYER 6/6]</span><span>Sampling Real-Time Generative AI Brand Citation Frequency...</span></div>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem;">
+              <h3 style="margin: 0; color: var(--text-secondary); font-family: var(--font-sans); font-size: 0.875rem; font-weight: 600; display: flex; align-items: center; gap: 8px;">
+                <span style="font-family: var(--font-mono); font-size: 0.75rem; background: var(--surface-sunken); padding: 2px 6px; border-radius: 4px; border: 1px solid var(--border-default); font-weight: 700; color: var(--text-secondary);">SYSTEM_LOG</span>
+                <span id="pipeline-status-text">Active Diagnostic Retrieval in Progress...</span>
+              </h3>
+              <span id="pipeline-progress-pct" style="font-family: var(--font-mono); font-size: 0.8125rem; font-weight: 700; color: var(--brand-500);">10%</span>
+            </div>
+            <div class="pipeline-progress-track">
+              <div id="pipeline-progress-bar" class="pipeline-progress-fill" style="width: 10%;"></div>
+            </div>
+            <div class="pipeline-stage active" id="stage-robots"><div class="stage-icon active"><svg class="spin" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10" stroke-opacity="0.25"/><path d="M12 2a10 10 0 0 1 10 10" stroke-opacity="0.9"/></svg></div><span class="pipeline-stage-tag">[LAYER 1/6]</span><span>Verifying AI Crawler Policies (robots.txt &amp; llms.txt)...</span></div>
+            <div class="pipeline-stage" id="stage-schema"><div class="stage-icon pending"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-dasharray="3 3"><circle cx="12" cy="12" r="9"/></svg></div><span class="pipeline-stage-tag">[LAYER 2/6]</span><span>Evaluating JSON-LD Schema Semantic Honesty...</span></div>
+            <div class="pipeline-stage" id="stage-extract"><div class="stage-icon pending"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-dasharray="3 3"><circle cx="12" cy="12" r="9"/></svg></div><span class="pipeline-stage-tag">[LAYER 3/6]</span><span>Assessing RAG Chunk Extractability &amp; Density...</span></div>
+            <div class="pipeline-stage" id="stage-format"><div class="stage-icon pending"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-dasharray="3 3"><circle cx="12" cy="12" r="9"/></svg></div><span class="pipeline-stage-tag">[LAYER 4/6]</span><span>Interrogating Quotation &amp; Formatting Heuristics...</span></div>
+            <div class="pipeline-stage" id="stage-authority"><div class="stage-icon pending"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-dasharray="3 3"><circle cx="12" cy="12" r="9"/></svg></div><span class="pipeline-stage-tag">[LAYER 5/6]</span><span>Measuring Algorithmic Trust &amp; Entity Graph Authority...</span></div>
+            <div class="pipeline-stage" id="stage-citation"><div class="stage-icon pending"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-dasharray="3 3"><circle cx="12" cy="12" r="9"/></svg></div><span class="pipeline-stage-tag">[LAYER 6/6]</span><span>Sampling Real-Time Generative AI Brand Citation Frequency...</span></div>
           </div>
 
           <!-- The 5-Layer Scoring Framework Overview (Task 23) -->
@@ -580,7 +586,7 @@
 
   <script src="auth.js"></script>
   <script src="guided_review.js"></script>
-  <script src="studio.js"></script>
+  <script src="studio.js?v=20260929"></script>
   <script>
     document.addEventListener('DOMContentLoaded', () => { 
       window.AreosNav.renderNav('studio'); 

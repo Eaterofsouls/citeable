@@ -109,9 +109,8 @@ document.addEventListener("DOMContentLoaded", () => {
     return;
   }
 
-  // UI reset & start execution animation
   btnRun.disabled = true;
-  btnRun.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="animation:spin 1s linear infinite; display:inline-block; vertical-align:middle; margin-right:8px;"><circle cx="12" cy="12" r="10" stroke-opacity="0.25"/><path d="M12 2a10 10 0 0 1 10 10" stroke-opacity="0.85"/></svg><span>Running Diagnostic Pipeline...</span>`;
+  btnRun.innerHTML = `<svg class="spin" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="display:inline-block; vertical-align:middle; margin-right:8px; transform-origin:center;"><circle cx="12" cy="12" r="10" stroke-opacity="0.25"/><path d="M12 2a10 10 0 0 1 10 10" stroke-opacity="0.85"/></svg><span>Running Diagnostic Pipeline...</span>`;
   monitor.style.display = "block";
  resultsArea.style.display = "none";
  resetMonitorStages();
@@ -166,11 +165,9 @@ document.addEventListener("DOMContentLoaded", () => {
  window.AreosContext.activeRunToken = data.run_token;
  }
  }
- 
- setTimeout(() => {
- completeAllStages();
- setTimeout(() => {
- try {        monitor.style.display = "none";
+    completePipelineStages(() => {
+      try {
+        monitor.style.display = "none";
         displayStudioResults(data, domain);
         fetchHistoricalDelta(domain, data.executive_scorecard.overall_score).catch(e => console.error(e));
         renderCitationDistribution(domain, data.sample_res);
@@ -178,43 +175,42 @@ document.addEventListener("DOMContentLoaded", () => {
         resultsArea.style.display = "block";
         btnRun.disabled = false;
         btnRun.innerHTML = `<span>Run Full Spectrum Audit</span>`;
- // Auto-switch to the Results tab so the panel is visible regardless
- // of which tab was active before the run (fixes UX + automation).
- document.querySelectorAll('.tab-content').forEach(el => el.style.display = 'none');
- document.getElementById('tab-results').style.display = 'block';
- document.querySelectorAll('.tab-btn').forEach(b => {
-   b.classList.remove('active');
-   b.setAttribute('aria-selected', 'false');
- });
- const resTabBtn = document.querySelector('.tab-btn[data-tab="tab-results"]');
- if (resTabBtn) {
-   resTabBtn.classList.add('active');
-   resTabBtn.setAttribute('aria-selected', 'true');
- }
- if (typeof syncStepper === 'function') syncStepper();
- resultsArea.scrollIntoView({ behavior: "smooth" });
- } catch (err) {
- console.error("CRASH IN RENDER:", err);
- AreosAPI.notify("UI Render Crash: " + err.message, "error");
- btnRun.disabled = false;
- btnRun.innerHTML = `<span>UI ERROR (Check Console)</span>`;
- resultsArea.innerHTML = `<div style="padding:2rem;color:#ef4444;background:#1e1b4b;border:1px solid #dc2626;border-radius:12px;margin:2rem;">
- <h3>UI Rendering Failed</h3>
- <pre style="white-space:pre-wrap;color:#f87171;">${typeof escapeHtml === 'function' ? escapeHtml(err.stack || String(err)) : String(err.stack || err)}</pre>
- </div>`;
- resultsArea.style.display = "block";
- monitor.style.display = "none";
- }
- }, 400);
- }, 1100);
- } catch (error) {
- console.error("Error executing studio audit:", error);
- AreosAPI.notify("Error executing full spectrum audit: " + error.message);
- btnRun.disabled = false;
- btnRun.innerHTML = `<span>Run Full Spectrum Audit</span>`;
- monitor.style.display = "none";
- }
- });
+        // Auto-switch to the Results tab so the panel is visible regardless
+        // of which tab was active before the run (fixes UX + automation).
+        document.querySelectorAll('.tab-content').forEach(el => el.style.display = 'none');
+        document.getElementById('tab-results').style.display = 'block';
+        document.querySelectorAll('.tab-btn').forEach(b => {
+          b.classList.remove('active');
+          b.setAttribute('aria-selected', 'false');
+        });
+        const resTabBtn = document.querySelector('.tab-btn[data-tab="tab-results"]');
+        if (resTabBtn) {
+          resTabBtn.classList.add('active');
+          resTabBtn.setAttribute('aria-selected', 'true');
+        }
+        if (typeof syncStepper === 'function') syncStepper();
+        resultsArea.scrollIntoView({ behavior: "smooth" });
+      } catch (err) {
+        console.error("CRASH IN RENDER:", err);
+        AreosAPI.notify("UI Render Crash: " + err.message, "error");
+        btnRun.disabled = false;
+        btnRun.innerHTML = `<span>UI ERROR (Check Console)</span>`;
+        resultsArea.innerHTML = `<div style="padding:2rem;color:#ef4444;background:#1e1b4b;border:1px solid #dc2626;border-radius:12px;margin:2rem;">
+        <h3>UI Rendering Failed</h3>
+        <pre style="white-space:pre-wrap;color:#f87171;">${typeof escapeHtml === 'function' ? escapeHtml(err.stack || String(err)) : String(err.stack || err)}</pre>
+        </div>`;
+        resultsArea.style.display = "block";
+        monitor.style.display = "none";
+      }
+    });
+  } catch (error) {
+    console.error("Error executing studio audit:", error);
+    failPipelineStages(error.message);
+    AreosAPI.notify("Error executing full spectrum audit: " + error.message);
+    btnRun.disabled = false;
+    btnRun.innerHTML = `<span>Run Full Spectrum Audit</span>`;
+  }
+  });
 });
 
 // Item 11: Populate Prompt Funnel Selector
@@ -1073,42 +1069,267 @@ function exportExecutiveReport() {
  URL.revokeObjectURL(url);
 }
 
+const PIPELINE_STAGES = [
+  { id: "robots", tag: "[LAYER 1/6]", label: "Verifying AI Crawler Policies (robots.txt & llms.txt)...", duration: 2400, pct: 15 },
+  { id: "schema", tag: "[LAYER 2/6]", label: "Evaluating JSON-LD Schema Semantic Honesty...", duration: 2500, pct: 32 },
+  { id: "extract", tag: "[LAYER 3/6]", label: "Assessing RAG Chunk Extractability & Density...", duration: 2800, pct: 50 },
+  { id: "format", tag: "[LAYER 4/6]", label: "Interrogating Quotation & Formatting Heuristics...", duration: 2800, pct: 68 },
+  { id: "authority", tag: "[LAYER 5/6]", label: "Measuring Algorithmic Trust & Entity Graph Authority...", duration: 3200, pct: 85 },
+  { id: "citation", tag: "[LAYER 6/6]", label: "Sampling Real-Time Generative AI Brand Citation Frequency...", duration: 3500, pct: 95 }
+];
+
+const STAGE_SVGS = {
+  pending: `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-dasharray="3 3"><circle cx="12" cy="12" r="9"/></svg>`,
+  active: `<svg class="spin" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="transform-origin:center;"><circle cx="12" cy="12" r="10" stroke="currentColor" stroke-opacity="0.25"/><path d="M12 2a10 10 0 0 1 10 10" stroke="currentColor" stroke-opacity="0.9"/></svg>`,
+  done: `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--status-success)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10" fill="var(--status-success-bg)" stroke="var(--status-success)" stroke-width="1.5"/><polyline points="8 12 11 15 16 9"/></svg>`,
+  error: `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--status-danger)" stroke-width="2.5"><circle cx="12" cy="12" r="10" stroke="var(--status-danger)" stroke-width="1.5"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>`
+};
+
 function resetMonitorStages() {
-  if (window._pipelineStageInterval) clearInterval(window._pipelineStageInterval);
-  ["robots", "schema", "extract", "format", "authority", "citation"].forEach((id, idx) => {
-  const el = document.querySelector(`#stage-${id} .stage-icon`);
-  el.className = idx === 0 ? "stage-icon active" : "stage-icon";
-  el.innerHTML = idx === 0 ? `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="animation:spin 1s linear infinite;"><circle cx="12" cy="12" r="10" stroke-opacity="0.25"/><path d="M12 2a10 10 0 0 1 10 10" stroke-opacity="0.85"/></svg>` : "";
-  });
-}
-
-function animatePipelineStages() {
-  if (window._pipelineStageInterval) clearInterval(window._pipelineStageInterval);
-  const stages = ["robots", "schema", "extract", "format", "authority", "citation"];
-  let current = 0;
-  window._pipelineStageInterval = setInterval(() => {
-  if (current < stages.length - 1) {
-  const oldEl = document.querySelector(`#stage-${stages[current]} .stage-icon`);
-  if (oldEl) { oldEl.className = "stage-icon done"; oldEl.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>`; }
-  current++;
-  const newEl = document.querySelector(`#stage-${stages[current]} .stage-icon`);
-  if (newEl) { newEl.className = "stage-icon active"; newEl.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="animation:spin 1s linear infinite;"><circle cx="12" cy="12" r="10" stroke-opacity="0.25"/><path d="M12 2a10 10 0 0 1 10 10" stroke-opacity="0.85"/></svg>`; }
-  } else {
-    clearInterval(window._pipelineStageInterval);
-    window._pipelineStageInterval = null;
+  if (window._pipelineTimeout) {
+    clearTimeout(window._pipelineTimeout);
+    window._pipelineTimeout = null;
   }
-  }, 320);
-}
-
-function completeAllStages() {
   if (window._pipelineStageInterval) {
     clearInterval(window._pipelineStageInterval);
     window._pipelineStageInterval = null;
   }
-  ["robots", "schema", "extract", "format", "authority", "citation"].forEach(id => {
-  const el = document.querySelector(`#stage-${id} .stage-icon`);
-  if (el) { el.className = "stage-icon done"; el.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>`; }
+  if (window._citationMessageInterval) {
+    clearInterval(window._citationMessageInterval);
+    window._citationMessageInterval = null;
+  }
+
+  window._pipelineState = {
+    currentIndex: 0,
+    isComplete: false,
+    apiFinished: false,
+    onCompleteCallback: null
+  };
+
+  PIPELINE_STAGES.forEach((stage, idx) => {
+    const stageEl = document.getElementById(`stage-${stage.id}`);
+    const iconEl = stageEl ? stageEl.querySelector(".stage-icon") : null;
+    if (stageEl && iconEl) {
+      if (idx === 0) {
+        stageEl.className = "pipeline-stage active";
+        iconEl.className = "stage-icon active";
+        iconEl.innerHTML = STAGE_SVGS.active;
+      } else {
+        stageEl.className = "pipeline-stage";
+        iconEl.className = "stage-icon pending";
+        iconEl.innerHTML = STAGE_SVGS.pending;
+      }
+    }
   });
+
+  const progressBar = document.getElementById("pipeline-progress-bar");
+  const progressPct = document.getElementById("pipeline-progress-pct");
+  const statusText = document.getElementById("pipeline-status-text");
+
+  if (progressBar) progressBar.style.width = "10%";
+  if (progressPct) progressPct.textContent = "10%";
+  if (statusText) statusText.textContent = "Layer 1/6: Verifying AI Crawler Policies (robots.txt & llms.txt)...";
+}
+
+function animatePipelineStages() {
+  function advanceStage() {
+    if (!window._pipelineState || window._pipelineState.isComplete) return;
+
+    const currentIdx = window._pipelineState.currentIndex;
+    if (currentIdx >= PIPELINE_STAGES.length - 1) {
+      // Reached final stage ("citation"). Keep the active circle spinning and rotate status messages!
+      const finalStage = PIPELINE_STAGES[PIPELINE_STAGES.length - 1];
+      const stageEl = document.getElementById(`stage-${finalStage.id}`);
+      const iconEl = stageEl ? stageEl.querySelector(".stage-icon") : null;
+      if (stageEl && iconEl) {
+        stageEl.className = "pipeline-stage active";
+        iconEl.className = "stage-icon active";
+        iconEl.innerHTML = STAGE_SVGS.active;
+      }
+      const progressBar = document.getElementById("pipeline-progress-bar");
+      const progressPct = document.getElementById("pipeline-progress-pct");
+      if (progressBar) progressBar.style.width = "95%";
+      if (progressPct) progressPct.textContent = "95%";
+
+      const subMessages = [
+        "Sampling Real-Time Generative AI Brand Citation Frequency...",
+        "Querying frontier search & reasoning models across citation surfaces...",
+        "Measuring entity co-occurrence and prompt extraction density...",
+        "Synthesizing technical findings into deterministic diagnostic scorecards..."
+      ];
+      let msgIdx = 1;
+      const statusText = document.getElementById("pipeline-status-text");
+      if (statusText) statusText.textContent = subMessages[0];
+
+      window._citationMessageInterval = setInterval(() => {
+        if (!window._pipelineState || window._pipelineState.isComplete || window._pipelineState.apiFinished) {
+          clearInterval(window._citationMessageInterval);
+          return;
+        }
+        if (statusText) {
+          statusText.textContent = subMessages[msgIdx % subMessages.length];
+          msgIdx++;
+        }
+      }, 3200);
+
+      // If API already finished while reaching this stage, complete now
+      if (window._pipelineState.apiFinished && typeof window._pipelineState.onCompleteCallback === "function") {
+        completePipelineStages(window._pipelineState.onCompleteCallback);
+      }
+      return;
+    }
+
+    // Normal advance: mark current stage as done, next as active
+    const currentStage = PIPELINE_STAGES[currentIdx];
+    const oldStageEl = document.getElementById(`stage-${currentStage.id}`);
+    const oldIconEl = oldStageEl ? oldStageEl.querySelector(".stage-icon") : null;
+    if (oldStageEl && oldIconEl) {
+      oldStageEl.className = "pipeline-stage completed";
+      oldIconEl.className = "stage-icon done";
+      oldIconEl.innerHTML = STAGE_SVGS.done;
+    }
+
+    const nextIdx = currentIdx + 1;
+    window._pipelineState.currentIndex = nextIdx;
+    const nextStage = PIPELINE_STAGES[nextIdx];
+    const newStageEl = document.getElementById(`stage-${nextStage.id}`);
+    const newIconEl = newStageEl ? newStageEl.querySelector(".stage-icon") : null;
+    if (newStageEl && newIconEl) {
+      newStageEl.className = "pipeline-stage active";
+      newIconEl.className = "stage-icon active";
+      newIconEl.innerHTML = STAGE_SVGS.active;
+    }
+
+    const progressBar = document.getElementById("pipeline-progress-bar");
+    const progressPct = document.getElementById("pipeline-progress-pct");
+    const statusText = document.getElementById("pipeline-status-text");
+    if (progressBar) progressBar.style.width = `${nextStage.pct}%`;
+    if (progressPct) progressPct.textContent = `${nextStage.pct}%`;
+    if (statusText) statusText.textContent = `${nextStage.tag}: ${nextStage.label}`;
+
+    // If API already finished, accelerate remaining stages
+    const delay = window._pipelineState.apiFinished ? 240 : nextStage.duration;
+    window._pipelineTimeout = setTimeout(advanceStage, delay);
+  }
+
+  const firstStage = PIPELINE_STAGES[0];
+  const delay = window._pipelineState && window._pipelineState.apiFinished ? 240 : firstStage.duration;
+  window._pipelineTimeout = setTimeout(advanceStage, delay);
+}
+
+function completePipelineStages(callback) {
+  if (!window._pipelineState) {
+    if (callback) callback();
+    return;
+  }
+
+  window._pipelineState.apiFinished = true;
+  window._pipelineState.onCompleteCallback = callback;
+
+  if (window._citationMessageInterval) {
+    clearInterval(window._citationMessageInterval);
+    window._citationMessageInterval = null;
+  }
+  if (window._pipelineTimeout) {
+    clearTimeout(window._pipelineTimeout);
+    window._pipelineTimeout = null;
+  }
+
+  // Fast-track remaining stages sequentially
+  function stepToFinish() {
+    const cur = window._pipelineState.currentIndex;
+    if (cur < PIPELINE_STAGES.length) {
+      const stage = PIPELINE_STAGES[cur];
+      const stageEl = document.getElementById(`stage-${stage.id}`);
+      const iconEl = stageEl ? stageEl.querySelector(".stage-icon") : null;
+      if (stageEl && iconEl) {
+        stageEl.className = "pipeline-stage completed";
+        iconEl.className = "stage-icon done";
+        iconEl.innerHTML = STAGE_SVGS.done;
+      }
+      const progressBar = document.getElementById("pipeline-progress-bar");
+      const progressPct = document.getElementById("pipeline-progress-pct");
+      const pct = Math.min(100, Math.round(((cur + 1) / PIPELINE_STAGES.length) * 100));
+      if (progressBar) progressBar.style.width = `${pct}%`;
+      if (progressPct) progressPct.textContent = `${pct}%`;
+
+      window._pipelineState.currentIndex++;
+      if (window._pipelineState.currentIndex < PIPELINE_STAGES.length) {
+        const nextStage = PIPELINE_STAGES[window._pipelineState.currentIndex];
+        const nextEl = document.getElementById(`stage-${nextStage.id}`);
+        const nextIcon = nextEl ? nextEl.querySelector(".stage-icon") : null;
+        if (nextEl && nextIcon) {
+          nextEl.className = "pipeline-stage active";
+          nextIcon.className = "stage-icon active";
+          nextIcon.innerHTML = STAGE_SVGS.active;
+        }
+        window._pipelineTimeout = setTimeout(stepToFinish, 220);
+        return;
+      }
+    }
+
+    // All stages finished
+    window._pipelineState.isComplete = true;
+    completeAllStages();
+
+    const progressBar = document.getElementById("pipeline-progress-bar");
+    const progressPct = document.getElementById("pipeline-progress-pct");
+    const statusText = document.getElementById("pipeline-status-text");
+    if (progressBar) progressBar.style.width = "100%";
+    if (progressPct) progressPct.textContent = "100%";
+    if (statusText) statusText.textContent = "All 6 Diagnostic Layers Verified & Scored";
+
+    setTimeout(() => {
+      if (callback) callback();
+    }, 450);
+  }
+
+  stepToFinish();
+}
+
+function completeAllStages() {
+  if (window._pipelineTimeout) {
+    clearTimeout(window._pipelineTimeout);
+    window._pipelineTimeout = null;
+  }
+  if (window._pipelineStageInterval) {
+    clearInterval(window._pipelineStageInterval);
+    window._pipelineStageInterval = null;
+  }
+  if (window._citationMessageInterval) {
+    clearInterval(window._citationMessageInterval);
+    window._citationMessageInterval = null;
+  }
+
+  PIPELINE_STAGES.forEach(stage => {
+    const stageEl = document.getElementById(`stage-${stage.id}`);
+    const iconEl = stageEl ? stageEl.querySelector(".stage-icon") : null;
+    if (stageEl && iconEl) {
+      stageEl.className = "pipeline-stage completed";
+      iconEl.className = "stage-icon done";
+      iconEl.innerHTML = STAGE_SVGS.done;
+    }
+  });
+}
+
+function failPipelineStages(errorMessage) {
+  if (window._pipelineTimeout) clearTimeout(window._pipelineTimeout);
+  if (window._pipelineStageInterval) clearInterval(window._pipelineStageInterval);
+  if (window._citationMessageInterval) clearInterval(window._citationMessageInterval);
+
+  if (window._pipelineState) {
+    const cur = window._pipelineState.currentIndex;
+    const stage = PIPELINE_STAGES[Math.min(cur, PIPELINE_STAGES.length - 1)];
+    const stageEl = document.getElementById(`stage-${stage.id}`);
+    const iconEl = stageEl ? stageEl.querySelector(".stage-icon") : null;
+    if (stageEl && iconEl) {
+      stageEl.className = "pipeline-stage error";
+      iconEl.className = "stage-icon error";
+      iconEl.innerHTML = STAGE_SVGS.error;
+    }
+  }
+  const statusText = document.getElementById("pipeline-status-text");
+  if (statusText) statusText.textContent = `Diagnostic Paused: ${errorMessage || 'Pipeline Error'}`;
 }
 
 function toggleRecBody(headerEl) { headerEl.nextElementSibling.classList.toggle("open"); }
@@ -1119,6 +1340,11 @@ window.openClaimModal = openClaimModal;
 window.closeClaimModal = closeClaimModal;
 window.submitStudioOutcome = submitStudioOutcome;
 window.exportExecutiveReport = exportExecutiveReport;
+window.resetMonitorStages = resetMonitorStages;
+window.animatePipelineStages = animatePipelineStages;
+window.completePipelineStages = completePipelineStages;
+window.completeAllStages = completeAllStages;
+window.failPipelineStages = failPipelineStages;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Phase 2 — AI Synthesis Tab
