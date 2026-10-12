@@ -20,9 +20,9 @@ values the engine uses, not illustrative approximations.
 > |---|---|
 > | **What it is** | A measurement instrument for whether a website can be found, correctly parsed, and cited by AI answer engines — not an SEO rank tracker. |
 > | **Problem it solves** | Nobody could say *why* a language model does or doesn't cite a given page. Citeable turns that into five observable, independently scored dimensions instead of a guess. |
-> | **What goes in** | A target domain, optionally a funnel-stage filter, and (for the AI-written narrative) a caller-supplied LLM key. |
+> | **What goes in** | A target domain, optionally sample page content or competitor domains, and (for the AI-written narrative) a caller-supplied LLM key. |
 > | **What happens** | A deterministic pipeline crawls the domain, validates its structured data, evaluates content extractability, samples live AI answers for citations, and scores all of it against a fixed 100-point rubric — see [§4](#4-audit-request-lifecycle). |
-> | **What comes out** | A bounded 5–98 readiness score, a prioritized remediation plan where every recommendation cites a specific governed claim, and — once any required human review is complete — an AI-drafted, adversarially self-checked narrative report. |
+> | **What comes out** | A bounded 5–98 readiness score, a prioritized remediation plan where every recommendation cites a specific governed claim, and — with optional operator-guided qualitative review — an AI-drafted, grounded narrative report. |
 > | **Why the architecture is interesting** | The score, the evidence, and the remediation advice are all computed by deterministic code, not an LLM. The LLM's only job is writing the narrative *after* the facts are already settled — see [§7](#7-declarative-knowledge-base) and [§9](#9-llm--provider-architecture). |
 
 ---
@@ -80,7 +80,7 @@ Given a target domain, Citeable runs a fixed audit pipeline that:
   deterministic model.
 - Maps every automated finding to a claim in a declarative knowledge
   base, producing a prioritized, evidence-cited remediation plan.
-- Optionally incorporates human-reviewed verdicts and a three-step LLM
+- Optionally incorporates operator-submitted qualitative review notes and a three-step LLM
   synthesis pass into a final narrative report.
 
 ### 1.4 What Citeable deliberately does not do
@@ -98,9 +98,10 @@ Given a target domain, Citeable runs a fixed audit pipeline that:
   API. Interfaces with no compliant API are excluded rather than scraped
   (see [§6](#6-ai-citation-sampling)).
 - **It does not silently invent remediation advice.** Every recommendation
-  in the output plan is required to trace back to a specific claim in the
-  knowledge base; a recommendation with no valid, active governing claim
-  is rejected before it reaches a report (see [§7](#7-declarative-knowledge-base)).
+  in the output plan is required to trace back to a governed claim in the
+  knowledge base (falling back to a canonical baseline claim if an unmapped
+  check code is encountered), ensuring no unanchored or fabricated advice
+  reaches a report (see [§7](#7-declarative-knowledge-base)).
 
 ### 1.5 Measurement, not prediction
 
@@ -142,7 +143,7 @@ parts are still on you?*
 | 1 | **Business & Competitive Scoping** | Defining goals and KPIs, deciding which AI engines/surfaces matter for this business, identifying the competitor set to benchmark against. | Human-judgment-heavy. Selecting a competitor set or prioritizing engines is a commercial call no crawl or API can make. |
 | 2 | **Structured Data & Schema Validation** | JSON-LD syntax and `schema.org` conformance, whether structured-data claims semantically match the visible page, Rich Results eligibility. | Mixed. Syntax and required-field checks are mechanical; judging whether a schema claim is *honest* relative to the visible page is closer to a judgment call. |
 | 3 | **Technical Crawlability & Site Access** | Full-site crawling, sitemap parsing, `robots.txt` / `llms.txt` parsing for named AI-crawler directives, deciding the *correct* access policy per crawler. | The most mechanically verifiable phase in the taxonomy — the majority of its knowledge-base claims describe fully or near-fully automatable checks. |
-| 4 | **Content Quality & E-E-A-T Assessment** | Content depth, factual accuracy, first-hand expertise, and overall trustworthiness signal. | Predominantly human judgment. Assessing genuine expertise and trust signal is explicitly the kind of subject-matter call a script cannot make. |
+| 4 | **Content Quality & Format** | Content extractability heuristics (answer placement, self-containment, structure), factual depth, first-hand expertise, and E-E-A-T trust signals. | Split: content extractability formatting (Layer 3) is mechanically scored; assessing genuine first-hand expertise and qualitative trust signal is human judgment. |
 | 5 | **AI Citation Testing** | Running a fixed prompt set across AI engines and recording citations, designing the prompt set itself, and attributing *why* a model cited (or ignored) a given source. | Split cleanly: executing and recording a citation test is mechanical; designing realistic prompts and explaining a citation outcome is not. |
 | 6 | **Competitive & Authority Analysis** | Comparing competitor schema/content coverage, backlink and mention profile pulls, digital-PR / third-party-citation-gap analysis. | Split: metric pulls (backlinks, referring domains) are fully automatable; judging which links carry real topical authority, or diagnosing a PR gap, is not. |
 | 7 | **Synthesis, Prioritization & Reporting** | Cross-referencing findings to diagnose root causes, prioritizing the remediation roadmap by impact vs. effort, producing the final report. | Split: chart/report generation from already-collected data is automatable; weighting priorities against business context and validating a root-cause narrative is not. |
@@ -151,33 +152,26 @@ parts are still on you?*
 
 ### 2.3 Where Citeable fits
 
-Citeable automates the mechanically verifiable core of phases 2, 3, 5, and
-6 — schema validation, crawlability, citation sampling, and authority
-metrics — because those are exactly the four (of five) scoring layers
-described in [§5](#5-deterministic-scoring-model) that have a deterministic,
-observable ground truth. It does **not** attempt phases 1, 4, 8, or 9:
-business scoping, subjective content-quality judgment, legal interpretation,
-and market awareness are treated as inputs the operator brings to the tool,
-not outputs it produces.
+Citeable automates the mechanically verifiable core across its five deterministic
+scoring layers described in [§5](#5-deterministic-scoring-model): crawlability (Phase 3),
+schema validation (Phase 2), content format & extractability (the deterministic core of
+Phase 4), citation sampling (Phase 5), and domain authority metrics (Phase 6). It does
+**not** attempt phases 1, 8, or 9: business scoping, legal interpretation, and market
+landscape awareness are treated as operator context, not tool outputs. Subjective content
+quality (E-E-A-T) remains a qualitative human evaluation.
 
-For the phases it partially automates, Citeable's Manual Review Wizard is
-the explicit seam between the automated and human halves of the work: every
-automated finding that maps to a partially-automatable knowledge-base claim
-generates a guided review card asking a human to make the specific judgment
-call the claim says a script can't (see
-[§4.3](#43-what-happens-at-each-stage) for where this fires in the request
-lifecycle, and [§9.4](#94-the-synthesis-pipelines-self-check) for how a
-human verdict then feeds the AI-written narrative). Phase 7 (synthesis and
-reporting) is where this converges: Citeable's three-step LLM pipeline
-drafts the narrative, but only after every partially-automatable finding
-has a recorded human verdict — the deterministic score and the human
-judgment calls are both inputs to that draft, not replaced by it.
+Citeable's automated pipeline immediately yields the complete readiness score (5–98) and
+evidence-cited remediation plan. For qualitative edge cases, Citeable provides an optional
+Manual Review Wizard: a self-guided walkthrough for the site operator to review nuanced
+items (such as brand framing, voice readiness, and semantic honesty). Operator notes recorded
+during review are passed as context to the optional three-step LLM synthesis pass (Phase 7),
+enriching the narrative report without altering the deterministic baseline score.
 
 ```mermaid
 flowchart TB
-    subgraph manual["Outside Citeable — human-only"]
+    subgraph manual["Outside Citeable — operator context"]
         P1["1. Business & Competitive Scoping"]
-        P4["4. Content Quality & E-E-A-T"]
+        P4B["4b. Qualitative E-E-A-T Judgment"]
         P8["8. Legal & ToS Compliance"]
         P9["9. Market & Tool Landscape"]
     end
@@ -185,28 +179,33 @@ flowchart TB
     subgraph automated["Citeable's automated pipeline"]
         P2["2. Structured Data & Schema"]
         P3["3. Technical Crawlability"]
+        P4A["4a. Content Format & Extractability"]
         P5["5. AI Citation Testing"]
         P6["6. Competitive & Authority Analysis"]
     end
 
-    subgraph hybrid["Manual Review Wizard — human judgment on automated findings"]
-        MR["Guided review cards<br/>(one per partially-automatable finding)"]
+    subgraph scored["Deterministic Deliverables"]
+        SCORE["Scored Audit Report<br/>(5–98 bounded score + remediation plan)"]
     end
 
-    subgraph synth["Synthesis"]
-        P7["7. Synthesis, Prioritization & Reporting"]
+    subgraph hybrid["Manual Review Wizard (Optional)"]
+        MR["Self-guided review cards<br/>(operator qualitative notes)"]
     end
 
-    P1 -. scoping input .-> automated
-    automated --> MR
-    MR --> P7
-    P4 -. qualitative input .-> MR
-    P8 -. shapes method .-> P5
-    P9 -. context only .-> P7
-    P7 --> OUT["Final report"]
+    subgraph synth["Synthesis (Optional)"]
+        P7["7. LLM Narrative Synthesis"]
+    end
+
+    automated --> SCORE
+    automated -. triggered cards .-> MR
+    MR -. qualitative context .-> P7
+    SCORE -. findings input .-> P7
+    P4B -. qualitative notes .-> MR
+    P7 --> OUT["Final Grounded Narrative"]
 
     style manual fill:#1a1a1a,stroke:#555
     style automated fill:#0f2818,stroke:#2d6a4f
+    style scored fill:#1e3a2f,stroke:#38bdf8
     style hybrid fill:#2a2410,stroke:#8a6d1a
     style synth fill:#0f1f2e,stroke:#1e5a8a
 ```
@@ -263,7 +262,7 @@ At a high level, an audit moves through four functional zones:
 flowchart TD
     T["Target Domain"]
 
-    subgraph COLLECT["Collection Layer"]
+    subgraph COLLECT["Target Domain Fetching"]
         C1["robots.txt / llms.txt fetch<br/>(SSRF-safe client)"]
         C2["Page HTML fetch"]
     end
@@ -272,27 +271,28 @@ flowchart TD
         E1["Access Auditor<br/>AI crawler directives"]
         E2["Schema Auditor<br/>JSON-LD / schema.org validation"]
         E3["Content Format Auditor<br/>extractability heuristics"]
-        E4["Authority Auditor<br/>backlink & entity signal"]
     end
 
-    subgraph OBSERVE["Empirical AI Observation"]
-        O1["Citation Sampler<br/>live generative queries"]
+    subgraph EXTERNAL["External Third-Party APIs"]
+        E4["Authority Auditor<br/>queries OpenPageRank API"]
+        O1["Citation Sampler<br/>queries live AI provider models"]
     end
 
-    SCORE["Deterministic Scoring Engine<br/>5-layer weighted model"]
+    SCORE["Deterministic Scoring Engine<br/>5-layer weighted model (5–98)"]
     KB["Declarative Knowledge Base<br/>check_code -> claim mapping"]
     PLAN["Remediation Plan<br/>claim-cited, priority-ranked"]
-    REVIEW["Human Manual Review<br/>(optional)"]
+    REPORT["Audit Report<br/>(Immediate response)"]
+    REVIEW["Human Manual Review<br/>(Optional operator notes)"]
     SYNTH["LLM Synthesis Pipeline<br/>draft -> adversarial check -> grounded rewrite"]
-    REPORT["Audit Report"]
+    NARRATIVE["Grounded Narrative Report<br/>(Post-synthesis)"]
 
     T --> C1
     T --> C2
+    T -. domain string .-> E4
+    T -. domain query .-> O1
     C1 --> E1
     C2 --> E2
     C2 --> E3
-    T --> E4
-    T --> O1
 
     E1 --> SCORE
     E2 --> SCORE
@@ -309,15 +309,18 @@ flowchart TD
     SCORE --> PLAN
     KB --> PLAN
     PLAN --> REPORT
-    PLAN -.-> REVIEW
-    REVIEW -.-> SYNTH
-    SYNTH -.-> REPORT
+    E1 -. findings trigger cards .-> REVIEW
+    E2 -. findings trigger cards .-> REVIEW
+    E3 -. findings trigger cards .-> REVIEW
+    REVIEW -. qualitative context .-> SYNTH
+    REPORT -. findings input .-> SYNTH
+    SYNTH --> NARRATIVE
 ```
 
-Solid arrows are always executed as part of a single audit request.
-Dashed arrows represent the optional second phase: a human completes a
-guided manual review, which then unlocks the LLM synthesis pass that
-folds human judgment into a final narrative.
+Solid arrows represent the core automated pipeline executed in a single audit request.
+Dashed arrows represent the optional qualitative pathway: an operator submits guided review
+notes, which are then passed into the LLM synthesis pipeline to produce a narrative report.
+Manual review does not alter the deterministic score.
 
 ### 3.4 Design principles
 
@@ -349,19 +352,18 @@ A full Citeable engagement has up to two phases:
 
 1. **Automated phase** (always runs): a single request triggers
    collection, evaluation, citation sampling, scoring, and knowledge-base
-   mapping, returning a scored, claim-cited remediation plan.
-2. **Review & synthesis phase** (optional): a human works through a
-   guided review wizard for findings the deterministic layer flagged as
-   needing judgment (e.g. brand sentiment framing, root-cause narrative).
-   Once complete, a caller can trigger a three-step LLM synthesis pass
-   that folds those human verdicts, together with the automated findings,
-   into a single narrative report.
+   mapping, immediately returning a scored, claim-cited remediation plan.
+2. **Review & synthesis phase** (optional): the operator can work through a
+   guided review wizard for qualitative checks (e.g. brand sentiment framing,
+   voice-assistant readiness). If desired, the operator can trigger a three-step
+   LLM synthesis pass that folds those qualitative notes, together with the
+   automated findings, into a grounded narrative report.
 
 Synthesis is intentionally *not* triggered automatically at the end of
-phase one. Running narrative synthesis on automated findings alone, with
-no human signal, produces a generic write-up untethered from any
-judgment call a real reviewer would make — so the pipeline requires the
-review step (or an explicit skip) before synthesis runs.
+phase one. Running narrative synthesis on automated findings alone produces
+a generic write-up without operator context — so the UI provides the review
+step (or an explicit skip) before synthesis runs. The quantitative score is
+never altered by manual review.
 
 ### 4.2 Sequence diagram
 
@@ -374,9 +376,10 @@ sequenceDiagram
     participant Sampler as AI Citation Sampler
     participant Provider as External AI Provider
     participant Scoring as Scoring Engine
-    participant KB as Knowledge Base (SQLite)
+    participant DB as SQLite DB (audit_runs)
+    participant KB as Knowledge Base (claims)
 
-    Client->>API: POST /audit/orchestrate {target_domain}
+    Client->>API: POST /api/v1/audit/orchestrate {target_domain}
     API->>API: Normalize domain, validate payload
     API->>Orchestrator: run_orchestrated_audit()
 
@@ -386,7 +389,7 @@ sequenceDiagram
     Collectors-->>Orchestrator: Schema findings
     Orchestrator->>Collectors: Evaluate content-format heuristics
     Collectors-->>Orchestrator: Content findings
-    Orchestrator->>Collectors: Evaluate authority & backlink metrics
+    Orchestrator->>Collectors: Evaluate authority & backlink metrics (OpenPageRank)
     Collectors-->>Orchestrator: Authority findings
 
     Orchestrator->>Sampler: Sample citations for active prompt set
@@ -395,24 +398,24 @@ sequenceDiagram
     Sampler-->>Orchestrator: Citation findings + methodology caveat
 
     Orchestrator->>Scoring: compute_layered_score(findings)
-    Scoring-->>Orchestrator: Per-layer scores + overall score
+    Scoring-->>Orchestrator: Per-layer scores + overall score (5–98)
 
-    Orchestrator->>KB: Persist run, map findings to governing claims
+    Orchestrator->>KB: Map findings to governing claims (check_code -> claim_id)
     KB-->>Orchestrator: Claim-wired findings (id, status, confidence)
+
+    Orchestrator->>DB: Persist run record to audit_runs table
 
     Orchestrator-->>API: Scorecard + claim-cited remediation plan
     API-->>Client: Audit report (score, findings, remediation)
 
-    Note over Client,KB: Optional second phase
-    Client->>API: Submit manual review verdicts (per finding)
-    Client->>API: POST /audit/runs/{id}/synthesize
-    API->>Orchestrator: Run 3-step LLM synthesis
-    Orchestrator->>Provider: Draft narrative
-    Orchestrator->>Provider: Adversarial critique (different model)
-    Orchestrator->>Provider: Grounded rewrite
-    Provider-->>Orchestrator: Final narrative
-    Orchestrator-->>API: Synthesized report
-    API-->>Client: Narrative + governing claim citations
+    Note over Client,DB: Optional second phase (Synthesis)
+    Client->>API: Submit manual review verdicts (per card)
+    Client->>API: POST /api/v1/audit/runs/{id}/synthesize
+    API->>Provider: Step 1: Draft narrative from claim-grounded findings
+    API->>Provider: Step 2: Adversarial critique (reverse waterfall)
+    API->>Provider: Step 3: Grounded rewrite resolving critique flags
+    Provider-->>API: Final grounded narrative
+    API-->>Client: Grounded narrative + governing claim citations
 ```
 
 ### 4.3 What happens at each stage
@@ -441,16 +444,17 @@ sequenceDiagram
    findings, and score — is written to the embedded database as an
    append-only record.
 9. **Knowledge mapping.** Every finding's `check_code` is resolved to a
-   governing claim; a validation gate strips any recommendation whose
-   claim cannot be verified as active (see [§7](#7-declarative-knowledge-base)).
+   governing claim in the knowledge base; unmapped check codes fall back to
+   canonical baseline claims to ensure every item in the plan is anchored
+   (see [§7](#7-declarative-knowledge-base)).
 10. **Plan assembly.** Wired findings become a prioritized remediation
     plan, ordered by an urgency score derived from severity and layer.
-11. **(Optional) Human review.** Findings that automated heuristics flag
-    as requiring qualitative judgment are surfaced in a guided review
-    wizard.
-12. **(Optional) Synthesis.** Once review is complete, a three-step
-    LLM pipeline turns the claim-cited findings (plus any human notes)
-    into a narrative report.
+11. **(Optional) Human review.** Guided review cards surface qualitative
+    areas (e.g. brand framing, voice readiness) for optional operator notes.
+    Manual review verdicts do not alter the deterministic score.
+12. **(Optional) Synthesis.** When triggered, a three-step LLM pipeline
+    turns the claim-cited findings and any operator notes into a narrative
+    report.
 
 ---
 
@@ -898,11 +902,11 @@ review step is complete) is a three-step chain, not a single model call:
 1. **Synthesizer** — drafts a remediation narrative strictly from the
    claim-cited findings it is given; it is explicitly instructed not to
    introduce facts, statistics, or citations absent from that input.
-2. **Adversarial critique** — a *different* model (the waterfall run in
-   reverse order, so the critique is not performed by the same model that
-   wrote the draft) reviews the draft specifically for hallucinated
-   claim references, unsupported logical leaps, fabricated statistics,
-   and generic/non-actionable advice.
+2. **Adversarial critique** — an adversarial check running the provider
+   waterfall in reverse order to evaluate the draft using a different model
+   (when multiple provider keys are configured) or independent evaluation
+   prompt rules, reviewing specifically for hallucinated claim references,
+   unsupported logical leaps, fabricated statistics, and generic advice.
 3. **Grounded rewrite** — a final pass resolves every flag the critique
    raised, removing or rewriting anything unsupported, before the
    narrative is returned.
@@ -936,11 +940,12 @@ protect shared upstream quota):
   rate-limited, usable independently of a full audit.
 - **Run retrieval** — listing prior audit runs and fetching a specific
   run's detail, final report, or remediation plan.
-- **Manual verdict submission** — recording a human reviewer's verdict
-  against a specific finding on a specific run, as part of the guided
-  review workflow.
-- **Synthesis** — triggering the narrative synthesis pipeline for a run
-  that has completed review; also rate-limited.
+- **Manual verdict submission** — recording an operator's verdict and
+  qualitative notes against a specific instruction card for a run, as
+  part of the guided review workflow.
+- **Synthesis** — triggering the narrative synthesis pipeline for a run to
+  combine findings and optional review notes into a grounded narrative;
+  also rate-limited.
 - **BYOK key verification** — a lightweight, zero-token-cost check that a
   supplied provider API key is structurally valid and live, without
   spending model quota.
@@ -1135,7 +1140,7 @@ in [§7.3](#73-claim-lifecycle), is treated as a reliability control in its own
 right: it exists specifically to keep the system from asserting
 qualitative judgments it cannot actually verify on its own.
 
-To ensure strict accountability for these subjective decisions, Citeable enforces an **Analyst Identity overlay** upon launching the Manual Review Wizard. Reviewers must provide an Analyst ID (e.g., 'A-742' or their name), which is permanently logged in the database alongside their pass/fail verdicts and qualitative notes. This guarantees that any narrative judgments made in the final synthesis report can be traced back to the specific human reviewer who authorized them.
+The Manual Review Wizard is designed as a self-guided qualitative walkthrough for site operators and analysts to review nuanced qualitative questions (such as voice-answer readiness, brand framing, and subjective E-E-A-T credentials). The local UI records optional reviewer notes alongside verdicts, which are fed directly into the prompt context for the LLM narrative synthesis pass. The quantitative readiness score (5–98) itself remains strictly deterministic and frozen from the initial scan, guaranteeing that subjective human entries cannot artificially alter or inflate the empirical baseline score.
 
 ### 14.3 Reproducibility
 

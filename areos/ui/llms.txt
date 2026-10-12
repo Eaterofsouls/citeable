@@ -1,0 +1,25 @@
+# Citeable
+
+> Citeable (AREOS) is an automated Generative Engine Optimization (GEO) and AI search audit platform that analyzes websites for visibility across AI search engines and answer engines (ChatGPT, Claude, Perplexity, Google AI Overviews).
+
+## About
+Citeable evaluates websites across technical access, crawler policies, content extractability, factual density, and source citation authority. It combines deterministic technical diagnostics, human-in-the-loop qualitative reviews, and grounded LLM synthesis.
+
+## Docs
+- [External Documentation](/docs/external.md): Comprehensive system architecture, 100-point scoring model, audit lifecycle, and API reference.
+- [Public Documentation Portal](/docs.html): Interactive multi-page documentation reader for public specifications.
+
+## API
+- [Interactive API Docs](/api/docs): Swagger UI OpenAPI documentation for Citeable REST endpoints.
+- [OpenAPI Specification](/api/openapi.json): Raw OpenAPI JSON specification.
+- [Health Check](/api/health): System and database live readiness probe.
+
+## Blog
+- [Case Study](/case_study.html): Real-world GEO remediation and citation lift benchmarks.
+
+## Contact
+- [Citeable Repository](https://github.com/citeable): Community issues and documentation support.
+
+## Optional
+- [Robots Policy](/robots.txt): RFC 9309 crawler access rules and permissions for AI agents.
+- [XML Sitemap](/sitemap.xml): Machine-readable index of public URLs.

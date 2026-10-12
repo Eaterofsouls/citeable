@@ -8,7 +8,7 @@ from pathlib import Path
 
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse, RedirectResponse
+from fastapi.responses import JSONResponse, PlainTextResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 
 from areos.api.error_codes import ErrorCode
@@ -165,7 +165,9 @@ app.add_middleware(
         "http://127.0.0.1:8000",
         "http://localhost:3000",
         "http://127.0.0.1:3000",
+        "https://claude.ai",
     ],
+    allow_origin_regex=r"^https://([a-zA-Z0-9-]+\.)*(claude\.ai|anthropic\.com)$",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -305,10 +307,34 @@ app.include_router(byok.router)
 app.include_router(synthesis.router)
 app.include_router(knowledge.router)
 
-_DOCS_DIR = Path(__file__).resolve().parents[1] / "ui" / "docs"
+# ── Crawler & AI Search Discovery Endpoints (RFC 9309 / llmstxt.org) ─────────
+
+_UI_DIR = Path(__file__).resolve().parents[1] / "ui"
+_DOCS_DIR = _UI_DIR / "docs"
+
+@app.get("/robots.txt", response_class=PlainTextResponse)
+async def get_robots_txt():
+    robots_path = _UI_DIR / "robots.txt"
+    if robots_path.exists():
+        return PlainTextResponse(robots_path.read_text(encoding="utf-8"), media_type="text/plain; charset=utf-8")
+    return PlainTextResponse("User-agent: *\nAllow: /\n", media_type="text/plain; charset=utf-8")
+
+@app.get("/llms.txt", response_class=PlainTextResponse)
+async def get_llms_txt():
+    llms_path = _UI_DIR / "llms.txt"
+    if llms_path.exists():
+        return PlainTextResponse(llms_path.read_text(encoding="utf-8"), media_type="text/markdown; charset=utf-8")
+    return PlainTextResponse("# Citeable\n", media_type="text/markdown; charset=utf-8")
+
+@app.get("/sitemap.xml", response_class=PlainTextResponse)
+async def get_sitemap_xml():
+    sitemap_path = _UI_DIR / "sitemap.xml"
+    if sitemap_path.exists():
+        return PlainTextResponse(sitemap_path.read_text(encoding="utf-8"), media_type="application/xml; charset=utf-8")
+    return PlainTextResponse("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<urlset xmlns=\"http://www.sitemaps.org/schemas/sitemap/0.9\"></urlset>", media_type="application/xml; charset=utf-8")
+
 if _DOCS_DIR.exists():
     app.mount("/docs", StaticFiles(directory=str(_DOCS_DIR), html=True), name="docs")
 
-_UI_DIR = Path(__file__).resolve().parents[1] / "ui"
 if _UI_DIR.exists():
     app.mount("/", StaticFiles(directory=str(_UI_DIR), html=True), name="ui")
