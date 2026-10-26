@@ -113,8 +113,8 @@ def fetch_ahrefs_metrics(domain: str, api_key: str) -> dict[str, Any] | None:
 
 def get_fallback_metrics(domain: str, overrides: dict[str, Any] | None = None) -> dict[str, Any]:  # noqa: E501
     """
-    Generate deterministic authority metrics based on domain characteristics or overrides.
-    Used during offline tests and when APIs are unavailable.
+    Generate authority metrics based on explicit overrides.
+    When no overrides are provided, returns an explicit unavailable state.
     """
     if overrides:
         return {
@@ -125,34 +125,13 @@ def get_fallback_metrics(domain: str, overrides: dict[str, Any] | None = None) -
             "provider": overrides.get("provider", "manual_override")
         }
 
-    domain_lower = domain.lower()
-    # Well-known high-authority examples get passing profiles
-    if any(k in domain_lower for k in ("google.com", "wikipedia.org", "apple.com", "microsoft.com", "example-high.com", "areos.io")):  # noqa: E501
-        return {
-            "authority_score": 78,
-            "referring_domains": 12500,
-            "wikipedia_presence": True,
-            "brand_mention_growth": 15.4,
-            "provider": "deterministic_fallback"
-        }
-    # Explicit failing/test domain names
-    elif any(k in domain_lower for k in ("low-auth.local", "spam.local", "stagnant.com", "blocked.test")):  # noqa: E501
-        return {
-            "authority_score": 12,
-            "referring_domains": 18,
-            "wikipedia_presence": False,
-            "brand_mention_growth": -5.0,
-            "provider": "deterministic_fallback"
-        }
-    else:
-        # Standard average domain profile
-        return {
-            "authority_score": 35,
-            "referring_domains": 120,
-            "wikipedia_presence": False,
-            "brand_mention_growth": 2.5,
-            "provider": "deterministic_fallback"
-        }
+    return {
+        "authority_score": None,
+        "referring_domains": None,
+        "wikipedia_presence": None,
+        "brand_mention_growth": None,
+        "provider": "not_configured"
+    }
 
 
 # ── Main Audit Function ──────────────────────────────────────────────────────
@@ -165,72 +144,95 @@ def audit_domain_authority(
 ) -> AuthorityAuditResult:
     """
     Audits domain authority, backlink strength, and entity presence against AEO/GEO requirements.
+    When a provider is unavailable or unconfigured, preserves explicit null states and does
+    not generate false deductions based on synthetic fallback numbers.
     """
     metrics = None
-    provider_used = "deterministic_fallback"
+    provider_used = "not_configured"
 
     if metrics_override is not None:
         metrics = get_fallback_metrics(target_domain, overrides=metrics_override)
         provider_used = metrics.get("provider", "manual_override")
     else:
-        # Attempt live APIs if keys are set
-        opr_key = os.environ.get("OPEN_PAGERANK_API_KEY")
+        # Attempt live APIs if keys are set (checks client_keys BYOK, then environment)
+        opr_key = (client_keys.get("open_pagerank") or client_keys.get("OPEN_PAGERANK_API_KEY")) if client_keys else None
+        if not opr_key:
+            opr_key = os.environ.get("OPEN_PAGERANK_API_KEY")
+
         if opr_key and api_provider in ("auto", "open_pagerank"):
             metrics = fetch_open_pagerank(target_domain, opr_key)
             if metrics:
                 provider_used = "open_pagerank"
+            else:
+                provider_used = "provider_unavailable"
+        else:
+            provider_used = "not_configured"
 
         if metrics is None:
-            # No live provider configured, or the live call failed — fall back
-            # to deterministic heuristics instead of an empty metrics dict,
-            # which previously forced every domain to fail (0 < 20/50 thresholds).
-            metrics = get_fallback_metrics(target_domain)
-            provider_used = "deterministic_fallback"
+            metrics = {
+                "authority_score": None,
+                "referring_domains": None,
+                "wikipedia_presence": None,
+                "brand_mention_growth": None,
+                "provider": provider_used,
+            }
 
     issues: list[AuthorityIssue] = []
-    auth_score = metrics.get("authority_score", 0)
-    ref_domains = metrics.get("referring_domains", 0)
-    has_wiki = metrics.get("wikipedia_presence", False)
-    growth = metrics.get("brand_mention_growth", 0.0)
+    auth_score = metrics.get("authority_score")
+    ref_domains = metrics.get("referring_domains")
+    has_wiki = metrics.get("wikipedia_presence")
+    growth = metrics.get("brand_mention_growth")
 
-    # 1. Check Domain Rating / Authority Score
-    if auth_score < 20:
-        issues.append(AuthorityIssue(
-            severity="error",
-            code="AUTHORITY_DR_LOW",
-            message=f"Domain Authority Score ({auth_score}) is below critical threshold (<20). Low authority severely impairs AI engine citation likelihood."  # noqa: E501
-        ))
+    # Only evaluate checks if metrics were observed/measured
+    if auth_score is not None:
+        # 1. Check Domain Rating / Authority Score
+        if auth_score < 20:
+            issues.append(AuthorityIssue(
+                severity="error",
+                code="AUTHORITY_DR_LOW",
+                message=f"Domain Authority Score ({auth_score}) is below critical threshold (<20). Low authority severely impairs AI engine citation likelihood."  # noqa: E501
+            ))
 
-    # 2. Check Referring Domains count
-    if ref_domains < 50:
-        issues.append(AuthorityIssue(
-            severity="error",
-            code="REFERRING_DOMAINS_CRITICAL",
-            message=f"Referring domains total ({ref_domains}) is insufficient (<50). Conversational search AI relies on broad multi-domain consensus for fact verification."  # noqa: E501
-        ))
+    if ref_domains is not None:
+        # 2. Check Referring Domains count
+        if ref_domains < 50:
+            issues.append(AuthorityIssue(
+                severity="error",
+                code="REFERRING_DOMAINS_CRITICAL",
+                message=f"Referring domains total ({ref_domains}) is insufficient (<50). Conversational search AI relies on broad multi-domain consensus for fact verification."  # noqa: E501
+            ))
 
-    # 3. Check Wikipedia / Entity Graph presence
-    if not has_wiki:
+    # 3. Check Wikipedia / Entity Graph presence (only evaluated when explicitly measured)
+    if has_wiki is False:
         issues.append(AuthorityIssue(
             severity="warning",
             code="WIKIPEDIA_ENTITY_MISSING",
             message="No verified Wikipedia or Wikidata entity reference detected. Entity graph representation significantly boosts confidence in automated AI summaries."  # noqa: E501
         ))
 
-    # 4. Check Brand Mention Velocity / Growth
-    if growth <= 0.0:
-        issues.append(AuthorityIssue(
-            severity="warning",
-            code="BRAND_MENTIONS_STAGNANT",
-            message=f"Brand mention velocity has stagnated or declined ({growth}%). Modern AI answers prioritize active, growing digital footprint and news mentions."  # noqa: E501
-        ))
+    if growth is not None:
+        # 4. Check Brand Mention Velocity / Growth
+        if growth <= 0.0:
+            issues.append(AuthorityIssue(
+                severity="warning",
+                code="BRAND_MENTIONS_STAGNANT",
+                message=f"Brand mention velocity has stagnated or declined ({growth}%). Modern AI answers prioritize active, growing digital footprint and news mentions."  # noqa: E501
+            ))
 
-    # 5. Emit passing affirmation if profile is healthy
-    if len(issues) == 0:
+    # 5. Emit passing affirmation if profile is healthy and was actually measured
+    if auth_score is not None and len(issues) == 0:
         issues.append(AuthorityIssue(
             severity="info",
             code="AUTHORITY_PROFILE_GOOD",
             message=f"Domain authority ({auth_score}), backlink volume ({ref_domains} referring domains), and entity presence meet robust standards for AI engine trust."  # noqa: E501
+        ))
+
+    # 6. WP-1.4: If authority metrics were not measured/configured, emit explicit info finding
+    if auth_score is None:
+        issues.append(AuthorityIssue(
+            severity="info",
+            code="AUTHORITY_UNCONFIGURED" if provider_used == "not_configured" else "AUTHORITY_PROVIDER_UNAVAILABLE",
+            message=f"Domain authority metrics {provider_used}: external authority data not measured.",
         ))
 
     passed = not any(i.severity == "error" for i in issues)

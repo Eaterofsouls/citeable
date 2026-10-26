@@ -63,7 +63,8 @@ class TestT202RedirectAuditor:
 
     def test_no_issues(self):
         from areos.auditors.redirect_auditor import audit_redirects_and_access
-        result = audit_redirects_and_access("https://a.com", "<html></html>", hop_count=0, final_url="https://a.com")
+        html = '<html><head><link rel="canonical" href="https://a.com"></head></html>'
+        result = audit_redirects_and_access("https://a.com", html, hop_count=0, final_url="https://a.com")
         codes = {i.code for i in result.issues}
         assert "ACCESS_OK" in codes
 
@@ -94,14 +95,14 @@ class TestT204EntityVerifier:
     def test_sameas_missing(self):
         from areos.auditors.entity_verifier import audit_entities
         blocks = [{"@type": "Organization", "name": "Test Corp", "url": "https://test.com"}]
-        result = audit_entities("https://test.com", html="", json_ld_blocks=blocks)
+        result = audit_entities("https://test.com", html="", json_ld_blocks=blocks, check_liveness=False)
         codes = {i.code for i in result.issues}
         assert "SAMEAS_MISSING" in codes
 
     def test_wikidata_missing(self):
         from areos.auditors.entity_verifier import audit_entities
         blocks = [{"@type": "Organization", "name": "Test", "sameAs": ["https://twitter.com/test"]}]
-        result = audit_entities("https://test.com", html="", json_ld_blocks=blocks)
+        result = audit_entities("https://test.com", html="", json_ld_blocks=blocks, check_liveness=False)
         codes = {i.code for i in result.issues}
         assert "WIKIDATA_MISSING" in codes
 
@@ -111,7 +112,7 @@ class TestT204EntityVerifier:
             "https://twitter.com/test", "https://linkedin.com/test",
             "https://www.wikidata.org/wiki/Q12345"
         ]}]
-        result = audit_entities("https://test.com", html="", json_ld_blocks=blocks)
+        result = audit_entities("https://test.com", html="", json_ld_blocks=blocks, check_liveness=False)
         codes = {i.code for i in result.issues}
         assert "ENTITY_OK" in codes
 

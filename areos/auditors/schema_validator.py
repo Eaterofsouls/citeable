@@ -243,7 +243,7 @@ def validate_single(block: dict, index: int = 0, depth: int = 0, max_depth: int 
             index=index,
             passed=True,
             issues=[SchemaIssue(
-                "info", "UNKNOWN_SCHEMA_TYPE",
+                "warning", "UNKNOWN_SCHEMA_TYPE",
                 f"Schema types {schema_types} have no validation rules defined — manual review recommended"
             )]
         )

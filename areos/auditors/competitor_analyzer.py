@@ -135,7 +135,7 @@ def analyze_competitors(
         if advantage_types:
             types_str = ", ".join(sorted(advantage_types)[:3])
             issues.append(CompetitorIssue(
-                severity="info",
+                severity="warning",
                 code="COMPETITOR_SCHEMA_ADVANTAGE",
                 domain=comp,
                 message=f"Competitor {comp} implements schema types not found on your site: [{types_str}].",
@@ -144,7 +144,7 @@ def analyze_competitors(
         # Check for structured content advantage
         if (has_lists or has_tables) and not target_types:
             issues.append(CompetitorIssue(
-                severity="info",
+                severity="warning",
                 code="COMPETITOR_CONTENT_ADVANTAGE",
                 domain=comp,
                 message=f"Competitor {comp} uses structured lists/tables and rich schema to facilitate AI extraction.",

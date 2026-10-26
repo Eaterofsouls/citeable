@@ -137,12 +137,13 @@ def audit_multi_page(
                     duplicate_pairs.append((u1, u2, ratio))
 
     # Evaluate aggregate findings
+    # DEF-05: SITEMAP_PAGES_UNREACHABLE is owned exclusively by sitemap_auditor.py.
+    # multipage_auditor logs unreachable pages but does not emit duplicate scoring deductions.
     if unreachable_count > 0:
-        issues.append(MultiPageIssue(
-            severity="warning",
-            code="SITEMAP_PAGES_UNREACHABLE",
-            message=f"{unreachable_count} of {len(target_urls)} tested sitemap URLs were unreachable (HTTP error or timeout).",
-        ))
+        logger.info(
+            "%d of %d tested sitemap URLs were unreachable during multi-page crawl (evaluated by sitemap_auditor).",
+            unreachable_count, len(target_urls),
+        )
 
     if schema_missing_count > 0 and len(crawled_urls) > 1:
         issues.append(MultiPageIssue(

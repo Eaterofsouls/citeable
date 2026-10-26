@@ -31,6 +31,7 @@ from __future__ import annotations
 import json
 import os
 import time
+import urllib.request
 import requests
 from areos.util.ssrf import safe_get
 from dataclasses import dataclass, field
@@ -215,8 +216,12 @@ def _query_gemini_grounded(prompt: str, api_key: str) -> tuple[list[str], str, s
     grounding = data["candidates"][0].get("groundingMetadata", {})
     for chunk in grounding.get("groundingChunks", []):
         web = chunk.get("web", {})
-        if web.get("uri"):
-            cited.append(web["uri"])
+        domain = web.get("domain")
+        uri = web.get("uri")
+        if domain:
+            cited.append(domain)
+        elif uri:
+            cited.append(uri)
 
     return cited, full_answer[:300], full_answer
 

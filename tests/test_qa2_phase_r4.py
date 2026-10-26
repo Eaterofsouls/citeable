@@ -18,7 +18,8 @@ class TestR4MultiPageAuditor:
             with caplog.at_level(logging.WARNING):
                 res = audit_multi_page(["https://example.com/p1", "https://example.com/p2"], "example.com")
             assert res.page_count == 0
-            assert any(i.code == "SITEMAP_PAGES_UNREACHABLE" for i in res.issues)
+            # DEF-05 / WP-1.6: SITEMAP_PAGES_UNREACHABLE is owned exclusively by sitemap_auditor
+            assert not any(i.code == "SITEMAP_PAGES_UNREACHABLE" for i in res.issues)
             assert any("Failed to fetch multi-page URL" in msg for msg in caplog.messages)
 
     def test_multipage_extract_page_text_unescapes_entities(self):

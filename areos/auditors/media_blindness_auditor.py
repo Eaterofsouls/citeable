@@ -152,11 +152,11 @@ def audit_media_blindness(page_url: str, html: str) -> MediaAuditResult:
             )
         )
 
-    # VIDEO_NO_TRANSCRIPT: info — video/embed elements found with no transcript/text alternative
+    # VIDEO_NO_TRANSCRIPT: warning — video/embed elements found with no transcript/text alternative
     if (video_count > 0 or embed_count > 0) and not media_has_transcript:
         issues.append(
             MediaIssue(
-                severity="info",
+                severity="warning",
                 code="VIDEO_NO_TRANSCRIPT",
                 message="Video or embedded media elements found without transcript or text alternative.",
             )

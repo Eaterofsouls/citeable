@@ -70,7 +70,9 @@ class TestT601MultiPageAuditor:
 
         res = audit_multi_page(["https://example.com/dead1", "https://example.com/dead2"], "example.com")
         codes = [i.code for i in res.issues]
-        assert "SITEMAP_PAGES_UNREACHABLE" in codes
+        # DEF-05 / WP-1.6: SITEMAP_PAGES_UNREACHABLE is owned exclusively by sitemap_auditor
+        assert "SITEMAP_PAGES_UNREACHABLE" not in codes
+        assert res.page_count == 0
 
     @patch("areos.auditors.multipage_auditor.safe_get")
     def test_multipage_ok_when_healthy(self, mock_safe_get):
