@@ -37,6 +37,8 @@ class KnowledgeRecord(BaseModel):
     provenance: dict = Field(default_factory=dict)
     history: list | dict = Field(default_factory=list)
     priority_score: int | None = None
+    evidence_level: str | None = None
+    last_verified_at: str | None = None
 
 
 class EvidenceRecord(BaseModel):

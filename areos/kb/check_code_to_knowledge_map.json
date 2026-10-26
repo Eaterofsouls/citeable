@@ -14,19 +14,19 @@
   "JSON_PARSE_FAILURE": {
     "guidance_record": "KT-125",
     "backing_records": [
-      "KT-179"
+      "KT-006"
     ]
   },
   "MISSING_TYPE": {
     "guidance_record": "KT-126",
     "backing_records": [
-      "KT-179"
+      "KT-006"
     ]
   },
   "MISSING_REQUIRED_FIELD": {
     "guidance_record": "KT-127",
     "backing_records": [
-      "KT-179"
+      "KT-006"
     ]
   },
   "EXTRACTABILITY_NONE": {
@@ -45,35 +45,36 @@
   "LLMS_TXT_MISSING": {
     "guidance_record": "KT-130",
     "backing_records": [
-      "KT-181",
-      "KT-183"
+      "KT-009",
+      "KT-183",
+      "KT-211"
     ]
   },
   "LLMS_TXT_MISSING_H1": {
     "guidance_record": "KT-131",
     "backing_records": [
-      "KT-181",
+      "KT-009",
       "KT-183"
     ]
   },
   "LLMS_TXT_MISSING_SECTION": {
     "guidance_record": "KT-132",
     "backing_records": [
-      "KT-181",
+      "KT-009",
       "KT-183"
     ]
   },
   "LLMS_TXT_NO_LINKS": {
     "guidance_record": "KT-133",
     "backing_records": [
-      "KT-181",
+      "KT-009",
       "KT-183"
     ]
   },
   "LLMS_TXT_EMPTY_CONTENT": {
     "guidance_record": "KT-134",
     "backing_records": [
-      "KT-181",
+      "KT-009",
       "KT-183"
     ]
   },
@@ -116,13 +117,13 @@
   "UNKNOWN_FIELD": {
     "guidance_record": "KT-141",
     "backing_records": [
-      "KT-179"
+      "KT-006"
     ]
   },
   "UNKNOWN_SCHEMA_TYPE": {
     "guidance_record": "KT-142",
     "backing_records": [
-      "KT-179"
+      "KT-006"
     ]
   },
   "CRAWLER_PARTIAL": {
@@ -172,7 +173,8 @@
   "ANSWER_NOT_NEAR_TOP": {
     "guidance_record": "KT-150",
     "backing_records": [
-      "KT-191"
+      "KT-069",
+      "KT-210"
     ]
   },
   "ANSWER_NOT_SELF_CONTAINED": {
@@ -251,7 +253,7 @@
   "LLMS_UNVERIFIABLE": {
     "guidance_record": "KG-014",
     "backing_records": [
-      "KT-181"
+      "KT-009"
     ]
   },
   "CONTENT_STALE": {
@@ -468,6 +470,23 @@
     "guidance_record": "KG-001",
     "backing_records": [
       "KT-033"
+    ]
+  },
+  "SEARCH_CRAWLER_BLOCKED": {
+    "guidance_record": "KT-215",
+    "backing_records": [],
+    "priority": 12
+  },
+  "AI_CRAWLER_HOST_BLOCKED": {
+    "guidance_record": "KT-216",
+    "backing_records": [
+      "KT-216"
+    ]
+  },
+  "AI_OPTOUT_SIGNAL_PRESENT": {
+    "guidance_record": "KT-217",
+    "backing_records": [
+      "KT-217"
     ]
   }
 }

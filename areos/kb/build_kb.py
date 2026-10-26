@@ -42,7 +42,8 @@ CREATE TABLE knowledge (
     review_due TEXT,
     provenance_json TEXT,
     created_at TEXT,
-    last_verified_at TEXT
+    last_verified_at TEXT,
+    evidence_level TEXT
 );
 
 CREATE TABLE kb_sources (
@@ -230,19 +231,22 @@ def build(db_path: Path | str | None = None, corpus_dir: Path | str | None = Non
             
             if not last_verified_at and record.provenance:
                 last_verified_at = record.provenance.get('last_verified')
+            if hasattr(record, 'last_verified_at') and record.last_verified_at:
+                last_verified_at = record.last_verified_at
+            evidence_level = getattr(record, 'evidence_level', None)
                 
             cur.execute("""
                 INSERT OR REPLACE INTO knowledge (
                     kid, type, scope, statement, context, status, confidence, support,
                     uncertainty, contradiction, guidance_json, aeog_phases, check_links,
-                    priority_score, review_due, provenance_json, created_at, last_verified_at
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    priority_score, review_due, provenance_json, created_at, last_verified_at, evidence_level
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """, (
                 record.kid, record.type, record.scope, record.statement, record.context,
                 record.status, record.confidence, record.support,
                 record.uncertainty, record.contradiction,
                 guidance_json, aeog_phases, check_links, record.priority_score,
-                review_due, provenance_json, created_at, last_verified_at
+                review_due, provenance_json, created_at, last_verified_at, evidence_level
             ))
             
         # Parse and insert sources
