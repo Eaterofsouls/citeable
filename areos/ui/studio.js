@@ -371,6 +371,50 @@ function displayStudioResults(data, domain) {
              background:var(--brand-50);padding:2px 8px;border-radius:4px;font-weight:700;
              border:1px solid var(--brand-100);">How Calculated?</a>`;
 
+  // WP-5.2 Model B: Dual Readiness & Visibility scores
+  const readiness = sc.readiness_score ?? 0;
+  const visibility = sc.visibility_score ?? 0;
+  const visConfidence = sc.visibility_confidence || "low";
+  const authUnconfigured = sc.provider_used === "not_configured" || (sc.authority_metrics && sc.authority_metrics.provider_used === "not_configured");
+
+  const readinessColor = readiness >= 80 ? "var(--status-success)" : readiness >= 50 ? "var(--status-warning)" : "var(--status-danger)";
+  const visibilityColor = visibility >= 80 ? "var(--status-success)" : visibility >= 50 ? "var(--status-warning)" : "var(--status-danger)";
+
+  let dualScoreEl = document.getElementById("res-dual-scores");
+  if (!dualScoreEl) {
+    dualScoreEl = document.createElement("div");
+    dualScoreEl.id = "res-dual-scores";
+    dualScoreEl.style.cssText = "margin-top:0.75rem;padding:0.6rem 0.8rem;background:var(--surface-sunken);border:1px solid var(--border-default);border-radius:8px;display:grid;grid-template-columns:1fr 1fr;gap:0.75rem;";
+    scoreEl.parentElement.appendChild(dualScoreEl);
+  }
+
+  const authLabel = authUnconfigured ? `<div style="font-size:0.7rem;color:var(--text-tertiary);margin-top:2px;">Authority: N/A (not configured)</div>` : "";
+  const sampleCountStr = sc.citation_samples_count !== undefined ? ` — ${sc.citation_samples_count} samples` : "";
+
+  dualScoreEl.innerHTML = `
+    <div style="display:flex;flex-direction:column;">
+      <div style="display:flex;justify-content:space-between;align-items:center;">
+        <span style="font-size:0.75rem;font-weight:700;color:var(--text-secondary);text-transform:uppercase;letter-spacing:0.03em;">Readiness</span>
+        <span style="font-size:0.95rem;font-weight:800;font-family:'JetBrains Mono',monospace;color:${readinessColor};">${readiness}/100</span>
+      </div>
+      <div style="background:var(--border-default);border-radius:3px;height:4px;overflow:hidden;margin-top:4px;">
+        <div style="width:${readiness}%;height:100%;background:${readinessColor};border-radius:3px;"></div>
+      </div>
+      <div style="font-size:0.7rem;color:var(--text-tertiary);margin-top:4px;">Technical Foundations</div>
+    </div>
+    <div style="display:flex;flex-direction:column;">
+      <div style="display:flex;justify-content:space-between;align-items:center;">
+        <span style="font-size:0.75rem;font-weight:700;color:var(--text-secondary);text-transform:uppercase;letter-spacing:0.03em;">Visibility</span>
+        <span style="font-size:0.95rem;font-weight:800;font-family:'JetBrains Mono',monospace;color:${visibilityColor};">${visibility}/100</span>
+      </div>
+      <div style="background:var(--border-default);border-radius:3px;height:4px;overflow:hidden;margin-top:4px;">
+        <div style="width:${visibility}%;height:100%;background:${visibilityColor};border-radius:3px;"></div>
+      </div>
+      <div style="font-size:0.7rem;color:var(--text-tertiary);margin-top:4px;">${visConfidence.charAt(0).toUpperCase() + visConfidence.slice(1)} confidence${sampleCountStr}</div>
+      ${authLabel}
+    </div>
+  `;
+
  // Sub-score layer bars
  const subScores = sc.sub_scores || {};
  const layerOrder = [
@@ -402,11 +446,13 @@ function displayStudioResults(data, domain) {
  } else {
   subScoreEl.innerHTML = layerOrder.map(layer => {
    const ls  = subScores[layer.id] || { score: 0, max: 0, pct: 0, deductions: [] };
-   const pct = ls.max > 0 ? Math.round(ls.score / ls.max * 100) : 0;
-   const barColor = pct >= 80 ? "var(--status-success)" : pct >= 50 ? "var(--status-warning)" : "var(--status-danger)";
-   const deductionTip = (ls.deductions || []).map(d =>
+   const isUnconfigured = ls.unconfigured || (layer.id === "authority" && (ls.score === null || ls.score === undefined));
+   const scoreDisplay = isUnconfigured ? "N/A (not configured)" : `${ls.score}/${ls.max}`;
+   const pct = isUnconfigured ? 0 : (ls.max > 0 ? Math.round(ls.score / ls.max * 100) : 0);
+   const barColor = isUnconfigured ? "var(--border-default)" : (pct >= 80 ? "var(--status-success)" : pct >= 50 ? "var(--status-warning)" : "var(--status-danger)");
+   const deductionTip = isUnconfigured ? "Authority metrics unconfigured (OPEN_PAGERANK_API_KEY unset)" : ((ls.deductions || []).map(d =>
     `${d.code}: ${d.points}pts`
-   ).join(" | ") || "No deductions";
+   ).join(" | ") || "No deductions");
    return `
    <div title="${deductionTip}" style="cursor:default;">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:3px;">
@@ -414,7 +460,7 @@ function displayStudioResults(data, domain) {
       ${layer.icon} ${layer.label.toUpperCase()}
      </span>
      <span style="font-size:0.78rem;font-weight:700;color:var(--text-primary);font-family:'JetBrains Mono',monospace;">
-      ${ls.score}/${ls.max}
+      ${scoreDisplay}
      </span>
     </div>
     <div style="background:var(--border-default);border-radius:4px;height:6px;overflow:hidden;">
@@ -479,10 +525,13 @@ function displayStudioResults(data, domain) {
   }
 
   const auth = data.executive_scorecard.authority_metrics || {};
+  const provider = data.executive_scorecard.provider_used || auth.provider_used;
+  const isUnavailable = provider === 'not_configured' || provider === 'provider_unavailable' ||
+                        auth.authority_score === null || auth.authority_score === undefined;
 
-  if (!auth.authority_score || auth.authority_score === 0) {
+  if (isUnavailable) {
     document.getElementById("res-authority").textContent = 'N/A';
-    document.getElementById("res-referring").textContent = 'Authority metrics not configured';
+    document.getElementById("res-referring").textContent = 'N/A \u2014 no authority data available';
   } else {
     document.getElementById("res-authority").textContent = `${auth.authority_score} / 100`;
     document.getElementById("res-referring").textContent = `${Number(auth.referring_domains || 0).toLocaleString()} referring domains`;
@@ -844,8 +893,13 @@ async function loadRunById(runId) {
       is_historical_reload: true,
       executive_scorecard: {
         overall_score: full.overall_score ?? 0,
+        readiness_score: (full.score_detail && full.score_detail.readiness_score) ?? 0,
+        visibility_score: (full.score_detail && full.score_detail.visibility_score) ?? 0,
+        visibility_confidence: (full.score_detail && full.score_detail.visibility_confidence) || "low",
+        citation_samples_count: (full.score_detail && full.score_detail.citation_samples_count) ?? 0,
+        provider_used: (full.score_detail && full.score_detail.authority_metrics && full.score_detail.authority_metrics.provider_used) || "not_configured",
         sub_scores: (full.score_detail && full.score_detail.sub_scores) || {},
-        authority_metrics: (full.score_detail && full.score_detail.authority_metrics) || { authority_score: 0, referring_domains: 0 },
+        authority_metrics: (full.score_detail && full.score_detail.authority_metrics) || { authority_score: null, referring_domains: null, provider_used: "not_configured" },
         crawler_status: "See original scan",
         llms_txt_status: "See original scan",
         observed_citation_rate: "\u2014",
@@ -1017,10 +1071,15 @@ function exportExecutiveReport() {
   md += `| :--- | :--- | :--- |\n`;
   md += `| **Overall AEO Score** | **${sc.overall_score || 0} / 100** | Weighted AI Visibility Rating |\n`;
   
-  if (sc.provider_used === 'not_configured' || !sc.authority_metrics || !sc.authority_metrics.authority_score) {
-    md += `| **Entity Authority Score** | **N/A** | Authority metrics not configured |\n`;
+  const authMetrics = sc.authority_metrics || {};
+  const provider = sc.provider_used || authMetrics.provider_used;
+  const isAuthUnavailable = provider === 'not_configured' || provider === 'provider_unavailable' ||
+                            authMetrics.authority_score === null || authMetrics.authority_score === undefined;
+
+  if (isAuthUnavailable) {
+    md += `| **Entity Authority Score** | **N/A** | N/A \u2014 no authority data available |\n`;
   } else {
-    md += `| **Entity Authority Score** | **${sc.authority_metrics.authority_score || 0} / 100** | ${sc.authority_metrics.referring_domains || 0} referring domains |\n`;
+    md += `| **Entity Authority Score** | **${authMetrics.authority_score} / 100** | ${Number(authMetrics.referring_domains || 0).toLocaleString()} referring domains |\n`;
   }
 
   md += `| **AI Crawler Access** | **${sc.crawler_status || 'N/A'}** | llms.txt: ${sc.llms_txt_status || 'N/A'} |\n`;

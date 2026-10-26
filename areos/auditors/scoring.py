@@ -97,29 +97,32 @@ SCORE_CEILING = 98
 
 LAYER_DEDUCTIONS: dict[str, tuple[str, int]] = {
     # ── AP-01 Access (max 20) ──────────────────────────────────────────────
-    "CRAWLER_FULLY_BLOCKED":          ("access",   20),  # entire layer wiped
-    "NOSNIPPET_BLOCKING_AI":          ("access",    8),  # blocks snippet extraction
-    "CRAWLER_PARTIAL":                ("access",    5),  # some bots blocked
-    "AUDIT_PHASE_CRASHED":            ("access",    5),  # audit sub-phase failure
+    "CRAWLER_FULLY_BLOCKED":          ("access",    7),  # entire layer wiped
+    "SEARCH_CRAWLER_BLOCKED":         ("access",   10),  # search-specific AI crawler blocked
+    "AI_CRAWLER_HOST_BLOCKED":        ("access",    8),  # host/WAF blocks AI bots at infrastructure level
+    "AI_OPTOUT_SIGNAL_PRESENT":       ("access",    0),  # informational Bing/Copilot opt-out signal
+    "NOSNIPPET_BLOCKING_AI":          ("access",    3),  # blocks snippet extraction
+    "CRAWLER_PARTIAL":                ("access",    2),  # some bots blocked
+    "AUDIT_PHASE_CRASHED":            ("access",    2),  # audit sub-phase failure
     "INVALID_CRAWL_DELAY":            ("access",    1),
 
     # ── AP-02 Schema (max 15) ─────────────────────────────────────────────
-    "MISSING_TYPE":                   ("schema",    8),  # no @type — schema invalid
-    "JSON_PARSE_FAILURE":             ("schema",    7),  # unparseable JSON-LD block
-    "MISSING_REQUIRED_FIELD":         ("schema",    5),  # required field absent
-    "MISSING_RECOMMENDED_FIELD":      ("schema",    3),  # recommended field absent
-    "UNKNOWN_FIELD":                  ("schema",    2),  # non-standard property used
-    "UNKNOWN_SCHEMA_TYPE":            ("schema",    2),  # unrecognised @type
-    "SCHEMA_MISSING":                 ("schema",   10),  # no JSON-LD at all
+    "MISSING_TYPE":                   ("schema",    4),  # no @type — schema invalid
+    "JSON_PARSE_FAILURE":             ("schema",    3),  # unparseable JSON-LD block
+    "MISSING_REQUIRED_FIELD":         ("schema",    2),  # required field absent
+    "MISSING_RECOMMENDED_FIELD":      ("schema",    1),  # recommended field absent
+    "UNKNOWN_FIELD":                  ("schema",    1),  # non-standard property used
+    "UNKNOWN_SCHEMA_TYPE":            ("schema",    1),  # unrecognised @type
+    "SCHEMA_MISSING":                 ("schema",    4),  # no JSON-LD at all
 
     # ── AP-03 Content (max 20) ────────────────────────────────────────────
-    "EXTRACTABILITY_NONE":            ("content",  20),  # zero extractable content
-    "EXTRACTABILITY_LOW":             ("content",  12),  # sparse/CSS-heavy content
-    "EXTRACTABILITY_MEDIUM":          ("content",   6),  # partial extractability
-    "ANSWER_NOT_NEAR_TOP":            ("content",   4),  # first answer >30% down page
-    "ANSWER_NOT_SELF_CONTAINED":      ("content",   4),  # answer requires context
-    "ANSWER_NOT_FACTUALLY_SPECIFIC":  ("content",   3),  # no numbers/dates/metrics
-    "NO_LIST_OR_TABLE":               ("content",   2),  # no scannable structure
+    "EXTRACTABILITY_NONE":            ("content",   9),  # zero extractable content
+    "EXTRACTABILITY_LOW":             ("content",   5),  # sparse/CSS-heavy content
+    "EXTRACTABILITY_MEDIUM":          ("content",   3),  # partial extractability
+    "ANSWER_NOT_NEAR_TOP":            ("content",   2),  # first answer >30% down page
+    "ANSWER_NOT_SELF_CONTAINED":      ("content",   2),  # answer requires context
+    "ANSWER_NOT_FACTUALLY_SPECIFIC":  ("content",   1),  # no numbers/dates/metrics
+    "NO_LIST_OR_TABLE":               ("content",   1),  # no scannable structure
 
     # ── AP-04 Citation (max 30) ───────────────────────────────────────────
     "CITATION_NOT_OBSERVED":          ("citation", 30),  # not cited at all — full loss
@@ -133,50 +136,50 @@ LAYER_DEDUCTIONS: dict[str, tuple[str, int]] = {
     # ── Phase 2-6 additions (T-301) ──────────────────────────────────────
 
     # AP-01 Access — redirect, cloaking, sitemap
-    "REDIRECT_CHAIN_LONG":             ("access",    3),
-    "REDIRECT_CHAIN_EXCESSIVE":        ("access",    8),
-    "META_NOINDEX":                    ("access",    8),
-    "CLOAKING_DETECTED":               ("access",   10),
-    "CLOAKING_SUSPECTED":              ("access",    5),
-    "AI_BOT_BLOCKED_HTTP":             ("access",    8),
-    "SITEMAP_MISSING":                 ("access",    3),
-    "SITEMAP_EMPTY":                   ("access",    2),
+    "REDIRECT_CHAIN_LONG":             ("access",    1),
+    "REDIRECT_CHAIN_EXCESSIVE":        ("access",    3),
+    "META_NOINDEX":                    ("access",    3),
+    "CLOAKING_DETECTED":               ("access",    4),
+    "CLOAKING_SUSPECTED":              ("access",    2),
+    "AI_BOT_BLOCKED_HTTP":             ("access",    3),
+    "SITEMAP_MISSING":                 ("access",    1),
+    "SITEMAP_EMPTY":                   ("access",    1),
     "SITEMAP_NOT_IN_ROBOTS":           ("access",    1),
-    "SITEMAP_PAGES_UNREACHABLE":       ("access",    2),
+    "SITEMAP_PAGES_UNREACHABLE":       ("access",    1),
 
     # AP-02 Schema — canonical, entity, multi-page
-    "CANONICAL_MISMATCH":              ("schema",    4),
-    "CANONICAL_MISSING":               ("schema",    2),
-    "REDIRECT_DOMAIN_CHANGE":          ("schema",    3),
-    "ENTITY_NAME_MISSING":             ("schema",    5),
-    "SAMEAS_MISSING":                  ("schema",    2),
+    "CANONICAL_MISMATCH":              ("schema",    2),
+    "CANONICAL_MISSING":               ("schema",    1),
+    "REDIRECT_DOMAIN_CHANGE":          ("schema",    1),
+    "ENTITY_NAME_MISSING":             ("schema",    2),
+    "SAMEAS_MISSING":                  ("schema",    1),
     "SAMEAS_INCOMPLETE":               ("schema",    1),
-    "SAMEAS_DEAD_LINK":                ("schema",    3),
-    "WIKIDATA_MISSING":                ("schema",    2),
+    "SAMEAS_DEAD_LINK":                ("schema",    1),
+    "WIKIDATA_MISSING":                ("schema",    1),
 
     # AP-03 Content — freshness, media, rendering
-    "CONTENT_STALE":                   ("content",   4),
-    "CONTENT_AGING":                   ("content",   2),
-    "DATE_MISSING":                    ("content",   2),
-    "IFRAME_HEAVY":                    ("content",   4),
-    "IMAGES_MISSING_ALT":              ("content",   3),
-    "ALL_CONTENT_IN_MEDIA":            ("content",   8),
-    "VIDEO_NO_TRANSCRIPT":             ("content",   2),
-    "SITEMAP_NO_LASTMOD":              ("content",   2),
+    "CONTENT_STALE":                   ("content",   2),
+    "CONTENT_AGING":                   ("content",   1),
+    "DATE_MISSING":                    ("content",   1),
+    "IFRAME_HEAVY":                    ("content",   2),
+    "IMAGES_MISSING_ALT":              ("content",   1),
+    "ALL_CONTENT_IN_MEDIA":            ("content",   4),
+    "VIDEO_NO_TRANSCRIPT":             ("content",   1),
+    "SITEMAP_NO_LASTMOD":              ("content",   1),
 
     # AP-04 Citation — analytics
     "CITATION_RATE_LOW":               ("citation", 15),
     "SHARE_OF_VOICE_LOW":              ("citation", 10),
 
     # Additional Phase Findings & Auditor Integrations
-    "MULTI_PAGE_SCHEMA_GAPS":          ("schema",    5),
-    "MULTI_PAGE_THIN_CONTENT":         ("content",   5),
-    "NEAR_DUPLICATE_PAGES":            ("content",   4),
-    "COMPETITOR_SCHEMA_ADVANTAGE":     ("schema",    3),
-    "COMPETITOR_CONTENT_ADVANTAGE":    ("content",   3),
-    "JS_CRITICAL_CONTENT_GATED":       ("access",   10),
-    "CLOAKING_FETCH_FAILED":           ("access",    5),
-    "PAGE_FETCH_FAILED":               ("access",   10),
+    "MULTI_PAGE_SCHEMA_GAPS":          ("schema",    2),
+    "MULTI_PAGE_THIN_CONTENT":         ("content",   2),
+    "NEAR_DUPLICATE_PAGES":            ("content",   2),
+    "COMPETITOR_SCHEMA_ADVANTAGE":     ("schema",    1),
+    "COMPETITOR_CONTENT_ADVANTAGE":    ("content",   1),
+    "JS_CRITICAL_CONTENT_GATED":       ("access",    4),
+    "CLOAKING_FETCH_FAILED":           ("access",    2),
+    "PAGE_FETCH_FAILED":               ("access",    4),
 }
 
 
@@ -195,46 +198,61 @@ ACCESS_GATE: dict[str, int] = {
 
 @dataclass
 class LayerScore:
-    layer_id:   str
-    label:      str
-    stage:      str
-    score:      int          # points remaining after deductions (≥ 0)
-    max_points: int
-    deductions: list[dict] = field(default_factory=list)
+    layer_id:     str
+    label:        str
+    stage:        str
+    score:        Optional[int]  # points remaining after deductions (≥ 0), or None if unconfigured
+    max_points:   int
+    deductions:   list[dict] = field(default_factory=list)
+    unconfigured: bool = False
     # Each deduction: {code, points, message, running_total}
 
     @property
-    def pct(self) -> float:
+    def pct(self) -> Optional[float]:
+        if self.unconfigured or self.score is None:
+            return None
         return round(self.score / self.max_points * 100, 1) if self.max_points else 0.0
 
     def as_dict(self) -> dict:
         return {
-            "score":      self.score,
-            "max":        self.max_points,
-            "pct":        self.pct,
-            "label":      self.label,
-            "stage":      self.stage,
-            "deductions": self.deductions,
+            "score":        self.score,
+            "max":          self.max_points,
+            "pct":          self.pct,
+            "label":        self.label,
+            "stage":        self.stage,
+            "deductions":   self.deductions,
+            "unconfigured": self.unconfigured,
         }
 
 
 @dataclass
 class ScorecardResult:
-    overall_score:       int
-    sub_scores:          dict[str, LayerScore]
-    access_gate_applied: bool              = False
-    access_gate_cap:     Optional[int]     = None
-    raw_layer_total:     int               = 0  # before gate applied
+    overall_score:          int
+    sub_scores:             dict[str, LayerScore]
+    access_gate_applied:    bool              = False
+    access_gate_cap:        Optional[int]     = None
+    raw_layer_total:        int               = 0  # before gate applied
+    authority_excluded:     bool              = False
+    readiness_score:        int               = 0  # WP-5.2 Model B (0-100)
+    visibility_score:       int               = 0  # WP-5.2 Model B (0-100)
+    visibility_confidence:  str               = "low"  # low (<5), medium (5-9), high (>=10)
+    citation_samples_count: int               = 0
 
     def as_dict(self) -> dict:
         return {
-            "overall_score":       self.overall_score,
-            "sub_scores":          {k: v.as_dict() for k, v in self.sub_scores.items()},
-            "access_gate_applied": self.access_gate_applied,
-            "access_gate_cap":     self.access_gate_cap,
-            "raw_layer_total":     self.raw_layer_total,
+            "overall_score":          self.overall_score,
+            "overall_max":            85 if self.authority_excluded else 100,
+            "authority_excluded":     self.authority_excluded,
+            "readiness_score":        self.readiness_score,
+            "visibility_score":       self.visibility_score,
+            "visibility_confidence":  self.visibility_confidence,
+            "citation_samples_count": self.citation_samples_count,
+            "sub_scores":             {k: v.as_dict() for k, v in self.sub_scores.items()},
+            "access_gate_applied":    self.access_gate_applied,
+            "access_gate_cap":        self.access_gate_cap,
+            "raw_layer_total":        self.raw_layer_total,
             # Convenience: flat breakdown list ordered by running total for display
-            "score_breakdown":     self._flat_breakdown(),
+            "score_breakdown":        self._flat_breakdown(),
         }
 
     def _flat_breakdown(self) -> list[dict]:
@@ -250,7 +268,11 @@ class ScorecardResult:
 
 # ── Main computation ───────────────────────────────────────────────────────────
 
-def compute_layered_score(findings: list[dict]) -> ScorecardResult:
+def compute_layered_score(
+    findings: list[dict],
+    authority_unconfigured: bool | None = None,
+    citation_samples_count: int = 0,
+) -> ScorecardResult:
     """
     Compute the layered AREOS score from a list of finding dicts.
 
@@ -260,19 +282,28 @@ def compute_layered_score(findings: list[dict]) -> ScorecardResult:
     Returns a ScorecardResult with overall_score (5–98), sub_scores
     per layer, and a full deduction ledger in score_breakdown.
     """
-    # Initialise each layer at full points
+    if authority_unconfigured is None:
+        authority_unconfigured = any(
+            f.get("code") in ("AUTHORITY_UNCONFIGURED", "AUTHORITY_PROVIDER_UNAVAILABLE", "AUTHORITY_EXCLUDED")
+            for f in findings
+        )
+
+    # Initialise each layer
     layers: dict[str, LayerScore] = {
         lid: LayerScore(
             layer_id=lid,
             label=meta["label"],
             stage=meta["stage"],
-            score=meta["max"],
+            score=None if (lid == "authority" and authority_unconfigured) else meta["max"],
             max_points=meta["max"],
+            unconfigured=(lid == "authority" and authority_unconfigured),
         )
         for lid, meta in LAYERS.items()
     }
 
-    running_total = TOTAL_MAX
+    # If authority is unconfigured, active points are out of 85 (WP-1.4 / DEF-04)
+    active_max = sum(v["max"] for k, v in LAYERS.items() if not (k == "authority" and authority_unconfigured))
+    running_total = active_max
     gate_cap: Optional[int] = None
 
     for finding in findings:
@@ -281,7 +312,12 @@ def compute_layered_score(findings: list[dict]) -> ScorecardResult:
             continue  # informational or unknown codes — no deduction
 
         layer_id, pts = LAYER_DEDUCTIONS[code]
+        if layer_id == "authority" and authority_unconfigured:
+            continue
+
         layer = layers[layer_id]
+        if layer.score is None:
+            continue
 
         actual_pts = min(pts, layer.score)  # can't deduct more than what's left
         if actual_pts <= 0:
@@ -304,7 +340,8 @@ def compute_layered_score(findings: list[dict]) -> ScorecardResult:
             if gate_cap is None or cap < gate_cap:
                 gate_cap = cap
 
-    raw_total = max(SCORE_FLOOR, min(SCORE_CEILING, running_total))
+    max_possible = min(active_max, SCORE_CEILING)
+    raw_total = max(SCORE_FLOOR, min(max_possible, running_total))
     gate_applied = False
 
     if gate_cap is not None and raw_total > gate_cap:
@@ -313,12 +350,37 @@ def compute_layered_score(findings: list[dict]) -> ScorecardResult:
     else:
         overall = raw_total
 
+    # ── Model B: Dual Readiness & Visibility scores (WP-5.2) ─────────────────
+    access_pts = layers["access"].score or 0
+    schema_pts = layers["schema"].score or 0
+    content_pts = layers["content"].score or 0
+    readiness = max(0, min(100, round(100 * (access_pts + schema_pts + content_pts) / 55)))
+
+    citation_pts = layers["citation"].score or 0
+    if authority_unconfigured:
+        visibility = max(0, min(100, round(100 * citation_pts / 30)))
+    else:
+        authority_pts = layers["authority"].score or 0
+        visibility = max(0, min(100, round(100 * (citation_pts + authority_pts) / 45)))
+
+    if citation_samples_count < 5:
+        vis_confidence = "low"
+    elif citation_samples_count < 10:
+        vis_confidence = "medium"
+    else:
+        vis_confidence = "high"
+
     return ScorecardResult(
         overall_score=overall,
         sub_scores=layers,
         access_gate_applied=gate_applied,
         access_gate_cap=gate_cap if gate_applied else None,
         raw_layer_total=raw_total,
+        authority_excluded=authority_unconfigured,
+        readiness_score=readiness,
+        visibility_score=visibility,
+        visibility_confidence=vis_confidence,
+        citation_samples_count=citation_samples_count,
     )
 
 

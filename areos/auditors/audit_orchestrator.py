@@ -45,6 +45,7 @@ from areos.auditors.citation_sampler import (
     sample_citations,
 )
 from areos.auditors.content_format_auditor import audit_page_format
+from areos.auditors.extractability_judge import judge_page
 
 CITATION_SAMPLE_PROMPT_COUNT = 2
 CITATION_SAMPLE_ENGINES = ["perplexity", "gemini"]
@@ -60,6 +61,9 @@ from areos.util.ssrf import safe_get, validate_domain_ssrf
 
 # Actionable code snippets per check code to guide user implementations
 ACTION_SNIPPETS = {
+    "SEARCH_CRAWLER_BLOCKED": "# Add to robots.txt to permit AI search engines while managing training bots:\nUser-agent: OAI-SearchBot\nAllow: /\n\nUser-agent: PerplexityBot\nAllow: /\n\nUser-agent: Amzn-SearchBot\nAllow: /",  # noqa: E501
+    "AI_CRAWLER_HOST_BLOCKED": "/* Configure hosting, CDN, or WAF (e.g. WP Engine, Cloudflare, AWS CloudFront) */\n# Allowlist verified AI crawler User-Agents (e.g. OAI-SearchBot, ClaudeBot, PerplexityBot).\n# Ensure rate limiting (HTTP 429) does not intercept AI search requests on cache misses.",  # noqa: E501
+    "AI_OPTOUT_SIGNAL_PRESENT": "<!-- Review meta robots directives -->\n<!-- Remove 'noarchive' or 'nocache' from <meta name=\"robots\"> or <meta name=\"bingbot\"> if you wish to allow Copilot/Bing Chat indexing and training -->",  # noqa: E501
     "CRAWLER_FULLY_BLOCKED": "# Add to robots.txt:\nUser-agent: GPTBot\nAllow: /\n\nUser-agent: PerplexityBot\nAllow: /\n\nUser-agent: ClaudeBot\nAllow: /",  # noqa: E501
     "LLMS_TXT_MISSING": "# Create /llms.txt at web root:\n# Site Title\n> Primary value proposition and summary for AI assistants.\n\n## Core References\n- [Documentation](https://domain.com/docs): Full product guide.",  # noqa: E501
     "JSON_PARSE_FAILURE": "<!-- Validate JSON-LD syntax -->\n<script type=\"application/ld+json\">\n{\n  \"@context\": \"https://schema.org\",\n  \"@type\": \"Organization\",\n  \"name\": \"Brand Name\",\n  \"url\": \"https://domain.com\"\n}\n</script>",  # noqa: E501
@@ -271,6 +275,79 @@ def _validate_schema_from_html(page_html: str, page_url: str) -> tuple[list[dict
     return (findings, json_ld_blocks, schema_claims)
 
 
+def _detect_schema_types(json_ld_blocks: list | None) -> set[str]:
+    """Extract schema @type strings from JSON-LD blocks and @graph arrays."""
+    types = set()
+    if not json_ld_blocks:
+        return types
+    for block in json_ld_blocks:
+        if not isinstance(block, dict):
+            continue
+        items = [block]
+        graph = block.get("@graph")
+        if isinstance(graph, list):
+            items.extend(item for item in graph if isinstance(item, dict))
+        for item in items:
+            t = item.get("@type")
+            if isinstance(t, str):
+                types.add(t)
+            elif isinstance(t, list):
+                types.update(x for x in t if isinstance(x, str))
+    return types
+
+
+def generate_fallback_prompts(clean_domain: str, json_ld_blocks: list | None = None) -> list[str]:
+    """Generate industry-aware fallback citation prompts based on detected schema types (WP-1.3 / DEF-03)."""
+    detected_types = _detect_schema_types(json_ld_blocks)
+
+    # 1. Software / Tech Application
+    if detected_types & {"SoftwareApplication", "WebApplication", "MobileApplication", "TechArticle"}:
+        return [
+            f"What are the best platforms and tools in the {clean_domain} ecosystem?",
+            f"Why choose {clean_domain} over competitor alternatives?",
+            f"What are the documented specifications and features of {clean_domain}?",
+        ]
+
+    # 2. Medical / Healthcare
+    if detected_types & {"MedicalOrganization", "Hospital", "Physician", "MedicalBusiness", "MedicalClinic", "Pharmacy"}:
+        return [
+            f"What medical services and healthcare specialties does {clean_domain} provide?",
+            f"What are patient reviews and quality ratings for {clean_domain}?",
+            f"Where is {clean_domain} located and what are its patient care hours?",
+        ]
+
+    # 3. Local Business / Services
+    if detected_types & {"LocalBusiness", "Restaurant", "ProfessionalService", "LegalService", "FoodEstablishment"}:
+        return [
+            f"What services does {clean_domain} offer and what areas does it serve?",
+            f"What are customer reviews and reputation for {clean_domain}?",
+            f"What are the hours, location, and contact information for {clean_domain}?",
+        ]
+
+    # 4. Product / Ecommerce
+    if detected_types & {"Product", "Store", "ItemList"}:
+        return [
+            f"What products does {clean_domain} sell and what are the top recommendations?",
+            f"What is the pricing, quality, and customer feedback for {clean_domain}?",
+            f"How does {clean_domain} compare to competing brands and retailers?",
+        ]
+
+    # 5. Organization / Corporate
+    if detected_types & {"Organization", "Corporation", "NGO", "GovernmentOrganization"}:
+        return [
+            f"What is {clean_domain} and what does the organization do?",
+            f"What is the mission, leadership, and background of {clean_domain}?",
+            f"What products, services, or initiatives is {clean_domain} known for?",
+        ]
+
+    # 6. Neutral domain-agnostic fallback (no SaaS assumptions)
+    return [
+        f"What is {clean_domain} and what does it offer?",
+        f"How does {clean_domain} compare to alternatives in its field?",
+        f"What are the main features, services, or products of {clean_domain}?",
+    ]
+
+
 
 def run_citation_sampling_loop(
     clean_domain: str,
@@ -368,15 +445,16 @@ def run_orchestrated_audit(
         robots_text = _fetch_robots_txt(clean_domain)
         if robots_text:
             res_rob = parse_robots_txt(robots_text)
-            for bot, dir_obj in res_rob.directives.items():
-                if dir_obj.is_fully_blocked:
+            for iss in res_rob.issues:
+                if iss.code in ("CRAWLER_FULLY_BLOCKED", "CRAWLER_PARTIAL", "INVALID_CRAWL_DELAY", "SEARCH_CRAWLER_BLOCKED"):
                     findings.append({
-                        "code": "CRAWLER_FULLY_BLOCKED",
-                        "severity": "error",
-                        "message": f"AI Crawler {bot} is explicitly denied in robots.txt.",
+                        "code": iss.code,
+                        "severity": "error" if iss.code == "CRAWLER_FULLY_BLOCKED" else iss.severity,
+                        "message": iss.message,
                         "page_url": f"https://{clean_domain}/robots.txt"
                     })
-                    robots_ok = False
+                    if iss.code == "CRAWLER_FULLY_BLOCKED":
+                        robots_ok = False
         
     
     except Exception as exc:
@@ -419,7 +497,34 @@ def run_orchestrated_audit(
         llms_ok = False
 
     # ── Single page fetch (T-101/T-103) ──────────────────────────────────────
-    page_html, redirect_hop_count, final_url = _fetch_page(clean_domain, page_url)
+    if sample_content:
+        page_html = sample_content
+        redirect_hop_count = 0
+        final_url = page_url
+        control_status = 200
+    else:
+        page_html, redirect_hop_count, final_url = _fetch_page(clean_domain, page_url)
+        control_status = 200 if page_html else 0
+
+    # 1b. Live AI-Bot Host-Block Prober (WP-4.2)
+    try:
+        from areos.auditors.host_block_prober import probe_host_blocks
+        host_block_res = probe_host_blocks(page_url, control_status=control_status)
+        for iss in host_block_res.issues:
+            findings.append({
+                "code": iss.code,
+                "severity": iss.severity,
+                "message": iss.message,
+                "page_url": page_url,
+            })
+    except Exception as e:
+        _orch_logger.warning("Host block prober phase failed for %s: %s", page_url, e)
+        findings.append({
+            "code": "AUDIT_PHASE_CRASHED",
+            "severity": "error",
+            "message": f"Host block prober phase failed: {e}",
+            "page_url": page_url,
+        })
 
     # 2. Schema & JSON-LD Structure — uses pre-fetched HTML
     try:
@@ -439,12 +544,50 @@ def run_orchestrated_audit(
     # 3. AI Extractability & Content Formatting — uses pre-fetched HTML
     if page_html:
         eval_text = sample_content or page_html
-        if len(eval_text.split()) < 30:
+        try:
+            page_data = {
+                "url": page_url,
+                "status_code": 200,
+                "html": eval_text,
+                "json_lds": json_ld_blocks,
+            }
+            judge_res = judge_page(page_data, client_keys=client_keys)
+            label = getattr(judge_res, "label", "medium").lower()
+            if label == "none":
+                findings.append({
+                    "code": "EXTRACTABILITY_NONE",
+                    "severity": "error",
+                    "message": "Page contains zero or virtually zero extractable content for AI chunking and fact extraction.",  # noqa: E501
+                    "page_url": page_url,
+                })
+            elif label == "low":
+                findings.append({
+                    "code": "EXTRACTABILITY_LOW",
+                    "severity": "warning",
+                    "message": "Content density is insufficient for high-confidence AI chunking and fact extraction.",  # noqa: E501
+                    "page_url": page_url,
+                })
+            elif label == "medium":
+                findings.append({
+                    "code": "EXTRACTABILITY_MEDIUM",
+                    "severity": "warning",
+                    "message": "Content extractability is moderate; prose requires structural refinement for optimal AI chunking.",  # noqa: E501
+                    "page_url": page_url,
+                })
+            elif label == "high":
+                findings.append({
+                    "code": "EXTRACTABILITY_HIGH",
+                    "severity": "info",
+                    "message": "Content extraction efficiency is high. Main text, headings, and structure are cleanly extractable by AI scrapers.",  # noqa: E501
+                    "page_url": page_url,
+                })
+        except Exception as exc:
+            _orch_logger.warning("Extractability judge failed for %s: %s", page_url, exc)
             findings.append({
-                "code": "EXTRACTABILITY_LOW",
+                "code": "EXTRACTABILITY_MEDIUM",
                 "severity": "warning",
-                "message": "Content density is insufficient for high-confidence AI chunking and fact extraction.",  # noqa: E501
-                "page_url": page_url
+                "message": "Content extractability defaulted to medium due to judge execution error.",  # noqa: E501
+                "page_url": page_url,
             })
         try:
             fmt_res = audit_page_format(page_url, html=eval_text, client_keys=client_keys)
@@ -653,11 +796,7 @@ def run_orchestrated_audit(
     # 12. Live AI Citation Sampling & Phase 7 Competitor Analysis
     prompts = load_active_prompt_set(clean_domain, db_path=str(db_path))
     if not prompts:
-        prompts = [
-            f"What are the best platforms and tools in the {clean_domain} ecosystem?",
-            f"Why choose {clean_domain} over competitor alternatives?",
-            f"What are the documented specifications and features of {clean_domain}?"
-        ]
+        prompts = generate_fallback_prompts(clean_domain, json_ld_blocks)
     
     sample_res = run_citation_sampling_loop(
         clean_domain=clean_domain,
@@ -666,60 +805,18 @@ def run_orchestrated_audit(
         circuit_breaker=circuit_breaker,
     )
     citation_obs = sample_res.observations
-    cited_runs = sum(1 for obs in citation_obs if len(obs.cited_urls) > 0)
+    cited_runs = sum(
+        1 for obs in citation_obs
+        if any(clean_domain.lower() in url.lower() for url in obs.cited_urls)
+    )
     total_runs = len(citation_obs) if citation_obs else 1
     citation_rate_str = f"{cited_runs}/{total_runs} runs"
 
-    if cited_runs == 0:
-        findings.append({
-            "code": "CITATION_NOT_OBSERVED",
-            "severity": "warning",
-            "message": f"Brand domain {clean_domain} was not explicitly cited across generative AI answers ({citation_rate_str}).",  # noqa: E501
-            "page_url": page_url
-        })
-    else:
-        findings.append({
-            "code": "CITATION_OBSERVED",
-            "severity": "info",
-            "message": f"Brand domain actively cited in {citation_rate_str} during real-time generative query sampling.",  # noqa: E501
-            "page_url": page_url
-        })
-
     # Citation Analytics & Competitor Extraction
+    cit_analytics = {}
     try:
         from areos.auditors.citation_sampler import compute_citation_analytics
         cit_analytics = compute_citation_analytics(sample_res)
-        if cit_analytics.get("citation_rate", 0) < 0.2 and citation_obs:
-            findings.append({
-                "code": "CITATION_RATE_LOW",
-                "severity": "warning",
-                "message": f"Brand citation rate is low ({cit_analytics.get('citation_rate', 0):.1%}) across sampled prompts.",
-                "page_url": page_url
-            })
-        if cit_analytics.get("share_of_voice", 0) < 0.1 and citation_obs:
-            findings.append({
-                "code": "SHARE_OF_VOICE_LOW",
-                "severity": "warning",
-                "message": f"Brand share of voice is low ({cit_analytics.get('share_of_voice', 0):.1%}) compared to cited competitors.",
-                "page_url": page_url
-            })
-
-        # Phase 7 Competitor analysis
-        comp_domains = cit_analytics.get("competitor_domains", [])
-        if comp_domains:
-            try:
-                from areos.auditors.competitor_analyzer import analyze_competitors
-                target_types = [claim.get("value") for claim in schema_claims if isinstance(claim, dict) and claim.get("field") == "@type"]
-                comp_res = analyze_competitors(comp_domains, clean_domain, target_types)
-                findings.extend(comp_res.as_finding_dicts())
-            except Exception as e:
-                _orch_logger.warning("Competitor analysis failed for %s: %s", clean_domain, e)
-                findings.append({
-                    "code": "AUDIT_PHASE_CRASHED",
-                    "severity": "error",
-                    "message": f"Competitor analysis sub-phase failed: {e}",
-                    "page_url": page_url
-                })
     except Exception as e:
         _orch_logger.warning("Citation analytics failed for %s: %s", clean_domain, e)
         findings.append({
@@ -729,21 +826,77 @@ def run_orchestrated_audit(
             "page_url": page_url
         })
 
+    # Mutually exclusive citation penalty tiers (VAL-05 / WP-1.8)
+    if cited_runs == 0:
+        findings.append({
+            "code": "CITATION_NOT_OBSERVED",
+            "severity": "warning",
+            "message": f"Brand domain {clean_domain} was not explicitly cited across generative AI answers ({citation_rate_str}).",  # noqa: E501
+            "page_url": page_url
+        })
+    elif cit_analytics.get("citation_rate", 0) < 0.2 and citation_obs:
+        findings.append({
+            "code": "CITATION_RATE_LOW",
+            "severity": "warning",
+            "message": f"Brand citation rate is low ({cit_analytics.get('citation_rate', 0):.1%}) across sampled prompts.",
+            "page_url": page_url
+        })
+    elif cit_analytics.get("share_of_voice", 0) < 0.1 and citation_obs:
+        findings.append({
+            "code": "SHARE_OF_VOICE_LOW",
+            "severity": "warning",
+            "message": f"Brand share of voice is low ({cit_analytics.get('share_of_voice', 0):.1%}) compared to cited competitors.",
+            "page_url": page_url
+        })
+
+    if cited_runs > 0:
+        findings.append({
+            "code": "CITATION_OBSERVED",
+            "severity": "info",
+            "message": f"Brand domain actively cited in {citation_rate_str} during real-time generative query sampling.",  # noqa: E501
+            "page_url": page_url
+        })
+
+    # Phase 7 Competitor analysis
+    comp_domains = cit_analytics.get("competitor_domains", [])
+    if comp_domains:
+        try:
+            from areos.auditors.competitor_analyzer import analyze_competitors
+            target_types = [claim.get("value") for claim in schema_claims if isinstance(claim, dict) and claim.get("field") == "@type"]
+            comp_res = analyze_competitors(comp_domains, clean_domain, target_types)
+            findings.extend(comp_res.as_finding_dicts())
+        except Exception as e:
+            _orch_logger.warning("Competitor analysis failed for %s: %s", clean_domain, e)
+            findings.append({
+                "code": "AUDIT_PHASE_CRASHED",
+                "severity": "error",
+                "message": f"Competitor analysis sub-phase failed: {e}",
+                "page_url": page_url
+            })
+
     # Compute score with the layered model (B+C) — stored in DB so the
     # run record always carries the score even before the return payload.
-    _scorecard_pre = compute_layered_score(findings)
+    n_cit_samples = len(citation_obs) if 'citation_obs' in locals() and citation_obs else 0
+    _scorecard_pre = compute_layered_score(findings, citation_samples_count=n_cit_samples)
     _overall_score_pre = _scorecard_pre.overall_score
     _raw_metrics_pre = getattr(auth_res, "metrics", None) or {}
+    _provider_used_pre = getattr(auth_res, "provider_used", "not_configured")
     _score_detail_json = json.dumps({
+        "overall_score": _scorecard_pre.overall_score,
+        "readiness_score": _scorecard_pre.readiness_score,
+        "visibility_score": _scorecard_pre.visibility_score,
+        "visibility_confidence": _scorecard_pre.visibility_confidence,
+        "citation_samples_count": _scorecard_pre.citation_samples_count,
         "sub_scores": {k: v.as_dict() for k, v in _scorecard_pre.sub_scores.items()},
         "score_breakdown": _scorecard_pre._flat_breakdown(),
         "access_gate_applied": _scorecard_pre.access_gate_applied,
         "access_gate_cap": _scorecard_pre.access_gate_cap,
         "authority_metrics": {
-            "authority_score": _raw_metrics_pre.get("authority_score") or 0,
-            "referring_domains": _raw_metrics_pre.get("referring_domains") or 0,
+            "authority_score": _raw_metrics_pre.get("authority_score"),
+            "referring_domains": _raw_metrics_pre.get("referring_domains"),
             "trust_flow": _raw_metrics_pre.get("trust_flow") or 0,
             "citation_flow": _raw_metrics_pre.get("citation_flow") or 0,
+            "provider_used": _provider_used_pre,
         },
     })
 
@@ -841,17 +994,19 @@ def run_orchestrated_audit(
         })
 
     # Calculate Executive Scorecard via layered model (Option B + C)
-    scorecard_result = compute_layered_score(findings)
+    scorecard_result = compute_layered_score(findings, citation_samples_count=n_cit_samples)
     overall_score    = scorecard_result.overall_score
     error_cnt, warn_cnt = count_severity(findings)
 
-    # Normalise authority_metrics so JS never sees None/missing keys
+    # Normalise authority_metrics so JS receives explicit nulls and provider_used
     raw_metrics = getattr(auth_res, "metrics", None) or {}
+    provider_used = getattr(auth_res, "provider_used", "not_configured")
     safe_metrics = {
-        "authority_score": raw_metrics.get("authority_score") or 0,
-        "referring_domains": raw_metrics.get("referring_domains") or 0,
+        "authority_score": raw_metrics.get("authority_score"),
+        "referring_domains": raw_metrics.get("referring_domains"),
         "trust_flow": raw_metrics.get("trust_flow") or 0,
         "citation_flow": raw_metrics.get("citation_flow") or 0,
+        "provider_used": provider_used,
     }
 
     return {
@@ -862,6 +1017,11 @@ def run_orchestrated_audit(
         "target_domain": clean_domain,
         "executive_scorecard": {
             "overall_score": overall_score,
+            "readiness_score": scorecard_result.readiness_score,
+            "visibility_score": scorecard_result.visibility_score,
+            "visibility_confidence": scorecard_result.visibility_confidence,
+            "citation_samples_count": scorecard_result.citation_samples_count,
+            "provider_used": provider_used,
             "authority_metrics": safe_metrics,
             "crawler_status": "Restricted" if not robots_ok else "Fully Permitted",
             "llms_txt_status": "Missing / Incomplete" if not llms_ok else "Standard Compliant",

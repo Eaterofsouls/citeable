@@ -33,12 +33,12 @@ class TestT301LayerDeductions:
             assert code in LAYER_DEDUCTIONS, f"{code} not in LAYER_DEDUCTIONS"
 
     def test_deductions_have_valid_layers(self):
-        """All deductions must reference valid layer IDs."""
+        """All deductions must reference valid layer IDs and non-negative integers."""
         from areos.auditors.scoring import LAYER_DEDUCTIONS, LAYERS
         valid_layers = set(LAYERS.keys())
         for code, (layer, points) in LAYER_DEDUCTIONS.items():
             assert layer in valid_layers, f"{code} references invalid layer '{layer}'"
-            assert isinstance(points, int) and points > 0, f"{code} has invalid points: {points}"
+            assert isinstance(points, int) and points >= 0, f"{code} has invalid points: {points}"
 
     def test_score_floor_enforcement(self):
         """Score must never go below SCORE_FLOOR even with maximum deductions."""

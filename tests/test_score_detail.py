@@ -42,13 +42,13 @@ def test_full_run_returns_stored_score_detail(client):
         "authority_metrics": {"authority_score": 12, "referring_domains": 3, "trust_flow": 0, "citation_flow": 0},
     }
     _insert_run("run-with-detail", json.dumps(detail))
-    body = client.get("/api/v1/audit/runs/run-with-detail/full").json()
+    body = client.get("/api/v1/audit/runs/run-with-detail/full", headers={"X-Run-Token": "tok"}).json()
     assert body["overall_score"] == 77
     assert body["score_detail"] == detail
 
 def test_legacy_row_has_null_detail_and_no_crash(client):
     _insert_run("run-legacy", None)
-    r = client.get("/api/v1/audit/runs/run-legacy/full")
+    r = client.get("/api/v1/audit/runs/run-legacy/full", headers={"X-Run-Token": "tok"})
     assert r.status_code == 200 and r.json()["score_detail"] is None
 
 @pytest.mark.parametrize("raw", [None, "", "not json", "[1, 2]"])

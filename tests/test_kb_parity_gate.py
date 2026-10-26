@@ -33,7 +33,7 @@ def test_audit_phase_crashed_parity(tmp_path):
     assert "AUDIT_PHASE_CRASHED" in LAYER_DEDUCTIONS
     layer, pts = LAYER_DEDUCTIONS["AUDIT_PHASE_CRASHED"]
     assert layer == "access"
-    assert pts == 5
+    assert pts == 2
 
     db_path = tmp_path / "parity_test.db"
     build_kb(db_path=str(db_path))
