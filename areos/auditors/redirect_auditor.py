@@ -95,6 +95,46 @@ def _has_meta_noindex(html: str) -> bool:
     return False
 
 
+def _has_meta_ai_optout(html: str) -> bool:
+    """
+    Check if HTML contains an AI-training/archival opt-out directive (WP-4.3):
+    - <meta name="robots" content="noarchive"> (or noarchive in comma-separated directives)
+    - <meta name="bingbot" content="nocache"> (or nocache in directives)
+    """
+    if not html:
+        return False
+    meta_tags = re.findall(r"<meta\b[^>]*>", html, flags=re.IGNORECASE)
+    for tag in meta_tags:
+        name_match = re.search(
+            r'\bname\s*=\s*["\']?(robots|googlebot|bingbot|slurp|msnbot|teoma)["\']?',
+            tag,
+            flags=re.IGNORECASE,
+        )
+        if name_match:
+            bot_name = name_match.group(1).lower()
+            content_match = re.search(
+                r'\bcontent\s*=\s*["\']([^"\']*)["\']',
+                tag,
+                flags=re.IGNORECASE,
+            )
+            if not content_match:
+                content_match = re.search(
+                    r'\bcontent\s*=\s*([^\s>]+)',
+                    tag,
+                    flags=re.IGNORECASE,
+                )
+            if content_match:
+                directives = [
+                    d.strip().lower()
+                    for d in content_match.group(1).split(",")
+                ]
+                if "noarchive" in directives or any(d == "noarchive" for d in directives):
+                    return True
+                if ("nocache" in directives or any(d == "nocache" for d in directives)) and bot_name in ("bingbot", "robots"):
+                    return True
+    return False
+
+
 def _extract_canonical_href(html: str) -> Optional[str]:
     """Extract canonical link href from HTML head/body."""
     if not html:
@@ -195,6 +235,20 @@ def audit_redirects_and_access(
             )
         )
 
+    # 3b. Parse HTML for meta robots noarchive/nocache opt-out (WP-4.3)
+    if _has_meta_ai_optout(html):
+        issues.append(
+            RedirectIssue(
+                severity="info",
+                code="AI_OPTOUT_SIGNAL_PRESENT",
+                message=(
+                    "This page has an AI-training/archival opt-out signal (noarchive/nocache) "
+                    "that excludes it from Bing Chat/Copilot answers and training. "
+                    "If this was not intentional, remove this directive."
+                ),
+            )
+        )
+
     # 4. Parse HTML for canonical link and compare to final_url
     canonical_href = _extract_canonical_href(html)
     if canonical_href:
@@ -210,6 +264,14 @@ def audit_redirects_and_access(
                     ),
                 )
             )
+    else:
+        issues.append(
+            RedirectIssue(
+                severity="warning",
+                code="CANONICAL_MISSING",
+                message='No <link rel="canonical"> tag found on this page.',
+            )
+        )
 
     # 5. If no issues found, emit ACCESS_OK
     if not issues:

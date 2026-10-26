@@ -29,11 +29,51 @@ import re
 
 # ── Crawler groups ───────────────────────────────────────────────────────────
 
-AI_CRAWLERS = [
-    "GPTBot", "ChatGPT-User", "ClaudeBot", "Claude-User",
-    "PerplexityBot", "Google-Extended", "Googlebot", "Bingbot",
-    "CCBot", "anthropic-ai", "Diffbot", "YouBot", "cohere-ai",
-]
+AI_CRAWLER_ROLES: dict[str, str] = {
+    # Search indexing bots (responsible for real-time generative search citations)
+    "OAI-SearchBot": "search",
+    "Claude-SearchBot": "search",
+    "PerplexityBot": "search",
+    "Amzn-SearchBot": "search",
+    "Googlebot": "search",
+    "Bingbot": "search",
+    "YouBot": "search",
+
+    # Model training crawlers (offline foundation model training)
+    "GPTBot": "training",
+    "ClaudeBot": "training",
+    "Amazonbot": "training",
+    "Google-Extended": "training",
+    "CCBot": "training",
+    "anthropic-ai": "training",
+    "Diffbot": "training",
+    "cohere-ai": "training",
+
+    # User-triggered on-demand fetchers (direct conversational turn lookups)
+    "ChatGPT-User": "fetch",
+    "Claude-User": "fetch",
+    "Perplexity-User": "fetch",
+    "Amzn-User": "fetch",
+}
+
+AI_CRAWLERS: list[str] = list(AI_CRAWLER_ROLES.keys())
+
+_NON_SIGNIFICANT_DISALLOW_PATHS = {
+    "/admin", "/admin/", "/wp-admin", "/wp-admin/", "/cgi-bin", "/cgi-bin/",
+    "/login", "/login/", "/account", "/account/", "/checkout", "/checkout/",
+    "/cart", "/cart/", "/wp-login.php", "/user", "/user/",
+}
+
+
+def _is_non_significant_path(path: str) -> bool:
+    clean = path.strip().lower()
+    if not clean:
+        return True
+    return (
+        clean in _NON_SIGNIFICANT_DISALLOW_PATHS
+        or clean.rstrip("/") in _NON_SIGNIFICANT_DISALLOW_PATHS
+        or (clean.rstrip("/") + "/") in _NON_SIGNIFICANT_DISALLOW_PATHS
+    )
 
 
 # ── Data structures ──────────────────────────────────────────────────────────
@@ -178,30 +218,63 @@ def parse_robots_txt(robots_txt: str) -> RobotsResult:
     # ── Issue detection ──────────────────────────────────────────────────────
 
     # Check each known AI crawler
+    fully_blocked_crawlers: list[str] = []
+    partial_blocked_crawlers: dict[str, list[str]] = {}
+    blocked_search_crawlers: dict[str, list[str]] = {}
+
     for crawler in AI_CRAWLERS:
         directive = result.effective_policy(crawler)
+        role = AI_CRAWLER_ROLES.get(crawler, "training")
         if directive is None:
             result.issues.append(RobotsIssue(
                 "info", "NO_DIRECTIVE",
                 f"{crawler}: no explicit directive found (inherits wildcard or is unrestricted)"
             ))
         elif directive.is_fully_blocked:
-            result.issues.append(RobotsIssue(
-                "warning", "CRAWLER_FULLY_BLOCKED",
-                f"{crawler}: Disallow: / — fully blocked, will not index any page"
-            ))
+            fully_blocked_crawlers.append(crawler)
+            if role == "search":
+                blocked_search_crawlers[crawler] = ["/"]
         elif directive.is_fully_allowed:
             result.issues.append(RobotsIssue(
                 "info", "CRAWLER_ALLOWED",
                 f"{crawler}: explicitly allowed to crawl (no Disallow restrictions)"
             ))
         else:
-            # Partial — list what's blocked
-            blocked_paths = ", ".join(directive.disallowed_paths)
-            result.issues.append(RobotsIssue(
-                "info", "CRAWLER_PARTIAL",
-                f"{crawler}: partially restricted — blocked: [{blocked_paths}]"
-            ))
+            # Check for significant disallowed paths
+            sig_paths = [p for p in directive.disallowed_paths if not _is_non_significant_path(p)]
+            if sig_paths:
+                partial_blocked_crawlers[crawler] = sig_paths
+                if role == "search":
+                    blocked_search_crawlers[crawler] = sig_paths
+
+    # Emit SEARCH_CRAWLER_BLOCKED if any search-role crawler is blocked
+    if blocked_search_crawlers:
+        details = "; ".join(
+            f"{c} ({', '.join(paths)})" for c, paths in blocked_search_crawlers.items()
+        )
+        result.issues.append(RobotsIssue(
+            "error", "SEARCH_CRAWLER_BLOCKED",
+            f"Search-indexing AI crawlers blocked from site content: [{details}]. This directly prevents citations and inclusion in AI search responses."
+        ))
+
+    # Emit CRAWLER_FULLY_BLOCKED at most once for the whole audit run
+    if fully_blocked_crawlers:
+        if len(fully_blocked_crawlers) == 1:
+            msg = f"{fully_blocked_crawlers[0]}: Disallow: / — fully blocked, will not index any page"
+        else:
+            crawlers_str = ", ".join(fully_blocked_crawlers)
+            msg = f"AI crawlers fully blocked (Disallow: /): [{crawlers_str}]"
+        result.issues.append(RobotsIssue("warning", "CRAWLER_FULLY_BLOCKED", msg))
+
+    # Emit CRAWLER_PARTIAL at most once for the whole audit run
+    if partial_blocked_crawlers:
+        details = "; ".join(
+            f"{c}: [{', '.join(paths)}]" for c, paths in partial_blocked_crawlers.items()
+        )
+        result.issues.append(RobotsIssue(
+            "info", "CRAWLER_PARTIAL",
+            f"AI crawlers partially restricted — blocked: {details}"
+        ))
 
     # Warn if Google-Extended missing (common oversight)
     if "Google-Extended" not in result.directives:
@@ -310,11 +383,14 @@ def parse_llms_txt(llms_txt: Optional[str]) -> LlmsTxtResult:
 def format_robots_report(url: str, result: RobotsResult) -> str:
     lines = [f"robots.txt Report for: {url}", "=" * 60]
 
-    blocked = [i for i in result.issues if i.code == "CRAWLER_FULLY_BLOCKED"]
+    blocked_count = sum(
+        1 for crawler in AI_CRAWLERS
+        if (d := result.effective_policy(crawler)) and d.is_fully_blocked
+    )
     warnings = [i for i in result.issues if i.severity == "warning"]
 
     lines.append(f"Summary: {len(result.directives)} explicit directives | "
-                 f"{len(blocked)} AI crawlers fully blocked | {len(warnings)} warnings\n")
+                 f"{blocked_count} AI crawlers fully blocked | {len(warnings)} warnings\n")
 
     for issue in result.issues:
         icon = {"error": "✗", "warning": "⚠", "info": "ℹ"}.get(issue.severity, "?")
