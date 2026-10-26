@@ -275,7 +275,7 @@
 {"eid": "EV-4081", "kid": "KT-204", "sid": "SRC-123", "relationship": "qualifies", "weight": "corroborating", "note": "C-SEO Bench qualification on multi-actor competitive saturation."}
 {"eid": "EV-4082", "kid": "KT-205", "sid": "SRC-122", "relationship": "supports", "weight": "primary", "note": "Primary Princeton GEO-bench ablation table (-8.4% to -10.2%)."}
 {"eid": "EV-4083", "kid": "KT-205", "sid": "SRC-123", "relationship": "qualifies", "weight": "corroborating", "note": "C-SEO Bench qualification on multi-actor competitive saturation."}
-{"eid": "EV-4084", "kid": "KT-206", "sid": "SRC-124", "relationship": "supports", "weight": "primary", "note": "Ahrefs study of 4.2M citations showing 62.9% non-top-10 organic presence."}
+{"eid": "EV-4084", "kid": "KT-206", "sid": "SRC-124", "relationship": "supports", "weight": "primary", "note": "Ahrefs Brand Radar study of 15,000 long-tail prompts showing only 12% of AI-cited URLs appear in Google top 10."}
 {"eid": "EV-4085", "kid": "KT-207", "sid": "SRC-125", "relationship": "supports", "weight": "primary", "note": "seoClarity study of 12,011 citations showing 19% top-20 organic overlap."}
 {"eid": "EV-4086", "kid": "KT-208", "sid": "SRC-126", "relationship": "supports", "weight": "primary", "note": "Kalicube process marketing documentation (vendor hypothesis)."}
 {"eid": "EV-4087", "kid": "KT-209", "sid": "SRC-127", "relationship": "supports", "weight": "primary", "note": "Ahrefs controlled experiment across 1,885 schema-added pages."}
