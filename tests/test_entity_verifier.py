@@ -1,12 +1,20 @@
 # tests/test_entity_verifier.py
 
 import pytest
+from unittest.mock import MagicMock
 from areos.auditors.entity_verifier import (
     EntityAuditResult,
     EntityIssue,
     audit_entities,
     format_entity_report,
 )
+
+
+@pytest.fixture(autouse=True)
+def mock_sameas_healthy(monkeypatch):
+    """Ensure existing unit tests do not make real network calls."""
+    mock_resp = MagicMock(status_code=200)
+    monkeypatch.setattr("areos.auditors.entity_verifier.safe_get", lambda *args, **kwargs: mock_resp)
 
 
 def test_no_entities_found():

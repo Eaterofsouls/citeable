@@ -17,8 +17,40 @@
 
 from __future__ import annotations
 
+import concurrent.futures
 from dataclasses import dataclass, field
 from typing import Any, Optional
+
+from areos.util.ssrf import safe_get
+
+_SAMEAS_CHECK_HEADERS = {
+    "User-Agent": "AREOS-Auditor/1.0 (https://citeable.org; contact@citeable.org)",
+    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+}
+
+
+def _check_sameas_liveness(urls: list[str], timeout: float = 3.0, max_workers: int = 5) -> list[str]:
+    """
+    Bounded, SSRF-hardened liveness check for entity sameAs links (WP-2.2).
+    Returns the subset of URLs that are dead (4xx/5xx/timeout/connection error/SSRF violation).
+    """
+    dead: list[str] = []
+    candidate_urls = [u for u in urls if isinstance(u, str) and u.startswith(("http://", "https://"))][:10]
+    if not candidate_urls:
+        return dead
+
+    def _check_one(url: str) -> tuple[str, bool]:
+        try:
+            resp = safe_get(url, timeout=timeout, max_bytes=1024, headers=_SAMEAS_CHECK_HEADERS)
+            return url, resp.status_code >= 400
+        except Exception:
+            return url, True
+
+    with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
+        for url, is_dead in executor.map(_check_one, candidate_urls):
+            if is_dead:
+                dead.append(url)
+    return dead
 
 
 # ── Entity Type Definitions ──────────────────────────────────────────────────
@@ -313,17 +345,19 @@ def audit_entities(
     page_url: str,
     html: str = "",
     json_ld_blocks: list[dict] | None = None,
+    check_liveness: bool = True,
 ) -> EntityAuditResult:
     """
     Audit JSON-LD blocks for entity verification (Organization, LocalBusiness, Person).
 
-    Evaluates entity naming, sameAs linkage completeness, and Wikidata/Wikipedia authority connections.
-    Boundary: Entity links only — no network requests, no URL validation.
+    Evaluates entity naming, sameAs linkage completeness, Wikidata/Wikipedia authority connections,
+    and sameAs liveness (WP-2.2).
 
     Args:
         page_url: The URL of the audited page.
         html: Raw HTML content (optional).
         json_ld_blocks: Extracted JSON-LD dictionary blocks.
+        check_liveness: Whether to verify liveness of sameAs URLs via safe_get.
 
     Returns:
         EntityAuditResult containing issues and detected entities.
@@ -333,6 +367,7 @@ def audit_entities(
 
     issues: list[EntityIssue] = []
     entities_found: list[dict] = []
+    all_dead_sameas: list[str] = []
 
     # Flatten and extract all JSON-LD blocks including @graph and nested entities
     all_blocks = _flatten_blocks(json_ld_blocks)
@@ -429,12 +464,30 @@ def audit_entities(
                         )
                     )
 
+        # Liveness check on extracted sameAs URLs (WP-2.2)
+        if check_liveness and same_as_count > 0:
+            dead_links = _check_sameas_liveness(same_as_list)
+            for d in dead_links:
+                if d not in all_dead_sameas:
+                    all_dead_sameas.append(d)
+
         # 3. Record found entity
         entities_found.append({
             "type": matched_type,
             "name": name,
             "sameAs_count": same_as_count,
         })
+
+    # Emit SAMEAS_DEAD_LINK at most once per audit (WP-2.2)
+    if all_dead_sameas:
+        dead_str = ", ".join(all_dead_sameas)
+        issues.append(
+            EntityIssue(
+                severity="warning",
+                code="SAMEAS_DEAD_LINK",
+                message=f"sameAs structured data contains dead or unreachable link(s): [{dead_str}]",
+            )
+        )
 
     # If no entity-type blocks found, emit ENTITY_OK with note
     if not entities_found:

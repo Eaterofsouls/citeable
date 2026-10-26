@@ -35,27 +35,119 @@ class ExtractabilityResult:
 
 # ── Signal extraction ─────────────────────────────────────────────────────────
 
+def extract_rag_signals_from_html(html: str) -> dict:
+    """
+    Extract RAG and chunkability signals from raw HTML.
+    Provides fallback signal generation when crawler hasn't pre-computed them.
+    """
+    if not html:
+        return {}
+    try:
+        from bs4 import BeautifulSoup
+        soup = BeautifulSoup(html[:1000000], "html.parser")
+        
+        # Scripts analysis
+        scripts = soup.find_all("script")
+        inline_script_bytes = sum(len(s.get_text()) for s in scripts if s.get_text())
+        
+        # JSON-LD count and FAQ schema detection
+        json_lds = []
+        for s in scripts:
+            if s.get("type") == "application/ld+json":
+                try:
+                    data = json.loads(s.get_text())
+                    if isinstance(data, dict):
+                        json_lds.append(data)
+                    elif isinstance(data, list):
+                        json_lds.extend([d for d in data if isinstance(d, dict)])
+                except Exception:
+                    pass
+        has_faq_schema = any(isinstance(b, dict) and b.get("@type") == "FAQPage" for b in json_lds)
+        
+        dom_node_count = len(soup.find_all())
+        headings = soup.find_all(["h1", "h2", "h3", "h4", "h5", "h6"])
+        heading_count = len(headings)
+        list_item_count = len(soup.find_all("li"))
+        
+        # Decompose scripts and styles for body text extraction
+        for tag in soup(["script", "style"]):
+            tag.decompose()
+            
+        paragraphs = soup.find_all(["p", "article", "section"])
+        paragraph_texts = [p.get_text(separator=" ", strip=True) for p in paragraphs if p.get_text(strip=True)]
+        
+        if not paragraph_texts:
+            body = soup.find("body")
+            txt = body.get_text(separator=" ", strip=True) if body else soup.get_text(separator=" ", strip=True)
+            if txt:
+                paragraph_texts = [p.strip() for p in txt.split("\n\n") if p.strip()]
+                
+        substantive = [p for p in paragraph_texts if len(p.split()) >= 10]
+        total_substantive = len(substantive)
+        
+        if substantive:
+            avg_word_count = sum(len(p.split()) for p in substantive) / len(substantive)
+        elif paragraph_texts:
+            avg_word_count = sum(len(p.split()) for p in paragraph_texts) / len(paragraph_texts)
+        else:
+            avg_word_count = 0.0
+            
+        page_text_lower = soup.get_text().lower()
+        faq_indicators = 0
+        if any(term in page_text_lower for term in ("faq", "frequently asked", "q&a")):
+            faq_indicators += 1
+        faq_indicators += sum(1 for h in headings if "?" in h.get_text())
+        
+        return {
+            "total_substantive_paragraphs": total_substantive,
+            "avg_paragraph_word_count": avg_word_count,
+            "heading_count": heading_count,
+            "list_item_count": list_item_count,
+            "faq_indicators": faq_indicators,
+            "dom_node_count": dom_node_count,
+            "inline_script_bytes": inline_script_bytes,
+            "json_lds": json_lds,
+            "has_faq_schema": has_faq_schema,
+        }
+    except Exception:
+        return {}
+
+
 def build_signals(page_data: dict) -> dict:
     """
     Build a concise, judge-readable signal snapshot from crawler output.
-    Works with the output format of advanced_deep_audit.py.
+    Works with the output format of advanced_deep_audit.py or raw HTML payloads.
     """
-    rag = page_data.get("rag_chunkability", {})
+    rag = page_data.get("rag_chunkability")
+    html_signals = {}
+    if rag is None and "html" in page_data:
+        html_signals = extract_rag_signals_from_html(page_data["html"])
+        rag = html_signals
+
+    if rag is None:
+        rag = {}
+
+    json_lds = page_data.get("json_lds")
+    if json_lds is None:
+        json_lds = html_signals.get("json_lds", [])
+
     return {
         "url": page_data.get("url", ""),
-        "status_code": page_data.get("status_code", 0),
+        "status_code": page_data.get("status_code", 200 if page_data.get("html") else 0),
         "substantive_paragraphs": rag.get("total_substantive_paragraphs", 0),
         "avg_paragraph_word_count": round(rag.get("avg_paragraph_word_count", 0), 1),
         "heading_count": rag.get("heading_count", 0),
         "list_item_count": rag.get("list_item_count", 0),
         "faq_indicators": rag.get("faq_indicators", 0),
-        "dom_node_count": page_data.get("dom_node_count", 0),
-        "inline_script_bytes": page_data.get("script_stats", {}).get("inline_script_bytes", 0),
-        "json_ld_count": len(page_data.get("json_lds", [])),
+        "dom_node_count": page_data.get("dom_node_count", rag.get("dom_node_count", 0)),
+        "inline_script_bytes": page_data.get("script_stats", {}).get(
+            "inline_script_bytes", rag.get("inline_script_bytes", 0)
+        ),
+        "json_ld_count": len(json_lds),
         "has_faq_schema": any(
             isinstance(b, dict) and b.get("@type") == "FAQPage"
-            for b in page_data.get("json_lds", [])
-        ),
+            for b in json_lds
+        ) if json_lds else rag.get("has_faq_schema", False),
     }
 
 
