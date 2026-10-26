@@ -124,3 +124,61 @@ class TestT501RenderingAuditor:
             codes = [i.code for i in res.issues]
             assert "RENDERING_OK" in codes
             assert res.passed is True
+
+    @patch("areos.auditors.rendering_auditor.PLAYWRIGHT_AVAILABLE", True)
+    @patch("areos.auditors.rendering_auditor.sync_playwright")
+    def test_ssrf_rejects_loopback_and_metadata_before_navigation(self, mock_playwright):
+        """WP-0.3: SSRF targets (127.0.0.1, 169.254.169.254) must be blocked before Playwright launches."""
+        from areos.auditors.rendering_auditor import audit_js_rendering
+
+        with patch.dict(os.environ, {"AREOS_ENABLE_PLAYWRIGHT": "1"}):
+            for restricted_url in [
+                "http://127.0.0.1:8000/internal",
+                "http://169.254.169.254/latest/meta-data",
+                "http://localhost:3000",
+                "http://10.0.0.1/admin",
+            ]:
+                res = audit_js_rendering(restricted_url, "<html><body>test</body></html>")
+                assert res.skipped is True
+                assert "SSRF validation blocked" in res.reason
+                assert any(i.code == "RENDERING_FAILED" for i in res.issues)
+
+        # Confirm Playwright was NEVER launched
+        mock_playwright.assert_not_called()
+
+    @patch("areos.auditors.rendering_auditor.PLAYWRIGHT_AVAILABLE", True)
+    @patch("areos.auditors.rendering_auditor.sync_playwright")
+    def test_ssrf_route_interception_aborts_restricted_requests(self, mock_playwright):
+        """WP-0.3: Playwright route handler must abort outgoing requests to restricted addresses."""
+        from areos.auditors.rendering_auditor import audit_js_rendering
+
+        mock_page = MagicMock()
+        mock_page.evaluate.return_value = "Hello"
+        mock_ctx = MagicMock()
+        mock_ctx.new_page.return_value = mock_page
+        mock_browser = MagicMock()
+        mock_browser.new_context.return_value = mock_ctx
+        mock_p_instance = MagicMock()
+        mock_p_instance.chromium.launch.return_value = mock_browser
+        mock_playwright.return_value.__enter__.return_value = mock_p_instance
+
+        with patch.dict(os.environ, {"AREOS_ENABLE_PLAYWRIGHT": "1"}):
+            audit_js_rendering("https://example.com", "<p>Hello</p>")
+
+        # Retrieve the route callback passed to page.route
+        assert mock_page.route.called
+        pattern, handler = mock_page.route.call_args[0]
+        assert pattern == "**/*"
+
+        # Test restricted route is aborted
+        mock_bad_route = MagicMock()
+        mock_bad_route.request.url = "http://169.254.169.254/metadata"
+        handler(mock_bad_route)
+        mock_bad_route.abort.assert_called_once()
+        mock_bad_route.continue_.assert_not_called()
+
+        # Test data URI is allowed
+        mock_data_route = MagicMock()
+        mock_data_route.request.url = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII="
+        handler(mock_data_route)
+        mock_data_route.continue_.assert_called_once()

@@ -22,21 +22,39 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/v1/byok", tags=["BYOK Vault Diagnostics"])
 
 import threading
+import hashlib
 from functools import lru_cache
 
 _byok_ip_buckets = defaultdict(list)
 _byok_lock = threading.Lock()
 
 
+def _get_client_identity(request: Request) -> str:
+    """Return a spoof-resistant client identity for rate-limiting buckets."""
+    if request is not None:
+        headers = getattr(request, "headers", None)
+        if headers is not None and hasattr(headers, "get"):
+            auth = headers.get("authorization")
+            if isinstance(auth, str) and auth.startswith("Bearer "):
+                token = auth.split(" ", 1)[1].strip()
+                if token:
+                    return f"auth:{hashlib.sha256(token.encode('utf-8')).hexdigest()[:16]}"
+
+        host = request.client.host if request.client else "unknown"
+        if isinstance(host, str) and host:
+            return f"ip:{host}"
+
+    return "ip:unknown"
+
 
 def check_byok_rate_limit(request: Request):
-    ip = request.client.host if request.client else "unknown"
+    client_id = _get_client_identity(request)
     now = time.time()
     with _byok_lock:
-        _byok_ip_buckets[ip] = [t for t in _byok_ip_buckets[ip] if now - t < 60]
-        if len(_byok_ip_buckets[ip]) >= 15:
+        _byok_ip_buckets[client_id] = [t for t in _byok_ip_buckets[client_id] if now - t < 60]
+        if len(_byok_ip_buckets[client_id]) >= 15:
             raise HTTPException(status_code=429, detail="Rate limit exceeded for BYOK verifications")
-        _byok_ip_buckets[ip].append(now)
+        _byok_ip_buckets[client_id].append(now)
 
 class ByokVerifyRequest(BaseModel):
     provider: str = Field(..., description="Provider code (e.g., google, openai, groq, anthropic)")

@@ -1,3 +1,4 @@
+import hmac
 import json
 import logging
 import secrets
@@ -7,7 +8,7 @@ from collections import defaultdict
 from pathlib import Path
 from typing import Annotated, Any, Literal, Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, Header, HTTPException, Query, Request
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 
@@ -153,7 +154,7 @@ def create_audit_run(
 
 
 @router.get("/audit/runs", response_model=AuditRunListResponse)
-def list_audit_runs(conn=Depends(get_db)):
+def list_audit_runs(_: None = Depends(verify_admin), conn=Depends(get_db)):
     rows = conn.execute(
         "SELECT run_id, target_domain, run_date, status, overall_score, created_at FROM audit_runs ORDER BY created_at DESC"
     ).fetchall()
@@ -161,10 +162,24 @@ def list_audit_runs(conn=Depends(get_db)):
 
 
 @router.get("/audit/runs/{run_id}", response_model=AuditRunDetailResponse)
-def get_audit_run(run_id: str, conn=Depends(get_db)):
+def get_audit_run(
+    run_id: str,
+    x_run_token: str | None = Header(None, alias="X-Run-Token"),
+    token: str | None = Query(None),
+    run_token: str | None = Query(None),
+    conn=Depends(get_db),
+):
+    provided_token = x_run_token or token or run_token
+    if not provided_token:
+        raise HTTPException(status_code=401, detail="Run token required")
+
     row = conn.execute("SELECT * FROM audit_runs WHERE run_id = ?", (run_id,)).fetchone()
     if not row:
         raise HTTPException(status_code=404, detail="Audit run not found")
+
+    expected_token = row["run_token"] if hasattr(row, "keys") else row[1]
+    if not expected_token or not hmac.compare_digest(provided_token, expected_token):
+        raise HTTPException(status_code=403, detail="Invalid run token")
 
     run = dict(row)
     findings = json.loads(run["automated_findings"])
@@ -233,7 +248,13 @@ def _parse_score_detail(raw):
 
 
 @router.get("/audit/runs/{run_id}/full")
-def get_full_run_report(run_id: str, conn=Depends(get_db)):
+def get_full_run_report(
+    run_id: str,
+    x_run_token: str | None = Header(None, alias="X-Run-Token"),
+    token: str | None = Query(None),
+    run_token: str | None = Query(None),
+    conn=Depends(get_db),
+):
     """
     UX audit §5.3/§5.7 — the single rehydration endpoint that lets any
     Studio tab reload a past run's state: manual review progress, the
@@ -250,9 +271,17 @@ def get_full_run_report(run_id: str, conn=Depends(get_db)):
     as unavailable on a reload, rather than guess. This does not affect a
     run's first, live view — only revisiting an old run_id later.
     """
+    provided_token = x_run_token or token or run_token
+    if not provided_token:
+        raise HTTPException(status_code=401, detail="Run token required")
+
     row = conn.execute("SELECT * FROM audit_runs WHERE run_id = ?", (run_id,)).fetchone()
     if not row:
         raise HTTPException(status_code=404, detail="Audit run not found")
+
+    expected_token = row["run_token"] if hasattr(row, "keys") else row[1]
+    if not expected_token or not hmac.compare_digest(provided_token, expected_token):
+        raise HTTPException(status_code=403, detail="Invalid run token")
 
     run = dict(row)
     findings = json.loads(run["automated_findings"])
@@ -324,23 +353,51 @@ def get_full_run_report(run_id: str, conn=Depends(get_db)):
 # In-memory IP rate limiter, shared by any endpoint that can trigger real
 # outbound/paid work (orchestrated audits, authority lookups).
 #
-# FIX (Readiness Audit, Major #4): this used to key on the raw
-# X-Forwarded-For request header directly, which is fully attacker-supplied
-# unless a trusted proxy strips and re-sets it — any client could rotate the
-# header value per request to get a "fresh" bucket every time, defeating the
-# limiter entirely. request.client.host is what Starlette/uvicorn resolves
-# the connecting peer to (honoring --forwarded-allow-ips for a *trusted*
-# proxy, per the Dockerfile's uvicorn invocation), so it isn't something an
-# arbitrary client can simply overwrite with its own header.
+# WP-0.2: Rate limiter now uses _get_client_identity(request) which keys on
+# authenticated identity (Bearer token / BYOK credentials) or the direct
+# peer host (request.client.host). Combined with Dockerfile restricting
+# --forwarded-allow-ips to trusted internal subnets, X-Forwarded-For cannot
+# be spoofed by external callers to evade rate limits.
+import hashlib
 import threading
 
 _ip_buckets = defaultdict(list)
 _rate_limit_lock = threading.Lock()
 
 
+def _get_client_identity(request: Request) -> str:
+    """Return a spoof-resistant client identity for rate-limiting buckets."""
+    if request is not None:
+        headers = getattr(request, "headers", None)
+        if headers is not None and hasattr(headers, "get"):
+            auth = headers.get("authorization")
+            if isinstance(auth, str) and auth.startswith("Bearer "):
+                token = auth.split(" ", 1)[1].strip()
+                if token:
+                    return f"auth:{hashlib.sha256(token.encode('utf-8')).hexdigest()[:16]}"
+
+            if hasattr(headers, "items"):
+                try:
+                    byok_items = []
+                    for h_name, h_val in headers.items():
+                        if isinstance(h_name, str) and h_name.lower().startswith("x-api-key-") and isinstance(h_val, str):
+                            byok_items.append(f"{h_name.lower()}:{h_val.strip()}")
+                    if byok_items:
+                        byok_items.sort()
+                        return f"byok:{hashlib.sha256(';'.join(byok_items).encode('utf-8')).hexdigest()[:16]}"
+                except Exception:
+                    pass
+
+        host = request.client.host if request.client else "unknown"
+        if isinstance(host, str) and host:
+            return f"ip:{host}"
+
+    return "ip:unknown"
+
+
 def _rate_limit(request: Request, bucket_prefix: str, limit: int = 10, window_seconds: int = 60) -> None:
-    ip = request.client.host if request.client else "unknown"
-    key = f"{bucket_prefix}:{ip}"
+    client_id = _get_client_identity(request)
+    key = f"{bucket_prefix}:{client_id}"
     now = time.time()
 
     with _rate_limit_lock:

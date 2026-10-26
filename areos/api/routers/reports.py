@@ -1,9 +1,10 @@
+import hmac
 import json
 import logging
 from pathlib import Path
 from typing import Any
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, Header, HTTPException, Query
 from fastapi.responses import Response
 from pydantic import BaseModel
 
@@ -43,11 +44,18 @@ class RemediationPlanResponse(BaseModel):
     plan_markdown: str
 
 
-def _build_final_report_data(run_id: str, conn) -> tuple[dict, int, str]:
+def _build_final_report_data(run_id: str, conn, provided_token: str | None = None) -> tuple[dict, int, str]:
     """Shared row lookup and markdown compilation for report endpoints."""
+    if not provided_token:
+        raise HTTPException(status_code=401, detail="Run token required")
+
     row = conn.execute("SELECT * FROM audit_runs WHERE run_id = ?", (run_id,)).fetchone()
     if not row:
         raise HTTPException(status_code=404, detail="Audit run not found")
+
+    expected_token = row["run_token"] if hasattr(row, "keys") else row[1]
+    if not expected_token or not hmac.compare_digest(provided_token, expected_token):
+        raise HTTPException(status_code=403, detail="Invalid run token")
 
     run = dict(row)
     findings = json.loads(run["automated_findings"])
@@ -78,11 +86,18 @@ def _build_final_report_data(run_id: str, conn) -> tuple[dict, int, str]:
     return run, len(verdicts_list), final_markdown
 
 
-def _build_remediation_plan_data(run_id: str, conn) -> tuple[dict, Any]:
+def _build_remediation_plan_data(run_id: str, conn, provided_token: str | None = None) -> tuple[dict, Any]:
     """Shared row lookup and plan synthesis for remediation endpoints."""
+    if not provided_token:
+        raise HTTPException(status_code=401, detail="Run token required")
+
     row = conn.execute("SELECT * FROM audit_runs WHERE run_id = ?", (run_id,)).fetchone()
     if not row:
         raise HTTPException(status_code=404, detail="Audit run not found")
+
+    expected_token = row["run_token"] if hasattr(row, "keys") else row[1]
+    if not expected_token or not hmac.compare_digest(provided_token, expected_token):
+        raise HTTPException(status_code=403, detail="Invalid run token")
 
     run = dict(row)
     findings = json.loads(run["automated_findings"])
@@ -129,8 +144,15 @@ def _build_remediation_plan_data(run_id: str, conn) -> tuple[dict, Any]:
 
 
 @router.get("/audit/runs/{run_id}/report", response_model=ReportResponse)
-def get_final_report(run_id: str, conn=Depends(get_db)):
-    run, verdicts_count, final_markdown = _build_final_report_data(run_id, conn)
+def get_final_report(
+    run_id: str,
+    x_run_token: str | None = Header(None, alias="X-Run-Token"),
+    token: str | None = Query(None),
+    run_token: str | None = Query(None),
+    conn=Depends(get_db),
+):
+    provided_token = x_run_token or token or run_token
+    run, verdicts_count, final_markdown = _build_final_report_data(run_id, conn, provided_token)
     return {
         "run_id": run_id,
         "target_domain": run["target_domain"],
@@ -140,8 +162,15 @@ def get_final_report(run_id: str, conn=Depends(get_db)):
 
 
 @router.get("/audit/runs/{run_id}/report/download")
-def download_final_report(run_id: str, conn=Depends(get_db)):
-    run, _, final_markdown = _build_final_report_data(run_id, conn)
+def download_final_report(
+    run_id: str,
+    x_run_token: str | None = Header(None, alias="X-Run-Token"),
+    token: str | None = Query(None),
+    run_token: str | None = Query(None),
+    conn=Depends(get_db),
+):
+    provided_token = x_run_token or token or run_token
+    run, _, final_markdown = _build_final_report_data(run_id, conn, provided_token)
     filename = f"areos-report-{run_id}.md"
     return Response(
         content=final_markdown,
@@ -151,8 +180,15 @@ def download_final_report(run_id: str, conn=Depends(get_db)):
 
 
 @router.get("/audit/runs/{run_id}/remediation", response_model=RemediationPlanResponse)
-def get_remediation_plan(run_id: str, conn=Depends(get_db)):
-    run, plan = _build_remediation_plan_data(run_id, conn)
+def get_remediation_plan(
+    run_id: str,
+    x_run_token: str | None = Header(None, alias="X-Run-Token"),
+    token: str | None = Query(None),
+    run_token: str | None = Query(None),
+    conn=Depends(get_db),
+):
+    provided_token = x_run_token or token or run_token
+    run, plan = _build_remediation_plan_data(run_id, conn, provided_token)
     return {
         "run_id": run_id,
         "target_domain": run["target_domain"],
@@ -166,8 +202,15 @@ def get_remediation_plan(run_id: str, conn=Depends(get_db)):
 
 
 @router.get("/audit/runs/{run_id}/remediation/download")
-def download_remediation_plan(run_id: str, conn=Depends(get_db)):
-    run, plan = _build_remediation_plan_data(run_id, conn)
+def download_remediation_plan(
+    run_id: str,
+    x_run_token: str | None = Header(None, alias="X-Run-Token"),
+    token: str | None = Query(None),
+    run_token: str | None = Query(None),
+    conn=Depends(get_db),
+):
+    provided_token = x_run_token or token or run_token
+    run, plan = _build_remediation_plan_data(run_id, conn, provided_token)
     filename = f"areos-remediation-{run_id}.md"
     return Response(
         content=plan.format_markdown(),

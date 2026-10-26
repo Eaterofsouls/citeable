@@ -37,4 +37,4 @@ USER areos
 EXPOSE 8000
 
 # Shell form so ${PORT} expands at runtime (SEC-6)
-CMD ["sh", "-c", "python -m uvicorn areos.api.main:app --host 0.0.0.0 --port ${PORT:-8000} --proxy-headers --forwarded-allow-ips='*' --limit-concurrency 100 --timeout-keep-alive 5"]
+CMD ["sh", "-c", "python -m uvicorn areos.api.main:app --host 0.0.0.0 --port ${PORT:-8000} --proxy-headers --forwarded-allow-ips='${FORWARDED_ALLOW_IPS:-127.0.0.1,10.0.0.0/8,172.16.0.0/12,192.168.0.0/16}' --limit-concurrency 100 --timeout-keep-alive 5"]

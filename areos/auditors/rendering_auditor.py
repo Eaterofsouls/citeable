@@ -10,8 +10,11 @@ from __future__ import annotations
 import os
 import re
 import difflib
+import urllib.parse
 from dataclasses import dataclass, field
 from typing import Optional, Any
+
+from areos.util.ssrf import validate_domain_ssrf
 
 try:
     from playwright.sync_api import sync_playwright
@@ -87,6 +90,38 @@ def audit_js_rendering(page_url: str, raw_html: str, timeout_ms: int = 4000) -> 
             reason="AREOS_ENABLE_PLAYWRIGHT is disabled",
         )
 
+    # Pre-flight SSRF check: reject loopback, link-local, and private subnets before launching browser
+    parsed = urllib.parse.urlsplit(page_url)
+    if parsed.scheme not in ("http", "https"):
+        return RenderingAuditResult(
+            url=page_url,
+            skipped=True,
+            reason=f"Refusing non-HTTP(S) URL for rendering: {page_url}",
+        )
+    hostname = parsed.hostname
+    if not hostname:
+        return RenderingAuditResult(
+            url=page_url,
+            skipped=True,
+            reason=f"URL has no hostname: {page_url}",
+        )
+
+    try:
+        validate_domain_ssrf(hostname)
+    except Exception as e:
+        return RenderingAuditResult(
+            url=page_url,
+            skipped=True,
+            reason=f"SSRF validation blocked: {str(e)}",
+            issues=[
+                RenderingIssue(
+                    severity="error",
+                    code="RENDERING_FAILED",
+                    message=f"SSRF validation failed for {hostname}: {str(e)}",
+                )
+            ],
+        )
+
     raw_text = _strip_html(raw_html)
     issues: list[RenderingIssue] = []
 
@@ -94,7 +129,27 @@ def audit_js_rendering(page_url: str, raw_html: str, timeout_ms: int = 4000) -> 
         with sync_playwright() as p:
             browser = p.chromium.launch(headless=True)
             context = browser.new_context(user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36")
+
+            def _intercept_route(route):
+                req_url = route.request.url
+                req_parsed = urllib.parse.urlsplit(req_url)
+                if req_parsed.scheme in ("http", "https"):
+                    req_host = req_parsed.hostname
+                    if req_host:
+                        try:
+                            validate_domain_ssrf(req_host)
+                            route.continue_()
+                            return
+                        except Exception:
+                            route.abort()
+                            return
+                elif req_parsed.scheme in ("data", "about", "blob"):
+                    route.continue_()
+                    return
+                route.abort()
+
             page = context.new_page()
+            page.route("**/*", _intercept_route)
             page.set_default_timeout(timeout_ms)
             page.goto(page_url, wait_until="domcontentloaded", timeout=timeout_ms)
             

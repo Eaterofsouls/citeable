@@ -34,14 +34,14 @@ def client(tmp_path, monkeypatch):
     return TestClient(app)
 
 
-def _seed_run(run_id: str, target_domain: str = "example.com") -> None:
+def _seed_run(run_id: str, target_domain: str = "example.com", run_token: str = "valid_token_123") -> None:
     conn = get_connection(get_db_path())
     with write_as(conn, actor="test", reason="seed_audit_run"):
         conn.execute(
             """
             INSERT INTO audit_runs (
-                run_id, target_domain, run_date, audited_stages, automated_findings, status
-            ) VALUES (?, ?, ?, ?, ?, ?)
+                run_id, target_domain, run_date, audited_stages, automated_findings, status, run_token
+            ) VALUES (?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 run_id,
@@ -56,16 +56,26 @@ def _seed_run(run_id: str, target_domain: str = "example.com") -> None:
                     }
                 ]),
                 "automated_complete",
+                run_token,
             ),
         )
 
 
 def test_download_final_report_success(client):
     run_id = "run_report_dl_1"
-    _seed_run(run_id, "download-test.com")
+    token = "valid_token_123"
+    _seed_run(run_id, "download-test.com", run_token=token)
 
-    # Call download endpoint
-    res = client.get(f"/api/v1/audit/runs/{run_id}/report/download")
+    # Missing token returns 401
+    res_unauth = client.get(f"/api/v1/audit/runs/{run_id}/report/download")
+    assert res_unauth.status_code == 401
+
+    # Wrong token returns 403
+    res_wrong = client.get(f"/api/v1/audit/runs/{run_id}/report/download", headers={"X-Run-Token": "wrong_tok"})
+    assert res_wrong.status_code == 403
+
+    # Call download endpoint with valid token
+    res = client.get(f"/api/v1/audit/runs/{run_id}/report/download", headers={"X-Run-Token": token})
     assert res.status_code == 200
     assert "text/markdown" in res.headers.get("content-type", "")
     expected_filename = f'attachment; filename="areos-report-{run_id}.md"'
@@ -74,28 +84,33 @@ def test_download_final_report_success(client):
     assert "download-test.com" in res.text
 
     # Compare with json endpoint content
-    json_res = client.get(f"/api/v1/audit/runs/{run_id}/report")
+    json_res = client.get(f"/api/v1/audit/runs/{run_id}/report", params={"token": token})
     assert json_res.status_code == 200
     assert res.text == json_res.json()["report_markdown"]
 
 
 def test_download_final_report_not_found(client):
-    res = client.get("/api/v1/audit/runs/nonexistent_run_id/report/download")
+    res = client.get("/api/v1/audit/runs/nonexistent_run_id/report/download", headers={"X-Run-Token": "any_tok"})
     assert res.status_code == 404
     assert res.json() == {"detail": "Audit run not found"}
 
     # Must match behavior of get_final_report exactly
-    json_res = client.get("/api/v1/audit/runs/nonexistent_run_id/report")
+    json_res = client.get("/api/v1/audit/runs/nonexistent_run_id/report", headers={"X-Run-Token": "any_tok"})
     assert json_res.status_code == 404
     assert json_res.json() == res.json()
 
 
 def test_download_remediation_plan_success(client):
     run_id = "run_remediation_dl_1"
-    _seed_run(run_id, "remediation-test.com")
+    token = "valid_token_123"
+    _seed_run(run_id, "remediation-test.com", run_token=token)
 
-    # Call download endpoint
-    res = client.get(f"/api/v1/audit/runs/{run_id}/remediation/download")
+    # Missing token returns 401
+    res_unauth = client.get(f"/api/v1/audit/runs/{run_id}/remediation/download")
+    assert res_unauth.status_code == 401
+
+    # Call download endpoint with valid token
+    res = client.get(f"/api/v1/audit/runs/{run_id}/remediation/download", headers={"X-Run-Token": token})
     assert res.status_code == 200
     assert "text/markdown" in res.headers.get("content-type", "")
     expected_filename = f'attachment; filename="areos-remediation-{run_id}.md"'
@@ -103,17 +118,17 @@ def test_download_remediation_plan_success(client):
     assert len(res.text) > 0
 
     # Compare with json endpoint content
-    json_res = client.get(f"/api/v1/audit/runs/{run_id}/remediation")
+    json_res = client.get(f"/api/v1/audit/runs/{run_id}/remediation", params={"run_token": token})
     assert json_res.status_code == 200
     assert res.text == json_res.json()["plan_markdown"]
 
 
 def test_download_remediation_plan_not_found(client):
-    res = client.get("/api/v1/audit/runs/nonexistent_run_id/remediation/download")
+    res = client.get("/api/v1/audit/runs/nonexistent_run_id/remediation/download", headers={"X-Run-Token": "any_tok"})
     assert res.status_code == 404
     assert res.json() == {"detail": "Audit run not found"}
 
     # Must match behavior of get_remediation_plan exactly
-    json_res = client.get("/api/v1/audit/runs/nonexistent_run_id/remediation")
+    json_res = client.get("/api/v1/audit/runs/nonexistent_run_id/remediation", headers={"X-Run-Token": "any_tok"})
     assert json_res.status_code == 404
     assert json_res.json() == res.json()
